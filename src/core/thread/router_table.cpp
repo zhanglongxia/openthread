@@ -26,6 +26,8 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define OT_LOG_TAG "MLE"
+
 #include "router_table.hpp"
 
 #if OPENTHREAD_FTD
@@ -255,7 +257,7 @@ Router *RouterTable::Allocate(uint8_t aRouterId)
     mRouterIdSequenceLastUpdated = TimerMilli::GetNow();
     Get<Mle::MleRouter>().ResetAdvertiseInterval();
 
-    otLogNoteMle("Allocate router id %d", aRouterId);
+    otLogNote("Allocate router id %d", aRouterId);
 
 exit:
     return rval;
@@ -292,7 +294,7 @@ Error RouterTable::Release(uint8_t aRouterId)
     Get<NetworkData::Leader>().RemoveBorderRouter(rloc16, NetworkData::Leader::kMatchModeRouterId);
     Get<Mle::MleRouter>().ResetAdvertiseInterval();
 
-    otLogNoteMle("Release router id %d", aRouterId);
+    otLogNote("Release router id %d", aRouterId);
 
 exit:
     return error;

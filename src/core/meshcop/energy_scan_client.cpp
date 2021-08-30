@@ -31,6 +31,8 @@
  *   This file implements the Energy Scan Client.
  */
 
+#define OT_LOG_TAG "MESH-CP"
+
 #include "energy_scan_client.hpp"
 
 #if OPENTHREAD_CONFIG_COMMISSIONER_ENABLE && OPENTHREAD_FTD
@@ -93,7 +95,7 @@ Error EnergyScanClient::SendQuery(uint32_t                           aChannelMas
     messageInfo.SetPeerPort(Tmf::kUdpPort);
     SuccessOrExit(error = Get<Tmf::Agent>().SendMessage(*message, messageInfo));
 
-    otLogInfoMeshCoP("sent energy scan query");
+    otLogInfo("sent energy scan query");
 
     mCallback = aCallback;
     mContext  = aContext;
@@ -122,7 +124,7 @@ void EnergyScanClient::HandleReport(Coap::Message &aMessage, const Ip6::MessageI
 
     VerifyOrExit(aMessage.IsConfirmablePostRequest());
 
-    otLogInfoMeshCoP("received energy scan report");
+    otLogInfo("received energy scan report");
 
     VerifyOrExit((mask = MeshCoP::ChannelMaskTlv::GetChannelMask(aMessage)) != 0);
 
@@ -136,7 +138,7 @@ void EnergyScanClient::HandleReport(Coap::Message &aMessage, const Ip6::MessageI
 
     SuccessOrExit(Get<Tmf::Agent>().SendEmptyAck(aMessage, aMessageInfo));
 
-    otLogInfoMeshCoP("sent energy scan report response");
+    otLogInfo("sent energy scan report response");
 
 exit:
     return;

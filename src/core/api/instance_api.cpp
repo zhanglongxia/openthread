@@ -58,7 +58,7 @@ otInstance *otInstanceInit(void *aInstanceBuffer, size_t *aInstanceBufferSize)
     Instance *instance;
 
     instance = Instance::Init(aInstanceBuffer, aInstanceBufferSize);
-    otLogInfoApi("otInstance Initialized");
+    otLogInfo("otInstance Initialized");
 
     return instance;
 }

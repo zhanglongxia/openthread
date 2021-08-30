@@ -31,6 +31,8 @@
  *   This file implements the message buffer pool and message buffers.
  */
 
+#define OT_LOG_TAG "CORE"
+
 #include "message.hpp"
 
 #include "common/code_utils.hpp"
@@ -135,7 +137,7 @@ Buffer *MessagePool::NewBuffer(Message::Priority aPriority)
 exit:
     if (buffer == nullptr)
     {
-        otLogInfoMem("No available message buffer");
+        otLogInfo("No available message buffer");
     }
 
     return buffer;

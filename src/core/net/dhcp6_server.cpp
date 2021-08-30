@@ -31,6 +31,8 @@
  *   This file implements DHCPv6 Server.
  */
 
+#define OT_LOG_TAG "IP6"
+
 #include "dhcp6_server.hpp"
 
 #if OPENTHREAD_CONFIG_DHCP6_SERVER_ENABLE
@@ -170,7 +172,7 @@ exit:
 
     if (error != kErrorNone)
     {
-        otLogNoteIp6("Failed to add DHCPv6 prefix agent: %s", ErrorToString(error));
+        otLogNote("Failed to add DHCPv6 prefix agent: %s", ErrorToString(error));
     }
 }
 

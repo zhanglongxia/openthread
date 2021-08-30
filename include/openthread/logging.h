@@ -76,6 +76,13 @@ otLogLevel otLoggingGetLevel(void);
  */
 otError otLoggingSetLevel(otLogLevel aLogLevel);
 
+void otLog(otLogLevel aLevel, const char *aLogTag, const char *aFormat, ...);
+
+#define otLogCritPlat(...) otLog(OT_LOG_LEVEL_CRIT, "PLAT", __VA_ARGS__)
+#define otLogWarnPlat(...) otLog(OT_LOG_LEVEL_WARN, "PLAT", __VA_ARGS__)
+#define otLogNotePlat(...) otLog(OT_LOG_LEVEL_NOTE, "PLAT", __VA_ARGS__)
+#define otLogInfoPlat(...) otLog(OT_LOG_LEVEL_INFO, "PLAT", __VA_ARGS__)
+#define otLogDebgPlat(...) otLog(OT_LOG_LEVEL_DEBG, "PLAT", __VA_ARGS__)
 /**
  * @}
  *

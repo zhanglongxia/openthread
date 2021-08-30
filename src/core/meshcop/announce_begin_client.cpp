@@ -31,6 +31,8 @@
  *   This file implements the Announce Begin Client.
  */
 
+#define OT_LOG_TAG "MESH-CP"
+
 #include "announce_begin_client.hpp"
 
 #if OPENTHREAD_CONFIG_COMMISSIONER_ENABLE && OPENTHREAD_FTD
@@ -85,7 +87,7 @@ Error AnnounceBeginClient::SendRequest(uint32_t            aChannelMask,
 
     SuccessOrExit(error = Get<Tmf::Agent>().SendMessage(*message, messageInfo));
 
-    otLogInfoMeshCoP("sent announce begin query");
+    otLogInfo("sent announce begin query");
 
 exit:
     FreeMessageOnError(message, error);

@@ -26,6 +26,8 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define OT_LOG_TAG "DNS"
+
 #include "dns_client.hpp"
 
 #if OPENTHREAD_CONFIG_DNS_CLIENT_ENABLE
@@ -1012,7 +1014,7 @@ Error Client::ParseResponse(Response &aResponse, QueryType &aType, Error &aRespo
 exit:
     if (error != kErrorNone)
     {
-        otLogInfoDns("Failed to parse response %s", ErrorToString(error));
+        otLogInfo("Failed to parse response %s", ErrorToString(error));
     }
 
     return error;

@@ -31,6 +31,8 @@
  *   This file implements Primary Backbone Router service management in the Thread Network.
  */
 
+#define OT_LOG_TAG "BBR"
+
 #include "bbr_leader.hpp"
 
 #if (OPENTHREAD_CONFIG_THREAD_VERSION >= OT_THREAD_VERSION_1_2)
@@ -86,18 +88,18 @@ void Leader::LogBackboneRouterPrimary(State aState, const BackboneRouterConfig &
 {
     OT_UNUSED_VARIABLE(aConfig);
 
-    otLogInfoBbr("PBBR state: %s", StateToString(aState));
+    otLogInfo("PBBR state: %s", StateToString(aState));
 
     if (aState != kStateRemoved && aState != kStateNone)
     {
-        otLogInfoBbr("Rloc16: 0x%4X, seqno: %d, delay: %d, timeout %d", aConfig.mServer16, aConfig.mSequenceNumber,
+        otLogInfo("Rloc16: 0x%4X, seqno: %d, delay: %d, timeout %d", aConfig.mServer16, aConfig.mSequenceNumber,
                      aConfig.mReregistrationDelay, aConfig.mMlrTimeout);
     }
 }
 
 void Leader::LogDomainPrefix(DomainPrefixState aState, const Ip6::Prefix &aPrefix) const
 {
-    otLogInfoBbr("Domain Prefix: %s, state: %s", aPrefix.ToString().AsCString(), DomainPrefixStateToString(aState));
+    otLogInfo("Domain Prefix: %s, state: %s", aPrefix.ToString().AsCString(), DomainPrefixStateToString(aState));
 }
 
 const char *Leader::StateToString(State aState)
@@ -229,7 +231,7 @@ void Leader::UpdateBackboneRouterPrimary(void)
 
         if (config.mMlrTimeout != origMlrTimeout)
         {
-            otLogNoteBbr("Leader MLR Timeout is normalized from %u to %u", origMlrTimeout, config.mMlrTimeout);
+            otLogNote("Leader MLR Timeout is normalized from %u to %u", origMlrTimeout, config.mMlrTimeout);
         }
     }
 

@@ -31,6 +31,8 @@
  *   This file includes definitions for non-volatile storage of settings.
  */
 
+#define OT_LOG_TAG "CORE"
+
 #include "settings.hpp"
 
 #include <openthread/platform/settings.h>
@@ -54,26 +56,26 @@ static const uint16_t kCriticalKeys[] = {SettingsBase::kKeyActiveDataset, Settin
 
 void SettingsBase::LogNetworkInfo(const char *aAction, const NetworkInfo &aNetworkInfo) const
 {
-    otLogInfoCore(
+    otLogInfo(
         "Non-volatile: %s NetworkInfo {rloc:0x%04x, extaddr:%s, role:%s, mode:0x%02x, version:%hu, keyseq:0x%x, ...",
         aAction, aNetworkInfo.GetRloc16(), aNetworkInfo.GetExtAddress().ToString().AsCString(),
         Mle::Mle::RoleToString(static_cast<Mle::DeviceRole>(aNetworkInfo.GetRole())), aNetworkInfo.GetDeviceMode(),
         aNetworkInfo.GetVersion(), aNetworkInfo.GetKeySequence());
 
-    otLogInfoCore("Non-volatile: ... pid:0x%x, mlecntr:0x%x, maccntr:0x%x, mliid:%s}",
+    otLogInfo("Non-volatile: ... pid:0x%x, mlecntr:0x%x, maccntr:0x%x, mliid:%s}",
                   aNetworkInfo.GetPreviousPartitionId(), aNetworkInfo.GetMleFrameCounter(),
                   aNetworkInfo.GetMacFrameCounter(), aNetworkInfo.GetMeshLocalIid().ToString().AsCString());
 }
 
 void SettingsBase::LogParentInfo(const char *aAction, const ParentInfo &aParentInfo) const
 {
-    otLogInfoCore("Non-volatile: %s ParentInfo {extaddr:%s, version:%hu}", aAction,
+    otLogInfo("Non-volatile: %s ParentInfo {extaddr:%s, version:%hu}", aAction,
                   aParentInfo.GetExtAddress().ToString().AsCString(), aParentInfo.GetVersion());
 }
 
 void SettingsBase::LogChildInfo(const char *aAction, const ChildInfo &aChildInfo) const
 {
-    otLogInfoCore("Non-volatile: %s ChildInfo {rloc:0x%04x, extaddr:%s, timeout:%u, mode:0x%02x, version:%hu}", aAction,
+    otLogInfo("Non-volatile: %s ChildInfo {rloc:0x%04x, extaddr:%s, timeout:%u, mode:0x%02x, version:%hu}", aAction,
                   aChildInfo.GetRloc16(), aChildInfo.GetExtAddress().ToString().AsCString(), aChildInfo.GetTimeout(),
                   aChildInfo.GetMode(), aChildInfo.GetVersion());
 }
@@ -81,13 +83,13 @@ void SettingsBase::LogChildInfo(const char *aAction, const ChildInfo &aChildInfo
 #if OPENTHREAD_CONFIG_DUA_ENABLE
 void SettingsBase::LogDadInfo(const char *aAction, const DadInfo &aDadInfo) const
 {
-    otLogInfoCore("Non-volatile: %s DadInfo {DadCounter:%2d}", aAction, aDadInfo.GetDadCounter());
+    otLogInfo("Non-volatile: %s DadInfo {DadCounter:%2d}", aAction, aDadInfo.GetDadCounter());
 }
 #endif
 #if OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE
 void SettingsBase::LogPrefix(const char *aAction, const char *aPrefixName, const Ip6::Prefix &aOmrPrefix) const
 {
-    otLogInfoCore("Non-volatile: %s %s %s", aAction, aPrefixName, aOmrPrefix.ToString().AsCString());
+    otLogInfo("Non-volatile: %s %s %s", aAction, aPrefixName, aOmrPrefix.ToString().AsCString());
 }
 #endif
 
@@ -99,7 +101,7 @@ void SettingsBase::LogFailure(Error error, const char *aText, bool aIsDelete) co
 {
     if ((error != kErrorNone) && (!aIsDelete || (error != kErrorNotFound)))
     {
-        otLogWarnCore("Non-volatile: Error %s %s", ErrorToString(error), aText);
+        otLogWarn("Non-volatile: Error %s %s", ErrorToString(error), aText);
     }
 }
 
@@ -219,7 +221,7 @@ void Settings::Deinit(void)
 void Settings::Wipe(void)
 {
     Get<SettingsDriver>().Wipe();
-    otLogInfoCore("Non-volatile: Wiped all info");
+    otLogInfo("Non-volatile: Wiped all info");
 }
 
 Error Settings::SaveOperationalDataset(bool aIsActive, const MeshCoP::Dataset &aDataset)
@@ -292,7 +294,7 @@ Error Settings::DeleteNetworkInfo(void)
     Error error;
 
     SuccessOrExit(error = Delete(kKeyNetworkInfo));
-    otLogInfoCore("Non-volatile: Deleted NetworkInfo");
+    otLogInfo("Non-volatile: Deleted NetworkInfo");
 
 exit:
     LogFailure(error, "deleting NetworkInfo", true);
@@ -338,7 +340,7 @@ Error Settings::DeleteParentInfo(void)
     Error error;
 
     SuccessOrExit(error = Delete(kKeyParentInfo));
-    otLogInfoCore("Non-volatile: Deleted ParentInfo");
+    otLogInfo("Non-volatile: Deleted ParentInfo");
 
 exit:
     LogFailure(error, "deleting ParentInfo", true);
@@ -362,7 +364,7 @@ Error Settings::DeleteAllChildInfo(void)
     Error error;
 
     SuccessOrExit(error = Delete(kKeyChildInfo));
-    otLogInfoCore("Non-volatile: Deleted all ChildInfo");
+    otLogInfo("Non-volatile: Deleted all ChildInfo");
 
 exit:
     LogFailure(error, "deleting all ChildInfo", true);
@@ -453,7 +455,7 @@ Error Settings::DeleteDadInfo(void)
     Error error;
 
     SuccessOrExit(error = Delete(kKeyDadInfo));
-    otLogInfoCore("Non-volatile: Deleted DadInfo");
+    otLogInfo("Non-volatile: Deleted DadInfo");
 
 exit:
     LogFailure(error, "deleting DadInfo", true);
@@ -538,7 +540,7 @@ Error Settings::SaveSrpKey(const Crypto::Ecdsa::P256::KeyPair &aKeyPair)
     Error error = kErrorNone;
 
     SuccessOrExit(error = Save(kKeySrpEcdsaKey, aKeyPair.GetDerBytes(), aKeyPair.GetDerLength()));
-    otLogInfoCore("Non-volatile: Saved SRP key");
+    otLogInfo("Non-volatile: Saved SRP key");
 
 exit:
     LogFailure(error, "saving SRP key", false);
@@ -553,7 +555,7 @@ Error Settings::ReadSrpKey(Crypto::Ecdsa::P256::KeyPair &aKeyPair) const
     SuccessOrExit(error = Read(kKeySrpEcdsaKey, aKeyPair.GetDerBytes(), length));
     VerifyOrExit(length <= Crypto::Ecdsa::P256::KeyPair::kMaxDerSize, error = kErrorNotFound);
     aKeyPair.SetDerLength(static_cast<uint8_t>(length));
-    otLogInfoCore("Non-volatile: Read SRP key");
+    otLogInfo("Non-volatile: Read SRP key");
 
 exit:
     return error;
@@ -564,7 +566,7 @@ Error Settings::DeleteSrpKey(void)
     Error error;
 
     SuccessOrExit(error = Delete(kKeySrpEcdsaKey));
-    otLogInfoCore("Non-volatile: Deleted SRP key");
+    otLogInfo("Non-volatile: Deleted SRP key");
 
 exit:
     LogFailure(error, "deleting SRP key", true);

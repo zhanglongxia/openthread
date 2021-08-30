@@ -32,6 +32,8 @@
  *
  */
 
+#define OT_LOG_TAG "MESH-CP"
+
 #include "dataset_manager.hpp"
 
 #include <stdio.h>
@@ -312,7 +314,7 @@ void DatasetManager::SendSet(void)
     SuccessOrExit(error =
                       Get<Tmf::Agent>().SendMessage(*message, messageInfo, &DatasetManager::HandleCoapResponse, this));
 
-    otLogInfoMeshCoP("Sent %s set to leader", Dataset::TypeToString(GetType()));
+    otLogInfo("Sent %s set to leader", Dataset::TypeToString(GetType()));
 
 exit:
 
@@ -444,7 +446,7 @@ void DatasetManager::SendGetResponse(const Coap::Message &   aRequest,
 
     SuccessOrExit(error = Get<Tmf::Agent>().SendMessage(*message, aMessageInfo));
 
-    otLogInfoMeshCoP("sent %s dataset get response to %s", (GetType() == Dataset::kActive ? "active" : "pending"),
+    otLogInfo("sent %s dataset get response to %s", (GetType() == Dataset::kActive ? "active" : "pending"),
                      aMessageInfo.GetPeerAddr().ToString().AsCString());
 
 exit:
@@ -513,7 +515,7 @@ Error DatasetManager::SendSetRequest(const Dataset::Info &aDatasetInfo, const ui
     messageInfo.SetPeerPort(Tmf::kUdpPort);
     SuccessOrExit(error = Get<Tmf::Agent>().SendMessage(*message, messageInfo));
 
-    otLogInfoMeshCoP("sent dataset set request to leader");
+    otLogInfo("sent dataset set request to leader");
 
 exit:
     FreeMessageOnError(message, error);
@@ -634,7 +636,7 @@ Error DatasetManager::SendGetRequest(const Dataset::Components &aDatasetComponen
     messageInfo.SetPeerPort(Tmf::kUdpPort);
     SuccessOrExit(error = Get<Tmf::Agent>().SendMessage(*message, messageInfo));
 
-    otLogInfoMeshCoP("sent dataset get request");
+    otLogInfo("sent dataset get request");
 
 exit:
     FreeMessageOnError(message, error);
@@ -792,7 +794,7 @@ void PendingDataset::StartDelayTimer(void)
         }
 
         mDelayTimer.StartAt(dataset.GetUpdateTime(), delay);
-        otLogInfoMeshCoP("delay timer started %d", delay);
+        otLogInfo("delay timer started %d", delay);
     }
 }
 
@@ -822,7 +824,7 @@ void PendingDataset::HandleDelayTimer(void)
         }
     }
 
-    otLogInfoMeshCoP("pending delay timer expired");
+    otLogInfo("pending delay timer expired");
 
     dataset.ConvertToActive();
 

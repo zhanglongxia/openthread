@@ -31,6 +31,8 @@
  *   This file provides an implementation of OpenThread random number generation manager class.
  */
 
+#define OT_LOG_TAG "MESH-CP"
+
 #include "random_manager.hpp"
 
 #include <openthread/platform/entropy.h>
@@ -200,7 +202,7 @@ void RandomManager::CryptoCtrDrbg::Init(void)
 
     if (rval != 0)
     {
-        otLogCritMbedTls("Failed to seed the CTR DRBG");
+        otLogCrit("Failed to seed the CTR DRBG");
     }
 
     OT_ASSERT(rval == 0);

@@ -782,7 +782,8 @@ private:
     void ProcessAutoStart(void);
 #endif
 
-#if (OPENTHREAD_CONFIG_LOG_LEVEL >= OT_LOG_LEVEL_INFO) && (OPENTHREAD_CONFIG_LOG_SRP == 1)
+// #if (OPENTHREAD_CONFIG_LOG_LEVEL >= OT_LOG_LEVEL_INFO) && (OPENTHREAD_CONFIG_LOG_SRP == 1)
+#if 1
     static const char *StateToString(State aState);
     void               LogRetryWaitInterval(void) const;
 #else

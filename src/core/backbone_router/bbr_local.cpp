@@ -31,6 +31,8 @@
  *   This file implements local Backbone Router service.
  */
 
+#define OT_LOG_TAG "BBR"
+
 #include "bbr_local.hpp"
 
 #if OPENTHREAD_FTD && OPENTHREAD_CONFIG_BACKBONE_ROUTER_ENABLE
@@ -422,13 +424,13 @@ void Local::AddDomainPrefixToNetworkData(void)
 #if (OPENTHREAD_CONFIG_LOG_LEVEL >= OT_LOG_LEVEL_INFO) && (OPENTHREAD_CONFIG_LOG_BBR == 1)
 void Local::LogDomainPrefix(const char *aAction, Error aError)
 {
-    otLogInfoBbr("%s Domain Prefix: %s, %s", aAction, mDomainPrefixConfig.GetPrefix().ToString().AsCString(),
+    otLogInfo("%s Domain Prefix: %s, %s", aAction, mDomainPrefixConfig.GetPrefix().ToString().AsCString(),
                  ErrorToString(aError));
 }
 
 void Local::LogBackboneRouterService(const char *aAction, Error aError)
 {
-    otLogInfoBbr("%s BBR Service: seqno (%d), delay (%ds), timeout (%ds), %s", aAction, mSequenceNumber,
+    otLogInfo("%s BBR Service: seqno (%d), delay (%ds), timeout (%ds), %s", aAction, mSequenceNumber,
                  mReregistrationDelay, mMlrTimeout, ErrorToString(aError));
 }
 #endif

@@ -31,6 +31,8 @@
  *   This file implements the AnnounceSender.
  */
 
+#define OT_LOG_TAG "MLE"
+
 #include "announce_sender.hpp"
 
 #include <openthread/platform/radio.h>
@@ -168,7 +170,7 @@ void AnnounceSender::Stop(void)
 {
     AnnounceSenderBase::Stop();
     mTrickleTimer.Stop();
-    otLogInfoMle("[announce-sender] Stopped");
+    otLogInfo("[announce-sender] Stopped");
 }
 
 void AnnounceSender::HandleTimer(Timer &aTimer)
@@ -191,7 +193,7 @@ void AnnounceSender::HandleTrickleTimer(void)
     // message transmissions.
 
     SendAnnounce(1);
-    otLogInfoMle("[announce-sender] Schedule tx for one cycle");
+    otLogInfo("[announce-sender] Schedule tx for one cycle");
 }
 
 void AnnounceSender::HandleNotifierEvents(Events aEvents)
@@ -240,7 +242,7 @@ void AnnounceSender::HandleRoleChanged(void)
     // desired Announce Tx cycle interval.
 
     mTrickleTimer.Start(TrickleTimer::kModeTrickle, kInterval, kInterval, kRedundancyConstant);
-    otLogInfoMle("[announce-sender] Started");
+    otLogInfo("[announce-sender] Started");
 
 exit:
     return;
@@ -257,7 +259,7 @@ void AnnounceSender::HandleActiveDatasetChanged(void)
 
     SetChannelMask(channelMask);
     SetPeriod(kTxInterval / channelMask.GetNumberOfChannels());
-    otLogInfoMle("[announce-sender] ChannelMask:%s, period:%u", GetChannelMask().ToString().AsCString(), GetPeriod());
+    otLogInfo("[announce-sender] ChannelMask:%s, period:%u", GetChannelMask().ToString().AsCString(), GetPeriod());
 
     // When channel mask is changed, we also check and update the PAN
     // channel. This handles the case where `ThreadChannelChanged` event
@@ -273,7 +275,7 @@ exit:
 void AnnounceSender::HandleThreadChannelChanged(void)
 {
     SetStartingChannel(Get<Mac::Mac>().GetPanChannel());
-    otLogInfoMle("[announce-sender] StartingChannel:%d", GetStartingChannel());
+    otLogInfo("[announce-sender] StartingChannel:%d", GetStartingChannel());
 }
 
 #endif // OPENTHREAD_CONFIG_ANNOUNCE_SENDER_ENABLE

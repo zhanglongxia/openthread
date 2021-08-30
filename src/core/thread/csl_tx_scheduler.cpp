@@ -26,6 +26,8 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define OT_LOG_TAG "MAC"
+
 #include "csl_tx_scheduler.hpp"
 
 #if OPENTHREAD_FTD && OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
@@ -251,7 +253,7 @@ void CslTxScheduler::HandleSentFrame(const Mac::TxFrame &aFrame, Error aError, C
     case kErrorNoAck:
         aChild.IncrementCslTxAttempts();
 
-        otLogInfoMac("CSL tx to child %04x failed, attempt %d/%d", aChild.GetRloc16(), aChild.GetCslTxAttempts(),
+        otLogInfo("CSL tx to child %04x failed, attempt %d/%d", aChild.GetRloc16(), aChild.GetCslTxAttempts(),
                      kMaxCslTriggeredTxAttempts);
 
         if (aChild.GetCslTxAttempts() >= kMaxCslTriggeredTxAttempts)

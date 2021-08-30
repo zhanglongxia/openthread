@@ -106,7 +106,7 @@ const char *otExitCodeToString(uint8_t aExitCode);
     {                                                                                                        \
         if (!(aCondition))                                                                                   \
         {                                                                                                    \
-            otLogCritPlat("%s() at %s:%d: %s", __func__, __FILE__, __LINE__, otExitCodeToString(aExitCode)); \
+            otLogCrit("%s() at %s:%d: %s", __func__, __FILE__, __LINE__, otExitCodeToString(aExitCode)); \
             exit(aExitCode);                                                                                 \
         }                                                                                                    \
     } while (false)
@@ -140,7 +140,7 @@ const char *otExitCodeToString(uint8_t aExitCode);
 #define DieNowWithMessage(aMessage, aExitCode)                                                 \
     do                                                                                         \
     {                                                                                          \
-        otLogCritPlat("exit(%d): %s line %d, %s, %s", aExitCode, __func__, __LINE__, aMessage, \
+        otLogCrit("exit(%d): %s line %d, %s, %s", aExitCode, __func__, __LINE__, aMessage, \
                       otExitCodeToString(aExitCode));                                          \
         exit(aExitCode);                                                                       \
     } while (false)

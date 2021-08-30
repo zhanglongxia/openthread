@@ -31,6 +31,8 @@
  *   This file implements DHCPv6 Client.
  */
 
+#define OT_LOG_TAG "IP6"
+
 #include "dhcp6_client.hpp"
 
 #if OPENTHREAD_CONFIG_DHCP6_CLIENT_ENABLE
@@ -145,7 +147,7 @@ void Client::UpdateAddresses(void)
             }
             else
             {
-                otLogWarnIp6("Insufficient memory for new DHCP prefix");
+                otLogWarn("Insufficient memory for new DHCP prefix");
                 continue;
             }
         }
@@ -282,13 +284,13 @@ void Client::Solicit(uint16_t aRloc16)
     messageInfo.mPeerPort = kDhcpServerPort;
 
     SuccessOrExit(error = mSocket.SendTo(*message, messageInfo));
-    otLogInfoIp6("solicit");
+    otLogInfo("solicit");
 
 exit:
     if (error != kErrorNone)
     {
         FreeMessage(message);
-        otLogWarnIp6("Failed to send DHCPv6 Solicit: %s", ErrorToString(error));
+        otLogWarn("Failed to send DHCPv6 Solicit: %s", ErrorToString(error));
     }
 }
 

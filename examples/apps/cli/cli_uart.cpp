@@ -33,6 +33,7 @@
 
 #include <openthread-system.h>
 #include <openthread/cli.h>
+#include <openthread/logging.h>
 
 #include "cli/cli_config.h"
 #include "common/code_utils.hpp"
@@ -224,7 +225,7 @@ static otError ProcessCommand(void)
 #if OPENTHREAD_CONFIG_MULTIPLE_INSTANCE_ENABLE
     /* TODO: how exactly do we get the instance here? */
 #else
-    otLogInfoCli("execute command: %s", sRxBuffer);
+    otLogInfoPlat("execute command: %s", sRxBuffer);
 #endif
 #endif
     if (sRxLength > 0)

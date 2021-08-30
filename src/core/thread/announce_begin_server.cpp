@@ -31,6 +31,8 @@
  *   This file implements the Announce Begin Server.
  */
 
+#define OT_LOG_TAG "MESH-CP"
+
 #include "announce_begin_server.hpp"
 
 #include <openthread/platform/radio.h>
@@ -86,7 +88,7 @@ void AnnounceBeginServer::HandleRequest(Coap::Message &aMessage, const Ip6::Mess
     if (aMessage.IsConfirmable() && !aMessageInfo.GetSockAddr().IsMulticast())
     {
         SuccessOrExit(Get<Tmf::Agent>().SendEmptyAck(aMessage, responseInfo));
-        otLogInfoMeshCoP("sent announce begin response");
+        otLogInfo("sent announce begin response");
     }
 
 exit:

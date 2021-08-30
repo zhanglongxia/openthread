@@ -31,6 +31,8 @@
  *   This file implements common methods for manipulating Thread Network Data.
  */
 
+#define OT_LOG_TAG "N-DATA"
+
 #include "network_data.hpp"
 
 #include "coap/coap_message.hpp"
@@ -408,7 +410,7 @@ void NetworkData::RemoveTemporaryData(uint8_t *aData, uint8_t &aDataLength)
                 continue;
             }
 
-            otDumpDebgNetData("remove prefix done", aData, aDataLength);
+            otDumpDebg("remove prefix done", aData, aDataLength);
             break;
         }
 
@@ -423,7 +425,7 @@ void NetworkData::RemoveTemporaryData(uint8_t *aData, uint8_t &aDataLength)
                 continue;
             }
 
-            otDumpDebgNetData("remove service done", aData, aDataLength);
+            otDumpDebg("remove service done", aData, aDataLength);
             break;
         }
 
@@ -441,7 +443,7 @@ void NetworkData::RemoveTemporaryData(uint8_t *aData, uint8_t &aDataLength)
         cur = cur->GetNext();
     }
 
-    otDumpDebgNetData("remove done", aData, aDataLength);
+    otDumpDebg("remove done", aData, aDataLength);
 }
 
 void NetworkData::RemoveTemporaryData(uint8_t *aData, uint8_t &aDataLength, PrefixTlv &aPrefix)
@@ -707,7 +709,7 @@ Error NetworkData::SendServerDataNotification(uint16_t aRloc16, Coap::ResponseHa
     messageInfo.SetPeerPort(Tmf::kUdpPort);
     SuccessOrExit(error = Get<Tmf::Agent>().SendMessage(*message, messageInfo, aHandler, aContext));
 
-    otLogInfoNetData("Sent server data notification");
+    otLogInfo("Sent server data notification");
 
 exit:
     FreeMessageOnError(message, error);

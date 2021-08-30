@@ -31,6 +31,8 @@
  *   This file implements the PAN ID Query Client.
  */
 
+#define OT_LOG_TAG "MESH-CP"
+
 #include "panid_query_client.hpp"
 
 #if OPENTHREAD_CONFIG_COMMISSIONER_ENABLE && OPENTHREAD_FTD
@@ -88,7 +90,7 @@ Error PanIdQueryClient::SendQuery(uint16_t                            aPanId,
     messageInfo.SetPeerPort(Tmf::kUdpPort);
     SuccessOrExit(error = Get<Tmf::Agent>().SendMessage(*message, messageInfo));
 
-    otLogInfoMeshCoP("sent panid query");
+    otLogInfo("sent panid query");
 
     mCallback = aCallback;
     mContext  = aContext;
@@ -112,7 +114,7 @@ void PanIdQueryClient::HandleConflict(Coap::Message &aMessage, const Ip6::Messag
 
     VerifyOrExit(aMessage.IsConfirmablePostRequest());
 
-    otLogInfoMeshCoP("received panid conflict");
+    otLogInfo("received panid conflict");
 
     SuccessOrExit(Tlv::Find<MeshCoP::PanIdTlv>(aMessage, panId));
 
@@ -125,7 +127,7 @@ void PanIdQueryClient::HandleConflict(Coap::Message &aMessage, const Ip6::Messag
 
     SuccessOrExit(Get<Tmf::Agent>().SendEmptyAck(aMessage, responseInfo));
 
-    otLogInfoMeshCoP("sent panid query conflict response");
+    otLogInfo("sent panid query conflict response");
 
 exit:
     return;

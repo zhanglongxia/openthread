@@ -26,6 +26,8 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define OT_LOG_TAG "SRP"
+
 #include "srp_client.hpp"
 
 #if OPENTHREAD_CONFIG_SRP_CLIENT_ENABLE
@@ -70,7 +72,7 @@ void Client::HostInfo::SetState(ItemState aState)
 {
     if (aState != GetState())
     {
-        otLogInfoSrp("[client] HostInfo %s -> %s", ItemStateToString(GetState()), ItemStateToString(aState));
+        otLogInfo("[client] HostInfo %s -> %s", ItemStateToString(GetState()), ItemStateToString(aState));
         mState = static_cast<otSrpClientItemState>(aState);
     }
 }
@@ -80,11 +82,11 @@ void Client::HostInfo::SetAddresses(const Ip6::Address *aAddresses, uint8_t aNum
     mAddresses    = aAddresses;
     mNumAddresses = aNumAddresses;
 
-    otLogInfoSrp("[client] HostInfo set %d addrs", GetNumAddresses());
+    otLogInfo("[client] HostInfo set %d addrs", GetNumAddresses());
 
     for (uint8_t index = 0; index < GetNumAddresses(); index++)
     {
-        otLogInfoSrp("[client] %s", GetAddress(index).ToString().AsCString());
+        otLogInfo("[client] %s", GetAddress(index).ToString().AsCString());
     }
 }
 
@@ -110,14 +112,14 @@ void Client::Service::SetState(ItemState aState)
 {
     VerifyOrExit(GetState() != aState);
 
-    otLogInfoSrp("[client] Service %s -> %s, \"%s\" \"%s\"", ItemStateToString(GetState()), ItemStateToString(aState),
+    otLogInfo("[client] Service %s -> %s, \"%s\" \"%s\"", ItemStateToString(GetState()), ItemStateToString(aState),
                  GetInstanceName(), GetName());
 
     if (aState == kToAdd)
     {
         // Log more details only when entering `kToAdd` state.
 
-        otLogInfoSrp("[client] port:%d weight:%d prio:%d txts:%d", GetPort(), GetWeight(), GetPriority(),
+        otLogInfo("[client] port:%d weight:%d prio:%d txts:%d", GetPort(), GetWeight(), GetPriority(),
                      GetNumTxtEntries());
     }
 
@@ -199,7 +201,7 @@ Error Client::Start(const Ip6::SockAddr &aServerSockAddr, Requester aRequester)
     SuccessOrExit(error = mSocket.Open(Client::HandleUdpReceive, this));
     SuccessOrExit(error = mSocket.Connect(aServerSockAddr));
 
-    otLogInfoSrp("[client] %starting, server %s", (aRequester == kRequesterUser) ? "S" : "Auto-s",
+    otLogInfo("[client] %starting, server %s", (aRequester == kRequesterUser) ? "S" : "Auto-s",
                  aServerSockAddr.ToString().AsCString());
 
     Resume();
@@ -345,7 +347,7 @@ Error Client::SetDomainName(const char *aName)
     VerifyOrExit((mHostInfo.GetState() == kToAdd) || (mHostInfo.GetState() == kRemoved), error = kErrorInvalidState);
 
     mDomainName = (aName != nullptr) ? aName : kDefaultDomainName;
-    otLogInfoSrp("[client] Domain name \"%s\"", mDomainName);
+    otLogInfo("[client] Domain name \"%s\"", mDomainName);
 
 exit:
     return error;
@@ -360,7 +362,7 @@ Error Client::SetHostName(const char *aName)
 
     VerifyOrExit((mHostInfo.GetState() == kToAdd) || (mHostInfo.GetState() == kRemoved), error = kErrorInvalidState);
 
-    otLogInfoSrp("[client] Host name \"%s\"", aName);
+    otLogInfo("[client] Host name \"%s\"", aName);
     mHostInfo.SetName(aName);
     mHostInfo.SetState(kToAdd);
     UpdateState();
@@ -451,7 +453,7 @@ Error Client::RemoveHostAndServices(bool aShouldRemoveKeyLease)
 {
     Error error = kErrorNone;
 
-    otLogInfoSrp("[client] Remove host & services");
+    otLogInfo("[client] Remove host & services");
 
     VerifyOrExit(mHostInfo.GetState() != kRemoved, error = kErrorAlready);
 
@@ -487,7 +489,7 @@ exit:
 
 void Client::ClearHostAndServices(void)
 {
-    otLogInfoSrp("[client] Clear host & services");
+    otLogInfo("[client] Clear host & services");
 
     switch (GetState())
     {
@@ -514,7 +516,7 @@ void Client::SetState(State aState)
 {
     VerifyOrExit(aState != mState);
 
-    otLogInfoSrp("[client] State %s -> %s", StateToString(mState), StateToString(aState));
+    otLogInfo("[client] State %s -> %s", StateToString(mState), StateToString(aState));
     mState = aState;
 
     switch (mState)
@@ -585,7 +587,7 @@ void Client::SendUpdate(void)
     SuccessOrExit(error = PrepareUpdateMessage(*message));
     SuccessOrExit(error = mSocket.SendTo(*message, Ip6::MessageInfo()));
 
-    otLogInfoSrp("[client] Send update");
+    otLogInfo("[client] Send update");
 
     // State changes:
     //   kToAdd     -> kAdding
@@ -618,7 +620,7 @@ exit:
         // continue to retry using the `mRetryWaitInterval` (which keeps
         // growing on each failure).
 
-        otLogInfoSrp("[client] Failed to send update: %s", ErrorToString(error));
+        otLogInfo("[client] Failed to send update: %s", ErrorToString(error));
 
         FreeMessage(message);
 
@@ -632,7 +634,7 @@ exit:
             interval = Random::NonCrypto::AddJitter(kTxFailureRetryInterval, kTxFailureRetryJitter);
             mTimer.Start(interval);
 
-            otLogInfoSrp("[client] Quick retry %d in %u msec", mTxFailureRetryCount, interval);
+            otLogInfo("[client] Quick retry %d in %u msec", mTxFailureRetryCount, interval);
 
             // Do not report message preparation errors to user
             // until `kMaxTxFailureRetries` are exhausted.
@@ -1099,13 +1101,13 @@ void Client::ProcessResponse(Message &aMessage)
 
     // Response is for the earlier request message.
 
-    otLogInfoSrp("[client] Received response");
+    otLogInfo("[client] Received response");
 
     error = Dns::Header::ResponseCodeToError(header.GetResponseCode());
 
     if (error != kErrorNone)
     {
-        otLogInfoSrp("[client] Server rejected %s code:%d", ErrorToString(error), header.GetResponseCode());
+        otLogInfo("[client] Server rejected %s code:%d", ErrorToString(error), header.GetResponseCode());
 
         if (mHostInfo.GetState() == kAdding)
         {
@@ -1200,7 +1202,7 @@ void Client::ProcessResponse(Message &aMessage)
 exit:
     if (error != kErrorNone)
     {
-        otLogInfoSrp("[client] Failed to process response %s", ErrorToString(error));
+        otLogInfo("[client] Failed to process response %s", ErrorToString(error));
     }
 }
 
@@ -1483,7 +1485,7 @@ void Client::HandleTimer(void)
 
     case kStateUpdating:
         LogRetryWaitInterval();
-        otLogInfoSrp("[client] Timed out, no response");
+        otLogInfo("[client] Timed out, no response");
         GrowRetryWaitInterval();
         SetState(kStateToUpdate);
         InvokeCallback(kErrorResponseTimeout);
@@ -1544,7 +1546,7 @@ void Client::ProcessAutoStart(void)
             ExitNow();
         }
 
-        otLogInfoSrp("[client] Found anycast server %d", anycastInfo.mSequenceNumber);
+        otLogInfo("[client] Found anycast server %d", anycastInfo.mSequenceNumber);
 
         serverSockAddr.SetAddress(anycastInfo.mAnycastAddress);
         serverSockAddr.SetPort(kAnycastServerPort);
@@ -1613,8 +1615,8 @@ const char *Client::ItemStateToString(ItemState aState)
     return kItemStateStrings[aState];
 }
 
-#if (OPENTHREAD_CONFIG_LOG_LEVEL >= OT_LOG_LEVEL_INFO) && (OPENTHREAD_CONFIG_LOG_SRP == 1)
-
+//#if (OPENTHREAD_CONFIG_LOG_LEVEL >= OT_LOG_LEVEL_INFO) && (OPENTHREAD_CONFIG_LOG_SRP == 1)
+#if 1
 const char *Client::StateToString(State aState)
 {
     static const char *const kStateStrings[] = {
@@ -1646,7 +1648,7 @@ void Client::LogRetryWaitInterval(void) const
 
     uint32_t interval = GetRetryWaitInterval();
 
-    otLogInfoSrp("[client] Retry interval %u %s", (interval < kLogInMsecLimit) ? interval : Time::MsecToSec(interval),
+    otLogInfo("[client] Retry interval %u %s", (interval < kLogInMsecLimit) ? interval : Time::MsecToSec(interval),
                  (interval < kLogInMsecLimit) ? "ms" : "sec");
 }
 

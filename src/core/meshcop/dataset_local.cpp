@@ -32,6 +32,8 @@
  *
  */
 
+#define OT_LOG_TAG "MESH-CP"
+
 #include "dataset_local.hpp"
 
 #include <stdio.h>
@@ -185,13 +187,13 @@ Error DatasetLocal::Save(const Dataset &aDataset)
         // do not propagate error back
         IgnoreError(Get<Settings>().DeleteOperationalDataset(IsActive()));
         mSaved = false;
-        otLogInfoMeshCoP("%s dataset deleted", Dataset::TypeToString(mType));
+        otLogInfo("%s dataset deleted", Dataset::TypeToString(mType));
     }
     else
     {
         SuccessOrExit(error = Get<Settings>().SaveOperationalDataset(IsActive(), aDataset));
         mSaved = true;
-        otLogInfoMeshCoP("%s dataset set", Dataset::TypeToString(mType));
+        otLogInfo("%s dataset set", Dataset::TypeToString(mType));
     }
 
     timestamp = aDataset.GetTimestamp();

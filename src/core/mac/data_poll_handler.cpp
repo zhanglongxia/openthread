@@ -31,6 +31,8 @@
  *   This file includes the implementation for handling of data polls and indirect frame transmission.
  */
 
+#define OT_LOG_TAG "MAC"
+
 #include "data_poll_handler.hpp"
 
 #if OPENTHREAD_FTD
@@ -144,7 +146,7 @@ void DataPollHandler::HandleDataPoll(Mac::RxFrame &aFrame)
 
     indirectMsgCount = child->GetIndirectMessageCount();
 
-    otLogInfoMac("Rx data poll, src:0x%04x, qed_msgs:%d, rss:%d, ack-fp:%d", child->GetRloc16(), indirectMsgCount,
+    otLogInfo("Rx data poll, src:0x%04x, qed_msgs:%d, rss:%d, ack-fp:%d", child->GetRloc16(), indirectMsgCount,
                  aFrame.GetRssi(), aFrame.IsAckedWithFramePending());
 
     if (!aFrame.IsAckedWithFramePending())
@@ -244,7 +246,7 @@ void DataPollHandler::HandleSentFrame(const Mac::TxFrame &aFrame, Error aError, 
     case kErrorNoAck:
         aChild.IncrementIndirectTxAttempts();
 
-        otLogInfoMac("Indirect tx to child %04x failed, attempt %d/%d", aChild.GetRloc16(),
+        otLogInfo("Indirect tx to child %04x failed, attempt %d/%d", aChild.GetRloc16(),
                      aChild.GetIndirectTxAttempts(), kMaxPollTriggeredTxAttempts);
 
         OT_FALL_THROUGH;

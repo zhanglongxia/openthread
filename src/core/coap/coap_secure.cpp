@@ -26,6 +26,8 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define OT_LOG_TAG "MESH-CP"
+
 #include "coap_secure.hpp"
 
 #if OPENTHREAD_CONFIG_DTLS_ENABLE
@@ -232,12 +234,12 @@ void CoapSecure::HandleTransmit(void)
 exit:
     if (error != kErrorNone)
     {
-        otLogNoteMeshCoP("CoapSecure Transmit: %s", ErrorToString(error));
+        otLogNote("CoapSecure Transmit: %s", ErrorToString(error));
         message->Free();
     }
     else
     {
-        otLogDebgMeshCoP("CoapSecure Transmit: %s", ErrorToString(error));
+        otLogDebg("CoapSecure Transmit: %s", ErrorToString(error));
     }
 }
 

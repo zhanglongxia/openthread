@@ -31,6 +31,8 @@
  *   This file implements the Thread Network Data managed by the Thread Leader.
  */
 
+#define OT_LOG_TAG "N-DATA"
+
 #include "network_data_leader.hpp"
 
 #if OPENTHREAD_FTD
@@ -142,7 +144,7 @@ void Leader::HandleServerData(Coap::Message &aMessage, const Ip6::MessageInfo &a
     ThreadNetworkDataTlv networkData;
     uint16_t             rloc16;
 
-    otLogInfoNetData("Received network data registration");
+    otLogInfo("Received network data registration");
 
     VerifyOrExit(aMessageInfo.GetPeerAddr().GetIid().IsRoutingLocator());
 
@@ -166,7 +168,7 @@ void Leader::HandleServerData(Coap::Message &aMessage, const Ip6::MessageInfo &a
 
     SuccessOrExit(Get<Tmf::Agent>().SendEmptyAck(aMessage, aMessageInfo));
 
-    otLogInfoNetData("Sent network data registration acknowledgment");
+    otLogInfo("Sent network data registration acknowledgment");
 
 exit:
     return;
@@ -345,7 +347,7 @@ void Leader::SendCommissioningGetResponse(const Coap::Message &   aRequest,
 
     SuccessOrExit(error = Get<Tmf::Agent>().SendMessage(*message, aMessageInfo));
 
-    otLogInfoMeshCoP("sent commissioning dataset get response");
+    otLogInfo("sent commissioning dataset get response");
 
 exit:
     FreeMessageOnError(message, error);
@@ -367,7 +369,7 @@ void Leader::SendCommissioningSetResponse(const Coap::Message &    aRequest,
 
     SuccessOrExit(error = Get<Tmf::Agent>().SendMessage(*message, aMessageInfo));
 
-    otLogInfoMeshCoP("sent commissioning dataset set response");
+    otLogInfo("sent commissioning dataset set response");
 
 exit:
     FreeMessageOnError(message, error);
@@ -728,13 +730,13 @@ void Leader::RegisterNetworkData(uint16_t aRloc16, const uint8_t *aTlvs, uint8_t
 
     IncrementVersions(flags);
 
-    otDumpDebgNetData("add done", mTlvs, mLength);
+    otDumpDebg("add done", mTlvs, mLength);
 
 exit:
 
     if (error != kErrorNone)
     {
-        otLogNoteNetData("Failed to register network data: %s", ErrorToString(error));
+        otLogNote("Failed to register network data: %s", ErrorToString(error));
     }
 }
 
@@ -967,7 +969,7 @@ Error Leader::AllocateServiceId(uint8_t &aServiceId) const
         {
             aServiceId = serviceId;
             error      = kErrorNone;
-            otLogInfoNetData("Allocated Service ID = %d", serviceId);
+            otLogInfo("Allocated Service ID = %d", serviceId);
             break;
         }
     }
@@ -1002,7 +1004,7 @@ Error Leader::AllocateContextId(uint8_t &aContextId)
             mContextUsed |= (1 << contextId);
             aContextId = contextId;
             error      = kErrorNone;
-            otLogInfoNetData("Allocated Context ID = %d", contextId);
+            otLogInfo("Allocated Context ID = %d", contextId);
             break;
         }
     }
@@ -1012,7 +1014,7 @@ Error Leader::AllocateContextId(uint8_t &aContextId)
 
 void Leader::FreeContextId(uint8_t aContextId)
 {
-    otLogInfoNetData("Free Context Id = %d", aContextId);
+    otLogInfo("Free Context Id = %d", aContextId);
     RemoveContext(aContextId);
     mContextUsed &= ~(1 << aContextId);
     IncrementVersions(/* aIncludeStable */ true);
@@ -1100,7 +1102,7 @@ void Leader::RemoveRloc(uint16_t       aRloc16,
         cur = cur->GetNext();
     }
 
-    otDumpDebgNetData("remove done", mTlvs, mLength);
+    otDumpDebg("remove done", mTlvs, mLength);
 }
 
 void Leader::RemoveRlocInPrefix(PrefixTlv &      aPrefix,

@@ -31,6 +31,8 @@
  *   This file includes implementation for SRP server.
  */
 
+#define OT_LOG_TAG "SRP"
+
 #include "srp_server.hpp"
 
 #if OPENTHREAD_CONFIG_SRP_SERVER_ENABLE
@@ -242,13 +244,13 @@ void Server::RemoveHost(Host *aHost, bool aRetainName, bool aNotifyServiceHandle
 
     if (aRetainName)
     {
-        otLogInfoSrp("[server] remove host '%s' (but retain its name)", aHost->mFullName);
+        otLogInfo("[server] remove host '%s' (but retain its name)", aHost->mFullName);
     }
     else
     {
         aHost->mKeyLease = 0;
         IgnoreError(mHosts.Remove(*aHost));
-        otLogInfoSrp("[server] fully remove host '%s'", aHost->mFullName);
+        otLogInfo("[server] fully remove host '%s'", aHost->mFullName);
     }
 
     if (aNotifyServiceHandler && mServiceUpdateHandler != nullptr)
@@ -321,7 +323,7 @@ void Server::HandleServiceUpdateResult(ServiceUpdateId aId, Error aError)
     }
     else
     {
-        otLogInfoSrp("[server] delayed SRP host update result, the SRP update has been committed");
+        otLogInfo("[server] delayed SRP host update result, the SRP update has been committed");
     }
 }
 
@@ -369,7 +371,7 @@ void Server::CommitSrpUpdate(Error                    aError,
     {
         if (aHost.GetKeyLease() == 0)
         {
-            otLogInfoSrp("[server] remove key of host %s", aHost.GetFullName());
+            otLogInfo("[server] remove key of host %s", aHost.GetFullName());
             RemoveHost(existingHost, /* aRetainName */ false, /* aNotifyServiceHandler */ false);
         }
         else if (existingHost != nullptr)
@@ -392,7 +394,7 @@ void Server::CommitSrpUpdate(Error                    aError,
 
         // Merge current updates into existing host.
 
-        otLogInfoSrp("[server] update host %s", existingHost->GetFullName());
+        otLogInfo("[server] update host %s", existingHost->GetFullName());
 
         existingHost->CopyResourcesFrom(aHost);
         while ((service = aHost.GetNextService(service)) != nullptr)
@@ -409,7 +411,7 @@ void Server::CommitSrpUpdate(Error                    aError,
 
                 VerifyOrExit(newService != nullptr, aError = kErrorNoBufs);
                 SuccessOrExit(aError = newService->CopyResourcesFrom(*service));
-                otLogInfoSrp("[server] %s service %s", (existingService != nullptr) ? "update existing" : "add new",
+                otLogInfo("[server] %s service %s", (existingService != nullptr) ? "update existing" : "add new",
                              service->mFullName);
             }
         }
@@ -418,7 +420,7 @@ void Server::CommitSrpUpdate(Error                    aError,
     }
     else
     {
-        otLogInfoSrp("[server] add new host %s", aHost.GetFullName());
+        otLogInfo("[server] add new host %s", aHost.GetFullName());
         AddHost(&aHost);
     }
 
@@ -447,12 +449,12 @@ void Server::Start(void)
 
     SuccessOrExit(error = PublishServerData());
 
-    otLogInfoSrp("[server] start listening on port %hu", mSocket.GetSockName().mPort);
+    otLogInfo("[server] start listening on port %hu", mSocket.GetSockName().mPort);
 
 exit:
     if (error != kErrorNone)
     {
-        otLogCritSrp("[server] failed to start: %s", ErrorToString(error));
+        otLogCrit("[server] failed to start: %s", ErrorToString(error));
         // Cleanup any resources we may have allocated.
         Stop();
     }
@@ -479,7 +481,7 @@ void Server::Stop(void)
     mLeaseTimer.Stop();
     mOutstandingUpdatesTimer.Stop();
 
-    otLogInfoSrp("[server] stop listening on %hu", mSocket.GetSockName().mPort);
+    otLogInfo("[server] stop listening on %hu", mSocket.GetSockName().mPort);
     IgnoreError(mSocket.Close());
 
 exit:
@@ -520,7 +522,7 @@ void Server::UnpublishServerData(void)
 
     if (error != kErrorNone)
     {
-        otLogWarnSrp("[server] failed to unpublish SRP service: %s", ErrorToString(error));
+        otLogCrit("[server] failed to unpublish SRP service: %s", ErrorToString(error));
     }
 }
 
@@ -552,13 +554,13 @@ void Server::HandleDnsUpdate(Message &                aMessage,
     Dns::Zone zone;
     Host *    host = nullptr;
 
-    otLogInfoSrp("[server] receive DNS update from %s", aMessageInfo.GetPeerAddr().ToString().AsCString());
+    otLogInfo("[server] receive DNS update from %s", aMessageInfo.GetPeerAddr().ToString().AsCString());
 
     SuccessOrExit(error = ProcessZoneSection(aMessage, aDnsHeader, aOffset, zone));
 
     if (FindOutstandingUpdate(aMessageInfo, aDnsHeader.GetMessageId()) != nullptr)
     {
-        otLogInfoSrp("[server] drop duplicated SRP update request: messageId=%hu", aDnsHeader.GetMessageId());
+        otLogInfo("[server] drop duplicated SRP update request: messageId=%hu", aDnsHeader.GetMessageId());
 
         // Silently drop duplicate requests.
         // This could rarely happen, because the outstanding SRP update timer should
@@ -1068,17 +1070,17 @@ void Server::SendResponse(const Dns::UpdateHeader &   aHeader,
 
     if (aResponseCode != Dns::UpdateHeader::kResponseSuccess)
     {
-        otLogInfoSrp("[server] send fail response: %d", aResponseCode);
+        otLogInfo("[server] send fail response: %d", aResponseCode);
     }
     else
     {
-        otLogInfoSrp("[server] send success response");
+        otLogInfo("[server] send success response");
     }
 
 exit:
     if (error != kErrorNone)
     {
-        otLogWarnSrp("[server] failed to send response: %s", ErrorToString(error));
+        otLogCrit("[server] failed to send response: %s", ErrorToString(error));
         FreeMessage(response);
     }
 }
@@ -1120,12 +1122,12 @@ void Server::SendResponse(const Dns::UpdateHeader &aHeader,
 
     SuccessOrExit(error = mSocket.SendTo(*response, aMessageInfo));
 
-    otLogInfoSrp("[server] send response with granted lease: %u and key lease: %u", aLease, aKeyLease);
+    otLogInfo("[server] send response with granted lease: %u and key lease: %u", aLease, aKeyLease);
 
 exit:
     if (error != kErrorNone)
     {
-        otLogWarnSrp("[server] failed to send response: %s", ErrorToString(error));
+        otLogCrit("[server] failed to send response: %s", ErrorToString(error));
         FreeMessage(response);
     }
 }
@@ -1161,7 +1163,7 @@ void Server::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessag
 exit:
     if (error != kErrorNone)
     {
-        otLogInfoSrp("[server] failed to handle DNS message: %s", ErrorToString(error));
+        otLogInfo("[server] failed to handle DNS message: %s", ErrorToString(error));
     }
 }
 
@@ -1182,7 +1184,7 @@ void Server::HandleLeaseTimer(void)
 
         if (host->GetKeyExpireTime() <= now)
         {
-            otLogInfoSrp("[server] KEY LEASE of host %s expired", host->GetFullName());
+            otLogInfo("[server] KEY LEASE of host %s expired", host->GetFullName());
 
             // Removes the whole host and all services if the KEY RR expired.
             RemoveHost(host, /* aRetainName */ false, /* aNotifyServiceHandler */ true);
@@ -1205,7 +1207,7 @@ void Server::HandleLeaseTimer(void)
 
                 if (service->GetKeyExpireTime() <= now)
                 {
-                    otLogInfoSrp("[server] KEY LEASE of service %s expired", service->mFullName);
+                    otLogInfo("[server] KEY LEASE of service %s expired", service->mFullName);
                     host->RemoveService(service, /* aRetainName */ false, /* aNotifyServiceHandler */ true);
                 }
                 else
@@ -1220,7 +1222,7 @@ void Server::HandleLeaseTimer(void)
         {
             Service *service = nullptr;
 
-            otLogInfoSrp("[server] LEASE of host %s expired", host->GetFullName());
+            otLogInfo("[server] LEASE of host %s expired", host->GetFullName());
 
             // If the host expired, delete all resources of this host and its services.
             RemoveHost(host, /* aRetainName */ true, /* aNotifyServiceHandler */ true);
@@ -1252,7 +1254,7 @@ void Server::HandleLeaseTimer(void)
                 }
                 else if (service->GetExpireTime() <= now)
                 {
-                    otLogInfoSrp("[server] LEASE of service %s expired", service->mFullName);
+                    otLogInfo("[server] LEASE of service %s expired", service->mFullName);
 
                     // The service is expired, delete it.
                     host->RemoveService(service, /* aRetainName */ true, /* aNotifyServiceHandler */ true);
@@ -1274,13 +1276,13 @@ void Server::HandleLeaseTimer(void)
     {
         if (!mLeaseTimer.IsRunning() || earliestExpireTime <= mLeaseTimer.GetFireTime())
         {
-            otLogInfoSrp("[server] lease timer is scheduled for %u seconds", Time::MsecToSec(earliestExpireTime - now));
+            otLogInfo("[server] lease timer is scheduled for %u seconds", Time::MsecToSec(earliestExpireTime - now));
             mLeaseTimer.StartAt(earliestExpireTime, 0);
         }
     }
     else
     {
-        otLogInfoSrp("[server] lease timer is stopped");
+        otLogInfo("[server] lease timer is stopped");
         mLeaseTimer.Stop();
     }
 }
@@ -1292,7 +1294,7 @@ void Server::HandleOutstandingUpdatesTimer(Timer &aTimer)
 
 void Server::HandleOutstandingUpdatesTimer(void)
 {
-    otLogInfoSrp("[server] outstanding service update timeout");
+    otLogInfo("[server] outstanding service update timeout");
     while (!mOutstandingUpdates.IsEmpty() && mOutstandingUpdates.GetTail()->GetExpireTime() <= TimerMilli::GetNow())
     {
         HandleServiceUpdateResult(mOutstandingUpdates.GetTail(), kErrorResponseTimeout);
@@ -1569,11 +1571,11 @@ void Server::Host::RemoveService(Service *aService, bool aRetainName, bool aNoti
     if (aRetainName)
     {
         aService->ClearResources();
-        otLogInfoSrp("[server] remove service '%s' (but retain its name)", aService->mFullName);
+        otLogInfo("[server] remove service '%s' (but retain its name)", aService->mFullName);
     }
     else
     {
-        otLogInfoSrp("[server] fully remove service '%s'", aService->mFullName);
+        otLogInfo("[server] fully remove service '%s'", aService->mFullName);
     }
 
     IgnoreError(mServices.Remove(*aService));
@@ -1665,7 +1667,7 @@ Error Server::Host::AddIp6Address(const Ip6::Address &aIp6Address)
 
     if (mAddressesNum >= kMaxAddressesNum)
     {
-        otLogWarnSrp("[server] too many addresses for host %s", GetFullName());
+        otLogCrit("[server] too many addresses for host %s", GetFullName());
         ExitNow(error = kErrorNoBufs);
     }
 

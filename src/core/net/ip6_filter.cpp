@@ -31,6 +31,8 @@
  *   This file implements IPv6 datagram filtering.
  */
 
+#define OT_LOG_TAG "IP6"
+
 #include "ip6_filter.hpp"
 
 #include <stdio.h>
@@ -149,7 +151,7 @@ Error Filter::AddUnsecurePort(uint16_t aPort)
         if (unsecurePort == 0)
         {
             unsecurePort = aPort;
-            otLogInfoIp6("Added unsecure port %d", aPort);
+            otLogInfo("Added unsecure port %d", aPort);
             ExitNow();
         }
     }
@@ -179,7 +181,7 @@ Error Filter::RemoveUnsecurePort(uint16_t aPort)
 
             // Clear the last port entry.
             mUnsecurePorts[i] = 0;
-            otLogInfoIp6("Removed unsecure port %d", aPort);
+            otLogInfo("Removed unsecure port %d", aPort);
             ExitNow();
         }
     }

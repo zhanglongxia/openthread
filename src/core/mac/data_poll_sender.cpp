@@ -31,6 +31,8 @@
  *   This file implements data poll (mac data request command) sender class.
  */
 
+#define OT_LOG_TAG "CORE"
+
 #include "data_poll_sender.hpp"
 
 #include "common/code_utils.hpp"
@@ -112,22 +114,22 @@ exit:
     switch (error)
     {
     case kErrorNone:
-        otLogDebgMac("Sending data poll");
+        otLogDebg("Sending data poll");
         ScheduleNextPoll(kUsePreviousPollPeriod);
         break;
 
     case kErrorInvalidState:
-        otLogWarnMac("Data poll tx requested while data polling was not enabled!");
+        otLogWarn("Data poll tx requested while data polling was not enabled!");
         StopPolling();
         break;
 
     case kErrorAlready:
-        otLogDebgMac("Data poll tx requested when a previous data request still in send queue.");
+        otLogDebg("Data poll tx requested when a previous data request still in send queue.");
         ScheduleNextPoll(kUsePreviousPollPeriod);
         break;
 
     default:
-        otLogWarnMac("Unexpected error %s requesting data poll", ErrorToString(error));
+        otLogWarn("Unexpected error %s requesting data poll", ErrorToString(error));
         ScheduleNextPoll(kRecalculatePollPeriod);
         break;
     }
@@ -259,7 +261,7 @@ void DataPollSender::HandlePollSent(Mac::TxFrame &aFrame, Error aError)
     default:
         mPollTxFailureCounter++;
 
-        otLogInfoMac("Failed to send data poll, error:%s, retx:%d/%d", ErrorToString(aError), mPollTxFailureCounter,
+        otLogInfo("Failed to send data poll, error:%s, retx:%d/%d", ErrorToString(aError), mPollTxFailureCounter,
                      kMaxPollRetxAttempts);
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
@@ -304,7 +306,7 @@ void DataPollSender::HandlePollTimeout(void)
 
     mPollTimeoutCounter++;
 
-    otLogInfoMac("Data poll timeout, retry:%d/%d", mPollTimeoutCounter, kQuickPollsAfterTimeout);
+    otLogInfo("Data poll timeout, retry:%d/%d", mPollTimeoutCounter, kQuickPollsAfterTimeout);
 
     if (mPollTimeoutCounter < kQuickPollsAfterTimeout)
     {

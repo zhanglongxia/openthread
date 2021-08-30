@@ -31,6 +31,8 @@
  *   This file implements IPv6 networking.
  */
 
+#define OT_LOG_TAG "IP6"
+
 #include "ip6.hpp"
 
 #include "backbone_router/bbr_leader.hpp"
@@ -304,11 +306,11 @@ Error Ip6::InsertMplOption(Message &aMessage, Header &aHeader, MessageInfo &aMes
             if ((messageCopy = aMessage.Clone()) != nullptr)
             {
                 IgnoreError(HandleDatagram(*messageCopy, nullptr, nullptr, true));
-                otLogInfoIp6("Message copy for indirect transmission to sleepy children");
+                otLogInfo("Message copy for indirect transmission to sleepy children");
             }
             else
             {
-                otLogWarnIp6("No enough buffer for message copy for indirect transmission to sleepy children");
+                otLogWarn("No enough buffer for message copy for indirect transmission to sleepy children");
             }
         }
 #endif
@@ -494,12 +496,12 @@ Error Ip6::SendDatagram(Message &aMessage, MessageInfo &aMessageInfo, uint8_t aI
 
             if (messageCopy != nullptr)
             {
-                otLogInfoIp6("Message copy for indirect transmission to sleepy children");
+                otLogInfo("Message copy for indirect transmission to sleepy children");
                 EnqueueDatagram(*messageCopy);
             }
             else
             {
-                otLogWarnIp6("No enough buffer for message copy for indirect transmission to sleepy children");
+                otLogWarn("No enough buffer for message copy for indirect transmission to sleepy children");
             }
         }
 #endif
@@ -632,7 +634,7 @@ Error Ip6::FragmentDatagram(Message &aMessage, uint8_t aIpProto)
             payloadFragment = payloadLeft;
             payloadLeft     = 0;
 
-            otLogDebgIp6("Last Fragment");
+            otLogDebg("Last Fragment");
         }
         else
         {
@@ -662,7 +664,7 @@ Error Ip6::FragmentDatagram(Message &aMessage, uint8_t aIpProto)
         fragmentCnt++;
         fragment = nullptr;
 
-        otLogInfoIp6("Fragment %d with %d bytes sent", fragmentCnt, payloadFragment);
+        otLogInfo("Fragment %d with %d bytes sent", fragmentCnt, payloadFragment);
     }
 
     aMessage.Free();
@@ -671,7 +673,7 @@ exit:
 
     if (error == kErrorNoBufs)
     {
-        otLogWarnIp6("No buffer for Ip6 fragmentation");
+        otLogWarn("No buffer for Ip6 fragmentation");
     }
 
     FreeMessageOnError(fragment, error);
@@ -715,18 +717,18 @@ Error Ip6::HandleFragment(Message &aMessage, Netif *aNetif, MessageInfo &aMessag
     offset          = FragmentHeader::FragmentOffsetToBytes(fragmentHeader.GetOffset());
     payloadFragment = aMessage.GetLength() - aMessage.GetOffset() - sizeof(fragmentHeader);
 
-    otLogInfoIp6("Fragment with id %d received > %d bytes, offset %d", fragmentHeader.GetIdentification(),
+    otLogInfo("Fragment with id %d received > %d bytes, offset %d", fragmentHeader.GetIdentification(),
                  payloadFragment, offset);
 
     if (offset + payloadFragment + aMessage.GetOffset() > kMaxAssembledDatagramLength)
     {
-        otLogWarnIp6("Packet too large for fragment buffer");
+        otLogWarn("Packet too large for fragment buffer");
         ExitNow(error = kErrorNoBufs);
     }
 
     if (message == nullptr)
     {
-        otLogDebgIp6("start reassembly");
+        otLogDebg("start reassembly");
         VerifyOrExit((message = NewMessage(0)) != nullptr, error = kErrorNoBufs);
         mReassemblyList.Enqueue(*message);
         SuccessOrExit(error = message->SetLength(aMessage.GetOffset()));
@@ -765,7 +767,7 @@ Error Ip6::HandleFragment(Message &aMessage, Netif *aNetif, MessageInfo &aMessag
         header.SetNextHeader(fragmentHeader.GetNextHeader());
         message->Write(0, header);
 
-        otLogDebgIp6("Reassembly complete.");
+        otLogDebg("Reassembly complete.");
 
         mReassemblyList.Dequeue(*message);
 
@@ -780,7 +782,7 @@ exit:
             mReassemblyList.Dequeue(*message);
             message->Free();
         }
-        otLogWarnIp6("Reassembly failed: %s", ErrorToString(error));
+        otLogWarn("Reassembly failed: %s", ErrorToString(error));
     }
 
     if (isFragmented)
@@ -827,7 +829,7 @@ void Ip6::UpdateReassemblyList(void)
         }
         else
         {
-            otLogNoteIp6("Reassembly timeout.");
+            otLogNote("Reassembly timeout.");
             SendIcmpError(*message, Icmp::Header::kTypeTimeExceeded, Icmp::Header::kCodeFragmReasTimeEx);
 
             mReassemblyList.Dequeue(*message);
@@ -855,7 +857,7 @@ exit:
 
     if (error != kErrorNone)
     {
-        otLogWarnIp6("Failed to send ICMP error: %s", ErrorToString(error));
+        otLogWarn("Failed to send ICMP error: %s", ErrorToString(error));
     }
 }
 
@@ -967,7 +969,7 @@ Error Ip6::HandlePayload(Message &          aMessage,
         error = mUdp.HandleMessage(*message, aMessageInfo);
         if (error == kErrorDrop)
         {
-            otLogNoteIp6("Error UDP Checksum");
+            otLogNote("Error UDP Checksum");
         }
         break;
 
@@ -982,7 +984,7 @@ Error Ip6::HandlePayload(Message &          aMessage,
 exit:
     if (error != kErrorNone)
     {
-        otLogNoteIp6("Failed to handle payload: %s", ErrorToString(error));
+        otLogNote("Failed to handle payload: %s", ErrorToString(error));
     }
 
     FreeMessage(message);
@@ -1055,7 +1057,7 @@ Error Ip6::ProcessReceiveCallback(Message &          aMessage,
 
         if (message == nullptr)
         {
-            otLogWarnIp6("No buff to clone msg (len: %d) to pass to host", aMessage.GetLength());
+            otLogWarn("No buff to clone msg (len: %d) to pass to host", aMessage.GetLength());
             ExitNow(error = kErrorNoBufs);
         }
 
@@ -1303,7 +1305,7 @@ start:
             if (Get<Filter>().IsUnsecurePort(sourcePort))
             {
                 aMessage.SetLinkSecurityEnabled(false);
-                otLogInfoIp6("Disabled link security for packet to %s", header.GetDestination().ToString().AsCString());
+                otLogInfo("Disabled link security for packet to %s", header.GetDestination().ToString().AsCString());
             }
 #else
             OT_UNUSED_VARIABLE(sourcePort);

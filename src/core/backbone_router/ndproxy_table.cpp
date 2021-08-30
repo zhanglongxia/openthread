@@ -31,6 +31,8 @@
  *   This file implements Thread NdProxy Table management.
  */
 
+#define OT_LOG_TAG "BBR"
+
 #include "ndproxy_table.hpp"
 
 #if OPENTHREAD_FTD && OPENTHREAD_CONFIG_BACKBONE_ROUTER_DUA_NDPROXYING_ENABLE
@@ -146,7 +148,7 @@ void NdProxyTable::Clear(void)
         mCallback(mCallbackContext, OT_BACKBONE_ROUTER_NDPROXY_CLEARED, nullptr);
     }
 
-    otLogNoteBbr("NdProxyTable::Clear!");
+    otLogNote("NdProxyTable::Clear!");
 }
 
 Error NdProxyTable::Register(const Ip6::InterfaceIdentifier &aAddressIid,
@@ -185,7 +187,7 @@ Error NdProxyTable::Register(const Ip6::InterfaceIdentifier &aAddressIid,
     mIsAnyDadInProcess = true;
 
 exit:
-    otLogInfoBbr("NdProxyTable::Register %s MLIID %s RLOC16 %04x LTT %u => %s", aAddressIid.ToString().AsCString(),
+    otLogInfo("NdProxyTable::Register %s MLIID %s RLOC16 %04x LTT %u => %s", aAddressIid.ToString().AsCString(),
                  aMeshLocalIid.ToString().AsCString(), aRloc16, timeSinceLastTransaction, ErrorToString(error));
     return error;
 }
@@ -203,7 +205,7 @@ NdProxyTable::NdProxy *NdProxyTable::FindByAddressIid(const Ip6::InterfaceIdenti
     }
 
 exit:
-    otLogDebgBbr("NdProxyTable::FindByAddressIid(%s) => %s", aAddressIid.ToString().AsCString(),
+    otLogDebg("NdProxyTable::FindByAddressIid(%s) => %s", aAddressIid.ToString().AsCString(),
                  found ? found->mMeshLocalIid.ToString().AsCString() : "NOT_FOUND");
     return found;
 }
@@ -221,7 +223,7 @@ NdProxyTable::NdProxy *NdProxyTable::FindByMeshLocalIid(const Ip6::InterfaceIden
     }
 
 exit:
-    otLogDebgBbr("NdProxyTable::FindByMeshLocalIid(%s) => %s", aMeshLocalIid.ToString().AsCString(),
+    otLogDebg("NdProxyTable::FindByMeshLocalIid(%s) => %s", aMeshLocalIid.ToString().AsCString(),
                  found ? found->mAddressIid.ToString().AsCString() : "NOT_FOUND");
     return found;
 }
@@ -236,7 +238,7 @@ NdProxyTable::NdProxy *NdProxyTable::FindInvalid(void)
     }
 
 exit:
-    otLogDebgBbr("NdProxyTable::FindInvalid() => %s", found ? "OK" : "NOT_FOUND");
+    otLogDebg("NdProxyTable::FindInvalid() => %s", found ? "OK" : "NOT_FOUND");
     return found;
 }
 

@@ -31,6 +31,8 @@
  *   This file includes definitions for Thread Link Metrics.
  */
 
+#define OT_LOG_TAG "MLE"
+
 #include "link_metrics.hpp"
 
 #if OPENTHREAD_CONFIG_MLE_LINK_METRICS_ENABLE
@@ -178,7 +180,7 @@ Error LinkMetrics::SendMgmtRequestForwardTrackingSeries(const Ip6::Address &    
                                                                    forwardProbingRegistrationSubTlv->GetSize());
 
 exit:
-    otLogDebgMle("SendMgmtRequestForwardTrackingSeries, error:%s, Series ID:%u", ErrorToString(error), aSeriesId);
+    otLogDebg("SendMgmtRequestForwardTrackingSeries, error:%s, Series ID:%u", ErrorToString(error), aSeriesId);
     return error;
 }
 
@@ -240,7 +242,7 @@ Error LinkMetrics::SendLinkProbe(const Ip6::Address &aDestination, uint8_t aSeri
 
     error = Get<Mle::MleRouter>().SendLinkProbe(aDestination, aSeriesId, buf, aLength);
 exit:
-    otLogDebgMle("SendLinkProbe, error:%s, Series ID:%u", ErrorToString(error), aSeriesId);
+    otLogDebg("SendLinkProbe, error:%s, Series ID:%u", ErrorToString(error), aSeriesId);
     return error;
 }
 
@@ -337,7 +339,7 @@ Error LinkMetrics::AppendLinkMetricsReport(Message &aMessage, const Message &aRe
     aMessage.Write(startOffset, tlv);
 
 exit:
-    otLogDebgMle("AppendLinkMetricsReport, error:%s", ErrorToString(error));
+    otLogDebg("AppendLinkMetricsReport, error:%s", ErrorToString(error));
     return error;
 }
 
@@ -512,14 +514,14 @@ void LinkMetrics::HandleLinkMetricsReport(const Message &     aMessage,
                 metricsValues.mMetrics.mPduCount = true;
                 SuccessOrExit(aMessage.Read(pos, metricsValues.mPduCountValue));
                 pos += sizeof(uint32_t);
-                otLogDebgMle(" - PDU Counter: %d (Count/Summation)", metricsValues.mPduCountValue);
+                otLogDebg(" - PDU Counter: %d (Count/Summation)", metricsValues.mPduCountValue);
                 break;
 
             case kTypeIdFlagLqi:
                 metricsValues.mMetrics.mLqi = true;
                 SuccessOrExit(aMessage.Read(pos, metricsValues.mLqiValue));
                 pos += sizeof(uint8_t);
-                otLogDebgMle(" - LQI: %d (Exponential Moving Average)", metricsValues.mLqiValue);
+                otLogDebg(" - LQI: %d (Exponential Moving Average)", metricsValues.mLqiValue);
                 break;
 
             case kTypeIdFlagLinkMargin:
@@ -528,7 +530,7 @@ void LinkMetrics::HandleLinkMetricsReport(const Message &     aMessage,
                 metricsValues.mLinkMarginValue =
                     metricsRawValue * 130 / 255; // Reverse operation for linear scale, map from [0, 255] to [0, 130]
                 pos += sizeof(uint8_t);
-                otLogDebgMle(" - Margin: %d (dB) (Exponential Moving Average)", metricsValues.mLinkMarginValue);
+                otLogDebg(" - Margin: %d (dB) (Exponential Moving Average)", metricsValues.mLinkMarginValue);
                 break;
 
             case kTypeIdFlagRssi:
@@ -537,7 +539,7 @@ void LinkMetrics::HandleLinkMetricsReport(const Message &     aMessage,
                 metricsValues.mRssiValue = metricsRawValue * 130 / 255 -
                                            130; // Reverse operation for linear scale, map from [0, 255] to [-130, 0]
                 pos += sizeof(uint8_t);
-                otLogDebgMle(" - RSSI: %d (dBm) (Exponential Moving Average)", metricsValues.mRssiValue);
+                otLogDebg(" - RSSI: %d (dBm) (Exponential Moving Average)", metricsValues.mRssiValue);
                 break;
 
             default:
@@ -558,7 +560,7 @@ void LinkMetrics::HandleLinkMetricsReport(const Message &     aMessage,
     }
 
 exit:
-    otLogDebgMle("HandleLinkMetricsReport, error:%s", ErrorToString(error));
+    otLogDebg("HandleLinkMetricsReport, error:%s", ErrorToString(error));
     return;
 }
 

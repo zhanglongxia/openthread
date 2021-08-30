@@ -382,7 +382,7 @@ Error LeaderBase::SetNetworkData(uint8_t        aVersion,
     }
 #endif
 
-    otDumpDebgNetData("set network data", mTlvs, mLength);
+    otDumpDebg("set network data", mTlvs, mLength);
 
     Get<ot::Notifier>().Signal(kEventThreadNetdataChanged);
 

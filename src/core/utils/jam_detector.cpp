@@ -31,6 +31,8 @@
  *   This file implements the jam detector feature.
  */
 
+#define OT_LOG_TAG "UTIL"
+
 #include "jam_detector.hpp"
 
 #if OPENTHREAD_CONFIG_JAM_DETECTION_ENABLE
@@ -73,7 +75,7 @@ Error JamDetector::Start(Handler aHandler, void *aContext)
     mContext = aContext;
     mEnabled = true;
 
-    otLogInfoUtil("JamDetector - Started");
+    otLogInfo("JamDetector - Started");
 
     CheckState();
 
@@ -92,7 +94,7 @@ Error JamDetector::Stop(void)
 
     mTimer.Stop();
 
-    otLogInfoUtil("JamDetector - Stopped");
+    otLogInfo("JamDetector - Stopped");
 
 exit:
     return error;
@@ -128,7 +130,7 @@ exit:
 void JamDetector::SetRssiThreshold(int8_t aThreshold)
 {
     mRssiThreshold = aThreshold;
-    otLogInfoUtil("JamDetector - RSSI threshold set to %d", mRssiThreshold);
+    otLogInfo("JamDetector - RSSI threshold set to %d", mRssiThreshold);
 }
 
 Error JamDetector::SetWindow(uint8_t aWindow)
@@ -139,7 +141,7 @@ Error JamDetector::SetWindow(uint8_t aWindow)
     VerifyOrExit(aWindow <= kMaxWindow, error = kErrorInvalidArgs);
 
     mWindow = aWindow;
-    otLogInfoUtil("JamDetector - window set to %d", mWindow);
+    otLogInfo("JamDetector - window set to %d", mWindow);
 
 exit:
     return error;
@@ -153,7 +155,7 @@ Error JamDetector::SetBusyPeriod(uint8_t aBusyPeriod)
     VerifyOrExit(aBusyPeriod <= mWindow, error = kErrorInvalidArgs);
 
     mBusyPeriod = aBusyPeriod;
-    otLogInfoUtil("JamDetector - busy period set to %d", mBusyPeriod);
+    otLogInfo("JamDetector - busy period set to %d", mBusyPeriod);
 
 exit:
     return error;
@@ -261,7 +263,7 @@ void JamDetector::SetJamState(bool aNewState)
     {
         mJamState           = aNewState;
         shouldInvokeHandler = true;
-        otLogInfoUtil("JamDetector - jamming %s", mJamState ? "detected" : "cleared");
+        otLogInfo("JamDetector - jamming %s", mJamState ? "detected" : "cleared");
     }
 
     if (shouldInvokeHandler)

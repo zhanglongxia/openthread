@@ -31,6 +31,8 @@
  *   This file implements the subset of IEEE 802.15.4 MAC primitives.
  */
 
+#define OT_LOG_TAG "MAC"
+
 #include "sub_mac.hpp"
 
 #include <stdio.h>
@@ -129,14 +131,14 @@ otRadioCaps SubMac::GetCaps(void) const
 void SubMac::SetPanId(PanId aPanId)
 {
     Get<Radio>().SetPanId(aPanId);
-    otLogDebgMac("RadioPanId: 0x%04x", aPanId);
+    otLogDebg("RadioPanId: 0x%04x", aPanId);
 }
 
 void SubMac::SetShortAddress(ShortAddress aShortAddress)
 {
     mShortAddress = aShortAddress;
     Get<Radio>().SetShortAddress(mShortAddress);
-    otLogDebgMac("RadioShortAddress: 0x%04x", mShortAddress);
+    otLogDebg("RadioShortAddress: 0x%04x", mShortAddress);
 }
 
 void SubMac::SetExtAddress(const ExtAddress &aExtAddress)
@@ -149,7 +151,7 @@ void SubMac::SetExtAddress(const ExtAddress &aExtAddress)
     address.Set(aExtAddress.m8, ExtAddress::kReverseByteOrder);
     Get<Radio>().SetExtendedAddress(address);
 
-    otLogDebgMac("RadioExtAddress: %s", mExtAddress.ToString().AsCString());
+    otLogDebg("RadioExtAddress: %s", mExtAddress.ToString().AsCString());
 }
 
 void SubMac::SetPcapCallback(otLinkPcapCallback aPcapCallback, void *aCallbackContext)
@@ -193,7 +195,7 @@ Error SubMac::Sleep(void)
 
     if (error != kErrorNone)
     {
-        otLogWarnMac("RadioSleep() failed, error: %s", ErrorToString(error));
+        otLogWarn("RadioSleep() failed, error: %s", ErrorToString(error));
         ExitNow();
     }
 
@@ -209,7 +211,7 @@ Error SubMac::Receive(uint8_t aChannel)
 
     if (error != kErrorNone)
     {
-        otLogWarnMac("RadioReceive() failed, error: %s", ErrorToString(error));
+        otLogWarn("RadioReceive() failed, error: %s", ErrorToString(error));
         ExitNow();
     }
 
@@ -250,7 +252,7 @@ Error SubMac::CslSample(uint8_t aPanChannel)
 exit:
     if (error != kErrorNone)
     {
-        otLogWarnMac("CslSample() failed, error: %s", ErrorToString(error));
+        otLogWarn("CslSample() failed, error: %s", ErrorToString(error));
     }
     return error;
 }
@@ -279,10 +281,10 @@ void SubMac::HandleReceiveDone(RxFrame *aFrame, Error aError)
 
 #if OPENTHREAD_CONFIG_MAC_CSL_DEBUG_ENABLE
         // Split the log into two lines for RTT to output
-        otLogDebgMac("Received frame in state (SubMac %s, CSL %s), timestamp %u", StateToString(mState),
-                     CslStateToString(mCslState), static_cast<uint32_t>(aFrame->mInfo.mRxInfo.mTimestamp));
-        otLogDebgMac("Target sample start time %u, time drift %d", mCslSampleTime.GetValue(),
-                     static_cast<uint32_t>(aFrame->mInfo.mRxInfo.mTimestamp) - mCslSampleTime.GetValue());
+        otLogDebg("Received frame in state (SubMac %s, CSL %s), timestamp %u", StateToString(mState),
+                  CslStateToString(mCslState), static_cast<uint32_t>(aFrame->mInfo.mRxInfo.mTimestamp));
+        otLogDebg("Target sample start time %u, time drift %d", mCslSampleTime.GetValue(),
+                  static_cast<uint32_t>(aFrame->mInfo.mRxInfo.mTimestamp) - mCslSampleTime.GetValue());
 #endif
     }
 #endif
@@ -695,7 +697,7 @@ void SubMac::HandleTimer(void)
         break;
 
     case kStateTransmit:
-        otLogDebgMac("Ack timer timed out");
+        otLogDebg("Ack timer timed out");
         IgnoreError(Get<Radio>().Receive(mTransmitFrame.GetChannel()));
         HandleTransmitDone(mTransmitFrame, nullptr, kErrorNoAck);
         break;
@@ -821,7 +823,7 @@ void SubMac::SetState(State aState)
 {
     if (mState != aState)
     {
-        otLogDebgMac("RadioState: %s -> %s", StateToString(mState), StateToString(aState));
+        otLogDebg("RadioState: %s -> %s", StateToString(mState), StateToString(aState));
         mState = aState;
     }
 }
@@ -968,7 +970,7 @@ void SubMac::SetCslPeriod(uint16_t aPeriod)
         }
     }
 
-    otLogDebgMac("CSL Period: %u", mCslPeriod);
+    otLogDebg("CSL Period: %u", mCslPeriod);
 
 exit:
     return;
@@ -1006,7 +1008,7 @@ void SubMac::HandleCslTimer(void)
 #if !OPENTHREAD_CONFIG_MAC_CSL_DEBUG_ENABLE
             IgnoreError(Get<Radio>().Sleep()); // Don't actually sleep for debugging
 #endif
-            otLogDebgMac("CSL sleep %u", mCslTimer.GetNow().GetValue());
+            otLogDebg("CSL sleep %u", mCslTimer.GetNow().GetValue());
         }
         break;
 
@@ -1035,7 +1037,7 @@ void SubMac::HandleCslTimer(void)
             else
             {
                 IgnoreError(Get<Radio>().Receive(mCslChannel));
-                otLogDebgMac("CSL sample %u, duration %u", mCslTimer.GetNow().GetValue(), timeAhead + timeAfter);
+                otLogDebg("CSL sample %u, duration %u", mCslTimer.GetNow().GetValue(), timeAhead + timeAfter);
             }
         }
         break;

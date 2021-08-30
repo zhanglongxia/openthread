@@ -31,6 +31,8 @@
  *   This file implements the Thread IPv6 global addresses configuration utilities.
  */
 
+#define OT_LOG_TAG "CORE"
+
 #include "slaac_address.hpp"
 
 #if OPENTHREAD_CONFIG_IP6_SLAAC_ENABLE
@@ -59,7 +61,7 @@ void Slaac::Enable(void)
 {
     VerifyOrExit(!mEnabled);
 
-    otLogInfoUtil("SLAAC:: Enabling");
+    otLogInfo("SLAAC:: Enabling");
     mEnabled = true;
     Update(kModeAdd);
 
@@ -71,7 +73,7 @@ void Slaac::Disable(void)
 {
     VerifyOrExit(mEnabled);
 
-    otLogInfoUtil("SLAAC:: Disabling");
+    otLogInfo("SLAAC:: Disabling");
     mEnabled = false;
     Update(kModeRemove);
 
@@ -84,7 +86,7 @@ void Slaac::SetFilter(otIp6SlaacPrefixFilter aFilter)
     VerifyOrExit(aFilter != mFilter);
 
     mFilter = aFilter;
-    otLogInfoUtil("SLAAC: Filter %s", (mFilter != nullptr) ? "updated" : "disabled");
+    otLogInfo("SLAAC: Filter %s", (mFilter != nullptr) ? "updated" : "disabled");
 
     VerifyOrExit(mEnabled);
     Update(kModeAdd | kModeRemove);
@@ -183,7 +185,7 @@ void Slaac::Update(UpdateMode aMode)
 
             if (!found)
             {
-                otLogInfoUtil("SLAAC: Removing address %s", slaacAddr.GetAddress().ToString().AsCString());
+                otLogInfo("SLAAC: Removing address %s", slaacAddr.GetAddress().ToString().AsCString());
 
                 Get<ThreadNetif>().RemoveUnicastAddress(slaacAddr);
                 slaacAddr.mValid = false;
@@ -234,7 +236,7 @@ void Slaac::Update(UpdateMode aMode)
 
                     IgnoreError(GenerateIid(slaacAddr));
 
-                    otLogInfoUtil("SLAAC: Adding address %s", slaacAddr.GetAddress().ToString().AsCString());
+                    otLogInfo("SLAAC: Adding address %s", slaacAddr.GetAddress().ToString().AsCString());
 
                     Get<ThreadNetif>().AddUnicastAddress(slaacAddr);
 
@@ -244,7 +246,7 @@ void Slaac::Update(UpdateMode aMode)
 
                 if (!added)
                 {
-                    otLogWarnUtil("SLAAC: Failed to add - max %d addresses supported and already in use",
+                    otLogWarn("SLAAC: Failed to add - max %d addresses supported and already in use",
                                   OT_ARRAY_LENGTH(mAddresses));
                 }
             }
@@ -316,7 +318,7 @@ Error Slaac::GenerateIid(Ip6::NetifUnicastAddress &aAddress,
         ExitNow(error = kErrorNone);
     }
 
-    otLogWarnUtil("SLAAC: Failed to generate a non-reserved IID after %d attempts", kMaxIidCreationAttempts);
+    otLogWarn("SLAAC: Failed to generate a non-reserved IID after %d attempts", kMaxIidCreationAttempts);
 
 exit:
     return error;
@@ -341,7 +343,7 @@ void Slaac::GetIidSecretKey(IidSecretKey &aKey) const
 
     IgnoreError(Get<Settings>().SaveSlaacIidSecretKey(aKey));
 
-    otLogInfoUtil("SLAAC: Generated and saved secret key");
+    otLogInfo("SLAAC: Generated and saved secret key");
 
 exit:
     return;

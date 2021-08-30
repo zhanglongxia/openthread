@@ -32,6 +32,8 @@
  *
  */
 
+#define OT_LOG_TAG "MESH-CP"
+
 #include "dataset.hpp"
 
 #include <stdio.h>
@@ -542,7 +544,7 @@ Error Dataset::ApplyConfiguration(Instance &aInstance, bool *aIsMasterKeyUpdated
 
             if (error != kErrorNone)
             {
-                otLogWarnMeshCoP("DatasetManager::ApplyConfiguration() Failed to set channel to %d (%s)", channel,
+                otLogWarn("DatasetManager::ApplyConfiguration() Failed to set channel to %d (%s)", channel,
                                  ErrorToString(error));
                 ExitNow();
             }

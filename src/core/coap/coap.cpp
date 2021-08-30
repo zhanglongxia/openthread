@@ -26,6 +26,8 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define OT_LOG_TAG "COAP"
+
 #include "coap.hpp"
 
 #include "common/code_utils.hpp"
@@ -677,7 +679,7 @@ Error CoapBase::SendNextBlock1Request(Message &               aRequest,
 
     DequeueMessage(aRequest);
 
-    otLogInfoCoap("Send Block1 Nr. %d, Size: %d bytes, More Blocks Flag: %d", request->GetBlockWiseBlockNumber(),
+    otLogInfo("Send Block1 Nr. %d, Size: %d bytes, More Blocks Flag: %d", request->GetBlockWiseBlockNumber(),
                   otCoapBlockSizeFromExponent(request->GetBlockWiseBlockSize()), request->IsMoreBlocksFlagSet());
 
     SuccessOrExit(error = SendMessage(*request, aMessageInfo, TxParameters::GetDefault(),
@@ -719,7 +721,7 @@ Error CoapBase::SendNextBlock2Request(Message &               aRequest,
                                                     bufLen, aMessage.IsMoreBlocksFlagSet(), aTotalLength));
 
     // CoAP Block-Wise Transfer continues
-    otLogInfoCoap("Received Block2 Nr. %d , Size: %d bytes, More Blocks Flag: %d", aMessage.GetBlockWiseBlockNumber(),
+    otLogInfo("Received Block2 Nr. %d , Size: %d bytes, More Blocks Flag: %d", aMessage.GetBlockWiseBlockNumber(),
                   otCoapBlockSizeFromExponent(aMessage.GetBlockWiseBlockSize()), aMessage.IsMoreBlocksFlagSet());
 
     // Conclude block-wise transfer if last block has been received
@@ -739,7 +741,7 @@ Error CoapBase::SendNextBlock2Request(Message &               aRequest,
         DequeueMessage(aRequest);
     }
 
-    otLogInfoCoap("Request Block2 Nr. %d, Size: %d bytes", request->GetBlockWiseBlockNumber(),
+    otLogInfo("Request Block2 Nr. %d, Size: %d bytes", request->GetBlockWiseBlockNumber(),
                   otCoapBlockSizeFromExponent(request->GetBlockWiseBlockSize()));
 
     SuccessOrExit(error =
@@ -791,7 +793,7 @@ Error CoapBase::ProcessBlock1Request(Message &                aMessage,
 
         SuccessOrExit(error = CacheLastBlockResponse(response));
 
-        otLogInfoCoap("Acknowledge Block1 Nr. %d, Size: %d bytes", response->GetBlockWiseBlockNumber(),
+        otLogInfo("Acknowledge Block1 Nr. %d, Size: %d bytes", response->GetBlockWiseBlockNumber(),
                       otCoapBlockSizeFromExponent(response->GetBlockWiseBlockSize()));
 
         SuccessOrExit(error = SendMessage(*response, aMessageInfo));
@@ -828,7 +830,7 @@ Error CoapBase::ProcessBlock2Request(Message &                aMessage,
 
     SuccessOrExit(error = aMessage.ReadBlockOptionValues(kOptionBlock2));
 
-    otLogInfoCoap("Request for Block2 Nr. %d, Size: %d bytes received", aMessage.GetBlockWiseBlockNumber(),
+    otLogInfo("Request for Block2 Nr. %d, Size: %d bytes received", aMessage.GetBlockWiseBlockNumber(),
                   otCoapBlockSizeFromExponent(aMessage.GetBlockWiseBlockSize()));
 
     if (aMessage.GetBlockWiseBlockNumber() == 0)
@@ -928,7 +930,7 @@ Error CoapBase::ProcessBlock2Request(Message &                aMessage,
         FreeLastBlockResponse();
     }
 
-    otLogInfoCoap("Send Block2 Nr. %d, Size: %d bytes, More Blocks Flag %d", response->GetBlockWiseBlockNumber(),
+    otLogInfo("Send Block2 Nr. %d, Size: %d bytes, More Blocks Flag %d", response->GetBlockWiseBlockNumber(),
                   otCoapBlockSizeFromExponent(response->GetBlockWiseBlockSize()), response->IsMoreBlocksFlagSet());
 
     SuccessOrExit(error = SendMessage(*response, aMessageInfo));
@@ -955,7 +957,7 @@ exit:
 
     if (error != kErrorNone)
     {
-        otLogWarnCoap("Failed to send copy: %s", ErrorToString(error));
+        otLogWarn("Failed to send copy: %s", ErrorToString(error));
         FreeMessage(messageCopy);
     }
 }
@@ -1008,7 +1010,7 @@ void CoapBase::Receive(ot::Message &aMessage, const Ip6::MessageInfo &aMessageIn
 
     if (message.ParseHeader() != kErrorNone)
     {
-        otLogDebgCoap("Failed to parse CoAP header");
+        otLogDebg("Failed to parse CoAP header");
 
         if (!aMessageInfo.GetSockAddr().IsMulticast() && message.IsConfirmable())
         {
@@ -1400,7 +1402,7 @@ exit:
 
     if (error != kErrorNone)
     {
-        otLogInfoCoap("Failed to process request: %s", ErrorToString(error));
+        otLogInfo("Failed to process request: %s", ErrorToString(error));
 
         if (error == kErrorNotFound && !aMessageInfo.GetSockAddr().IsMulticast())
         {

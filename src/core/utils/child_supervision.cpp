@@ -31,6 +31,8 @@
  *   This file implements the child supervision feature.
  */
 
+#define OT_LOG_TAG "UTIL"
+
 #include "child_supervision.hpp"
 
 #include "openthread-core-config.h"
@@ -94,7 +96,7 @@ void ChildSupervisor::SendMessage(Child &aChild)
     SuccessOrExit(Get<ThreadNetif>().SendMessage(*message));
     message = nullptr;
 
-    otLogInfoUtil("Sending supervision message to child 0x%04x", aChild.GetRloc16());
+    otLogInfo("Sending supervision message to child 0x%04x", aChild.GetRloc16());
 
 exit:
     FreeMessage(message);
@@ -132,13 +134,13 @@ void ChildSupervisor::CheckState(void)
     if (shouldRun && !Get<TimeTicker>().IsReceiverRegistered(TimeTicker::kChildSupervisor))
     {
         Get<TimeTicker>().RegisterReceiver(TimeTicker::kChildSupervisor);
-        otLogInfoUtil("Starting Child Supervision");
+        otLogInfo("Starting Child Supervision");
     }
 
     if (!shouldRun && Get<TimeTicker>().IsReceiverRegistered(TimeTicker::kChildSupervisor))
     {
         Get<TimeTicker>().UnregisterReceiver(TimeTicker::kChildSupervisor);
-        otLogInfoUtil("Stopping Child Supervision");
+        otLogInfo("Stopping Child Supervision");
     }
 }
 
@@ -213,7 +215,7 @@ void SupervisionListener::HandleTimer(void)
 {
     VerifyOrExit(Get<Mle::MleRouter>().IsChild() && !Get<MeshForwarder>().GetRxOnWhenIdle());
 
-    otLogWarnUtil("Supervision timeout. No frame from parent in %d sec", mTimeout);
+    otLogWarn("Supervision timeout. No frame from parent in %d sec", mTimeout);
 
     IgnoreError(Get<Mle::MleRouter>().SendChildUpdateRequest());
 

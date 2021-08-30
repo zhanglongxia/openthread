@@ -32,6 +32,8 @@
  *
  */
 
+#define OT_LOG_TAG "MESH-CP"
+
 #include "meshcop/dataset_manager.hpp"
 
 #if OPENTHREAD_FTD
@@ -287,7 +289,7 @@ void DatasetManager::SendSetResponse(const Coap::Message &   aRequest,
 
     SuccessOrExit(error = Get<Tmf::Agent>().SendMessage(*message, aMessageInfo));
 
-    otLogInfoMeshCoP("sent dataset set response");
+    otLogInfo("sent dataset set response");
 
 exit:
     FreeMessageOnError(message, error);
@@ -396,7 +398,7 @@ Error ActiveDataset::GenerateLocal(void)
     SuccessOrExit(error = mLocal.Save(dataset));
     IgnoreError(Restore());
 
-    otLogInfoMeshCoP("Generated local dataset");
+    otLogInfo("Generated local dataset");
 
 exit:
     return error;

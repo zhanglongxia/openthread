@@ -31,6 +31,8 @@
  *   This file implements mesh forwarding of IPv6/6LoWPAN messages.
  */
 
+#define OT_LOG_TAG "MAC"
+
 #include "mesh_forwarder.hpp"
 
 #include "common/code_utils.hpp"
@@ -524,7 +526,7 @@ Mac::TxFrame *MeshForwarder::HandleFrameRequest(Mac::TxFrames &aTxFrames)
 
         if ((mSendMessage->GetSubType() == Message::kSubTypeMleChildIdRequest) && mSendMessage->IsLinkSecurityEnabled())
         {
-            otLogNoteMac("Child ID Request requires fragmentation, aborting tx");
+            otLogNote("Child ID Request requires fragmentation, aborting tx");
             mMessageNextOffset = mSendMessage->GetLength();
             ExitNow(frame = nullptr);
         }
@@ -935,7 +937,7 @@ void MeshForwarder::HandleDeferredAck(Neighbor &aNeighbor, Error aError)
 
     if (aError == kErrorNoAck)
     {
-        otLogInfoMac("Deferred ack timeout on trel for neighbor %s rloc16:0x%04x",
+        otLogInfo("Deferred ack timeout on trel for neighbor %s rloc16:0x%04x",
                      aNeighbor.GetExtAddress().ToString().AsCString(), aNeighbor.GetRloc16());
     }
 
@@ -1063,7 +1065,7 @@ void MeshForwarder::UpdateSendMessage(Error aFrameTxError, Mac::Address &aMacDes
             // shorter Child ID Request message (by only including mesh-local
             // address in the Address Registration TLV).
 
-            otLogInfoMac("Requesting shorter `Child ID Request`");
+            otLogInfo("Requesting shorter `Child ID Request`");
             Get<Mle::Mle>().RequestShorterChildIdRequest();
         }
 
@@ -1531,7 +1533,7 @@ Error MeshForwarder::SendEmptyMessage(void)
 
 exit:
     FreeMessageOnError(message, error);
-    otLogDebgMac("Send empty message, error:%s", ErrorToString(error));
+    otLogDebg("Send empty message, error:%s", ErrorToString(error));
     return error;
 }
 #endif // OPENTHREAD_CONFIG_REFERENCE_DEVICE_ENABLE
@@ -1813,11 +1815,11 @@ void MeshForwarder::LogFrame(const char *aActionText, const Mac::Frame &aFrame, 
 {
     if (aError != kErrorNone)
     {
-        otLogNoteMac("%s, aError:%s, %s", aActionText, ErrorToString(aError), aFrame.ToInfoString().AsCString());
+        otLogNote("%s, aError:%s, %s", aActionText, ErrorToString(aError), aFrame.ToInfoString().AsCString());
     }
     else
     {
-        otLogInfoMac("%s, %s", aActionText, aFrame.ToInfoString().AsCString());
+        otLogInfo("%s, %s", aActionText, aFrame.ToInfoString().AsCString());
     }
 }
 
@@ -1828,7 +1830,7 @@ void MeshForwarder::LogFragmentFrameDrop(Error                         aError,
                                          const Lowpan::FragmentHeader &aFragmentHeader,
                                          bool                          aIsSecure)
 {
-    otLogNoteMac("Dropping rx frag frame, error:%s, len:%d, src:%s, dst:%s, tag:%d, offset:%d, dglen:%d, sec:%s",
+    otLogNote("Dropping rx frag frame, error:%s, len:%d, src:%s, dst:%s, tag:%d, offset:%d, dglen:%d, sec:%s",
                  ErrorToString(aError), aFrameLength, aMacSource.ToString().AsCString(),
                  aMacDest.ToString().AsCString(), aFragmentHeader.GetDatagramTag(), aFragmentHeader.GetDatagramOffset(),
                  aFragmentHeader.GetDatagramSize(), aIsSecure ? "yes" : "no");
@@ -1840,7 +1842,7 @@ void MeshForwarder::LogLowpanHcFrameDrop(Error               aError,
                                          const Mac::Address &aMacDest,
                                          bool                aIsSecure)
 {
-    otLogNoteMac("Dropping rx lowpan HC frame, error:%s, len:%d, src:%s, dst:%s, sec:%s", ErrorToString(aError),
+    otLogNote("Dropping rx lowpan HC frame, error:%s, len:%d, src:%s, dst:%s, sec:%s", ErrorToString(aError),
                  aFrameLength, aMacSource.ToString().AsCString(), aMacDest.ToString().AsCString(),
                  aIsSecure ? "yes" : "no");
 }

@@ -27,6 +27,8 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define OT_LOG_TAG "IP6"
+
 #include "sntp_client.hpp"
 
 #if OPENTHREAD_CONFIG_SNTP_CLIENT_ENABLE
@@ -239,7 +241,7 @@ exit:
     if (error != kErrorNone)
     {
         FreeMessage(messageCopy);
-        otLogWarnIp6("Failed to send SNTP request: %s", ErrorToString(error));
+        otLogWarn("Failed to send SNTP request: %s", ErrorToString(error));
     }
 }
 
@@ -363,7 +365,7 @@ void Client::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessag
         memcpy(kissCode, responseHeader.GetKissCode(), Header::kKissCodeLength);
         kissCode[Header::kKissCodeLength] = 0;
 
-        otLogInfoIp6("SNTP response contains the Kiss-o'-death packet with %s code", kissCode);
+        otLogInfo("SNTP response contains the Kiss-o'-death packet with %s code", kissCode);
         ExitNow(error = kErrorBusy);
     }
 

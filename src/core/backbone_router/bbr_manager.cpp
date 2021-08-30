@@ -31,6 +31,8 @@
  *   This file implements Backbone Router management.
  */
 
+#define OT_LOG_TAG "BBR"
+
 #include "bbr_manager.hpp"
 
 #if OPENTHREAD_FTD && OPENTHREAD_CONFIG_BACKBONE_ROUTER_ENABLE
@@ -107,11 +109,11 @@ void Manager::HandleNotifierEvents(Events aEvents)
 
             if (error != kErrorNone)
             {
-                otLogWarnBbr("Stop Backbone TMF agent: %s", ErrorToString(error));
+                otLogWarn("Stop Backbone TMF agent: %s", ErrorToString(error));
             }
             else
             {
-                otLogInfoBbr("Stop Backbone TMF agent: %s", ErrorToString(error));
+                otLogInfo("Stop Backbone TMF agent: %s", ErrorToString(error));
             }
         }
         else
@@ -227,7 +229,7 @@ void Manager::HandleMulticastListenerRegistration(const Coap::Message &aMessage,
 
             if (timeout != origTimeout)
             {
-                otLogNoteBbr("MLR.req: MLR timeout is normalized from %u to %u", origTimeout, timeout);
+                otLogNote("MLR.req: MLR timeout is normalized from %u to %u", origTimeout, timeout);
             }
         }
     }
@@ -326,7 +328,7 @@ void Manager::SendMulticastListenerRegistrationResponse(const Coap::Message &   
 
 exit:
     FreeMessageOnError(message, error);
-    otLogInfoBbr("Sent MLR.rsp (status=%d): %s", aStatus, ErrorToString(error));
+    otLogInfo("Sent MLR.rsp (status=%d): %s", aStatus, ErrorToString(error));
 }
 
 void Manager::SendBackboneMulticastListenerRegistration(const Ip6::Address *aAddresses,
@@ -363,7 +365,7 @@ void Manager::SendBackboneMulticastListenerRegistration(const Ip6::Address *aAdd
 
 exit:
     FreeMessageOnError(message, error);
-    otLogInfoBbr("Sent BMLR.ntf: %s", ErrorToString(error));
+    otLogInfo("Sent BMLR.ntf: %s", ErrorToString(error));
 }
 #endif // OPENTHREAD_CONFIG_BACKBONE_ROUTER_MULTICAST_ROUTING_ENABLE
 
@@ -428,7 +430,7 @@ void Manager::HandleDuaRegistration(const Coap::Message &aMessage, const Ip6::Me
     }
 
 exit:
-    otLogInfoBbr("Received DUA.req on %s: %s", (isPrimary ? "PBBR" : "SBBR"), ErrorToString(error));
+    otLogInfo("Received DUA.req on %s: %s", (isPrimary ? "PBBR" : "SBBR"), ErrorToString(error));
 
     if (error == kErrorNone)
     {
@@ -465,7 +467,7 @@ void Manager::SendDuaRegistrationResponse(const Coap::Message &      aMessage,
 
 exit:
     FreeMessageOnError(message, error);
-    otLogInfoBbr("Sent DUA.rsp for DUA %s, status %d %s", aTarget.ToString().AsCString(), aStatus,
+    otLogInfo("Sent DUA.rsp for DUA %s, status %d %s", aTarget.ToString().AsCString(), aStatus,
                  ErrorToString(error));
 }
 #endif // OPENTHREAD_CONFIG_BACKBONE_ROUTER_DUA_NDPROXYING_ENABLE
@@ -554,7 +556,7 @@ Error Manager::SendBackboneQuery(const Ip6::Address &aDua, uint16_t aRloc16)
     error = mBackboneTmfAgent.SendMessage(*message, messageInfo);
 
 exit:
-    otLogInfoBbr("SendBackboneQuery for %s (rloc16=%04x): %s", aDua.ToString().AsCString(), aRloc16,
+    otLogInfo("SendBackboneQuery for %s (rloc16=%04x): %s", aDua.ToString().AsCString(), aRloc16,
                  ErrorToString(error));
     FreeMessageOnError(message, error);
     return error;
@@ -583,7 +585,7 @@ void Manager::HandleBackboneQuery(const Coap::Message &aMessage, const Ip6::Mess
     error = Tlv::Find<ThreadRloc16Tlv>(aMessage, rloc16);
     VerifyOrExit(error == kErrorNone || error == kErrorNotFound);
 
-    otLogInfoBbr("Received BB.qry from %s for %s (rloc16=%04x)", aMessageInfo.GetPeerAddr().ToString().AsCString(),
+    otLogInfo("Received BB.qry from %s for %s (rloc16=%04x)", aMessageInfo.GetPeerAddr().ToString().AsCString(),
                  dua.ToString().AsCString(), rloc16);
 
     ndProxy = mNdProxyTable.ResolveDua(dua);
@@ -592,7 +594,7 @@ void Manager::HandleBackboneQuery(const Coap::Message &aMessage, const Ip6::Mess
     error = SendBackboneAnswer(aMessageInfo, dua, rloc16, *ndProxy);
 
 exit:
-    otLogInfoBbr("HandleBackboneQuery: %s", ErrorToString(error));
+    otLogInfo("HandleBackboneQuery: %s", ErrorToString(error));
 }
 
 void Manager::HandleBackboneAnswer(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo)
@@ -644,7 +646,7 @@ void Manager::HandleBackboneAnswer(const Coap::Message &aMessage, const Ip6::Mes
     SuccessOrExit(error = mBackboneTmfAgent.SendEmptyAck(aMessage, aMessageInfo));
 
 exit:
-    otLogInfoBbr("HandleBackboneAnswer: %s", ErrorToString(error));
+    otLogInfo("HandleBackboneAnswer: %s", ErrorToString(error));
 }
 
 Error Manager::SendProactiveBackboneNotification(const Ip6::Address &            aDua,
@@ -708,7 +710,7 @@ Error Manager::SendBackboneAnswer(const Ip6::Address &            aDstAddr,
     error = mBackboneTmfAgent.SendMessage(*message, messageInfo);
 
 exit:
-    otLogInfoBbr("Send %s for %s (rloc16=%04x): %s", proactive ? "PRO_BB.ntf" : "BB.ans", aDua.ToString().AsCString(),
+    otLogInfo("Send %s for %s (rloc16=%04x): %s", proactive ? "PRO_BB.ntf" : "BB.ans", aDua.ToString().AsCString(),
                  aSrcRloc16, ErrorToString(error));
 
     FreeMessageOnError(message, error);
@@ -738,7 +740,7 @@ void Manager::HandleDadBackboneAnswer(const Ip6::Address &aDua, const Ip6::Inter
     ot::BackboneRouter::NdProxyTable::NotifyDadComplete(*ndProxy, duplicate);
 
 exit:
-    otLogInfoBbr("HandleDadBackboneAnswer: %s, target=%s, mliid=%s, duplicate=%s", ErrorToString(error),
+    otLogInfo("HandleDadBackboneAnswer: %s, target=%s, mliid=%s, duplicate=%s", ErrorToString(error),
                  aDua.ToString().AsCString(), aMeshLocalIid.ToString().AsCString(), duplicate ? "Y" : "N");
 }
 
@@ -752,7 +754,7 @@ void Manager::HandleExtendedBackboneAnswer(const Ip6::Address &            aDua,
     dest.SetToRoutingLocator(Get<Mle::MleRouter>().GetMeshLocalPrefix(), aSrcRloc16);
     Get<AddressResolver>().SendAddressQueryResponse(aDua, aMeshLocalIid, &aTimeSinceLastTransaction, dest);
 
-    otLogInfoBbr("HandleExtendedBackboneAnswer: target=%s, mliid=%s, LTT=%lds, rloc16=%04x",
+    otLogInfo("HandleExtendedBackboneAnswer: target=%s, mliid=%s, LTT=%lds, rloc16=%04x",
                  aDua.ToString().AsCString(), aMeshLocalIid.ToString().AsCString(), aTimeSinceLastTransaction,
                  aSrcRloc16);
 }
@@ -790,7 +792,7 @@ void Manager::HandleProactiveBackboneNotification(const Ip6::Address &          
     }
 
 exit:
-    otLogInfoBbr("HandleProactiveBackboneNotification: %s, target=%s, mliid=%s, LTT=%lds", ErrorToString(error),
+    otLogInfo("HandleProactiveBackboneNotification: %s, target=%s, mliid=%s, LTT=%lds", ErrorToString(error),
                  aDua.ToString().AsCString(), aMeshLocalIid.ToString().AsCString(), aTimeSinceLastTransaction);
 }
 #endif // OPENTHREAD_CONFIG_BACKBONE_ROUTER_DUA_NDPROXYING_ENABLE

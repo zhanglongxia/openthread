@@ -31,6 +31,8 @@
  *   This file implements the OpenThread Link Raw API.
  */
 
+#define OT_LOG_TAG "MAC"
+
 #include "openthread-core-config.h"
 
 #if OPENTHREAD_RADIO || OPENTHREAD_CONFIG_LINK_RAW_ENABLE
@@ -69,7 +71,7 @@ Error LinkRaw::SetReceiveDone(otLinkRawReceiveDone aCallback)
     Error error  = kErrorNone;
     bool  enable = aCallback != nullptr;
 
-    otLogDebgMac("LinkRaw::Enabled(%s)", (enable ? "true" : "false"));
+    otLogDebg("LinkRaw::Enabled(%s)", (enable ? "true" : "false"));
 
 #if OPENTHREAD_MTD || OPENTHREAD_FTD
     VerifyOrExit(!Get<ThreadNetif>().IsUp(), error = kErrorInvalidState);
@@ -164,7 +166,7 @@ exit:
 
 void LinkRaw::InvokeReceiveDone(RxFrame *aFrame, Error aError)
 {
-    otLogDebgMac("LinkRaw::ReceiveDone(%d bytes), error:%s", (aFrame != nullptr) ? aFrame->mLength : 0,
+    otLogDebg("LinkRaw::ReceiveDone(%d bytes), error:%s", (aFrame != nullptr) ? aFrame->mLength : 0,
                  ErrorToString(aError));
 
     if (mReceiveDoneCallback && (aError == kErrorNone))
@@ -188,7 +190,7 @@ exit:
 
 void LinkRaw::InvokeTransmitDone(TxFrame &aFrame, RxFrame *aAckFrame, Error aError)
 {
-    otLogDebgMac("LinkRaw::TransmitDone(%d bytes), error:%s", aFrame.mLength, ErrorToString(aError));
+    otLogDebg("LinkRaw::TransmitDone(%d bytes), error:%s", aFrame.mLength, ErrorToString(aError));
 
     if (mTransmitDoneCallback)
     {
@@ -260,7 +262,7 @@ void LinkRaw::RecordFrameTransmitStatus(const TxFrame &aFrame,
 
     if (aError != kErrorNone)
     {
-        otLogInfoMac("Frame tx failed, error:%s, retries:%d/%d, %s", ErrorToString(aError), aRetryCount,
+        otLogInfo("Frame tx failed, error:%s, retries:%d/%d, %s", ErrorToString(aError), aRetryCount,
                      aFrame.GetMaxFrameRetries(), aFrame.ToInfoString().AsCString());
     }
 }

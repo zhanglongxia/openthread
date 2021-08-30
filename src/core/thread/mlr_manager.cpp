@@ -31,6 +31,8 @@
  *   This file implements MLR management.
  */
 
+#define OT_LOG_TAG "MLR"
+
 #include "mlr_manager.hpp"
 
 #if OPENTHREAD_CONFIG_MLR_ENABLE || (OPENTHREAD_FTD && OPENTHREAD_CONFIG_TMF_PROXY_MLR_ENABLE)
@@ -330,7 +332,7 @@ Error MlrManager::RegisterMulticastListeners(const otIp6Address *               
 #else
     if (!Get<MeshCoP::Commissioner>().IsActive())
     {
-        otLogWarnMlr("MLR.req without active commissioner session for test.");
+        otLogWarn("MLR.req without active commissioner session for test.");
     }
 #endif
 
@@ -446,10 +448,10 @@ Error MlrManager::SendMulticastListenerRegistrationMessage(const otIp6Address * 
 
     error = Get<Tmf::Agent>().SendMessage(*message, messageInfo, aResponseHandler, aResponseContext);
 
-    otLogInfoMlr("Sent MLR.req: addressNum=%d", aAddressNum);
+    otLogInfo("Sent MLR.req: addressNum=%d", aAddressNum);
 
 exit:
-    otLogInfoMlr("SendMulticastListenerRegistrationMessage(): %s", ErrorToString(error));
+    otLogInfo("SendMulticastListenerRegistrationMessage(): %s", ErrorToString(error));
     FreeMessageOnError(message, error);
     return error;
 }
@@ -620,7 +622,7 @@ void MlrManager::HandleTimeTick(void)
 
 void MlrManager::Reregister(void)
 {
-    otLogInfoMlr("MLR Reregister!");
+    otLogInfo("MLR Reregister!");
 
     SetMulticastAddressMlrState(kMlrStateRegistered, kMlrStateToRegister);
     CheckInvariants();
@@ -673,19 +675,19 @@ void MlrManager::UpdateReregistrationDelay(bool aRereg)
 
     UpdateTimeTickerRegistration();
 
-    otLogDebgMlr("MlrManager::UpdateReregistrationDelay: rereg=%d, needSendMlr=%d, ReregDelay=%lu", aRereg, needSendMlr,
+    otLogDebg("MlrManager::UpdateReregistrationDelay: rereg=%d, needSendMlr=%d, ReregDelay=%lu", aRereg, needSendMlr,
                  mReregistrationDelay);
 }
 
 void MlrManager::LogMulticastAddresses(void)
 {
 #if OPENTHREAD_CONFIG_LOG_MLR && OPENTHREAD_CONFIG_LOG_LEVEL >= OT_LOG_LEVEL_DEBG
-    otLogDebgMlr("-------- Multicast Addresses --------");
+    otLogDebg("-------- Multicast Addresses --------");
 
 #if OPENTHREAD_CONFIG_MLR_ENABLE
     for (const Ip6::ExternalNetifMulticastAddress &addr : Get<ThreadNetif>().IterateExternalMulticastAddresses())
     {
-        otLogDebgMlr("%-32s%c", addr.GetAddress().ToString().AsCString(), "-rR"[addr.GetMlrState()]);
+        otLogDebg("%-32s%c", addr.GetAddress().ToString().AsCString(), "-rR"[addr.GetMlrState()]);
     }
 #endif
 
@@ -694,7 +696,7 @@ void MlrManager::LogMulticastAddresses(void)
     {
         for (const Ip6::Address &address : child.IterateIp6Addresses(Ip6::Address::kTypeMulticastLargerThanRealmLocal))
         {
-            otLogDebgMlr("%-32s%c %04x", address.ToString().AsCString(), "-rR"[child.GetAddressMlrState(address)],
+            otLogDebg("%-32s%c %04x", address.ToString().AsCString(), "-rR"[child.GetAddressMlrState(address)],
                          child.GetRloc16());
         }
     }
@@ -761,16 +763,16 @@ void MlrManager::LogMlrResponse(Error               aResult,
 #if (OPENTHREAD_CONFIG_LOG_LEVEL >= OT_LOG_LEVEL_WARN) && (OPENTHREAD_CONFIG_LOG_MLR == 1)
     if (aResult == kErrorNone && aError == kErrorNone && aStatus == ThreadStatusTlv::MlrStatus::kMlrSuccess)
     {
-        otLogInfoMlr("Receive MLR.rsp OK");
+        otLogInfo("Receive MLR.rsp OK");
     }
     else
     {
-        otLogWarnMlr("Receive MLR.rsp: result=%s, error=%s, status=%d, failedAddressNum=%d", ErrorToString(aResult),
+        otLogWarn("Receive MLR.rsp: result=%s, error=%s, status=%d, failedAddressNum=%d", ErrorToString(aResult),
                      ErrorToString(aError), aStatus, aFailedAddressNum);
 
         for (uint8_t i = 0; i < aFailedAddressNum; i++)
         {
-            otLogWarnMlr("MA failed: %s", aFailedAddresses[i].ToString().AsCString());
+            otLogWarn("MA failed: %s", aFailedAddresses[i].ToString().AsCString());
         }
     }
 #endif

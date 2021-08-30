@@ -32,6 +32,8 @@
  *
  */
 
+#define OT_LOG_TAG "CORE"
+
 #include "otns.hpp"
 
 #if (OPENTHREAD_MTD || OPENTHREAD_FTD) && OPENTHREAD_CONFIG_OTNS_ENABLE
@@ -168,7 +170,7 @@ void Otns::EmitCoapSend(const Coap::Message &aMessage, const Ip6::MessageInfo &a
 exit:
     if (error != kErrorNone)
     {
-        otLogWarnCore("Otns::EmitCoapSend failed: %s", ErrorToString(error));
+        otLogWarn("Otns::EmitCoapSend failed: %s", ErrorToString(error));
     }
 }
 
@@ -184,7 +186,7 @@ void Otns::EmitCoapReceive(const Coap::Message &aMessage, const Ip6::MessageInfo
 exit:
     if (error != kErrorNone)
     {
-        otLogWarnCore("Otns::EmitCoapReceive failed: %s", ErrorToString(error));
+        otLogWarn("Otns::EmitCoapReceive failed: %s", ErrorToString(error));
     }
 }
 
@@ -201,7 +203,7 @@ void Otns::EmitCoapSendFailure(Error aError, Coap::Message &aMessage, const Ip6:
 exit:
     if (error != kErrorNone)
     {
-        otLogWarnCore("Otns::EmitCoapSendFailure failed: %s", ErrorToString(error));
+        otLogWarn("Otns::EmitCoapSendFailure failed: %s", ErrorToString(error));
     }
 }
 

@@ -31,6 +31,8 @@
  *   This file implements ICMPv6.
  */
 
+#define OT_LOG_TAG "ICMP"
+
 #include "icmp6.hpp"
 
 #include "common/code_utils.hpp"
@@ -79,7 +81,7 @@ Error Icmp::SendEchoRequest(Message &aMessage, const MessageInfo &aMessageInfo, 
     aMessage.SetOffset(0);
     SuccessOrExit(error = Get<Ip6>().SendDatagram(aMessage, messageInfoLocal, kProtoIcmp6));
 
-    otLogInfoIcmp("Sent echo request: (seq = %d)", icmpHeader.GetSequence());
+    otLogInfo("Sent echo request: (seq = %d)", icmpHeader.GetSequence());
 
 exit:
     return error;
@@ -116,7 +118,7 @@ Error Icmp::SendError(Header::Type aType, Header::Code aCode, const MessageInfo 
 
     SuccessOrExit(error = Get<Ip6>().SendDatagram(*message, messageInfoLocal, kProtoIcmp6));
 
-    otLogInfoIcmp("Sent ICMPv6 Error");
+    otLogInfo("Sent ICMPv6 Error");
 
 exit:
     FreeMessageOnError(message, error);
@@ -182,14 +184,14 @@ Error Icmp::HandleEchoRequest(Message &aRequestMessage, const MessageInfo &aMess
     // always handle Echo Request destined for RLOC or ALOC
     VerifyOrExit(ShouldHandleEchoRequest(aMessageInfo) || aMessageInfo.GetSockAddr().GetIid().IsLocator());
 
-    otLogInfoIcmp("Received Echo Request");
+    otLogInfo("Received Echo Request");
 
     icmp6Header.Clear();
     icmp6Header.SetType(Header::kTypeEchoReply);
 
     if ((replyMessage = Get<Ip6>().NewMessage(0)) == nullptr)
     {
-        otLogDebgIcmp("Failed to allocate a new message");
+        otLogDebg("Failed to allocate a new message");
         ExitNow();
     }
 
@@ -210,7 +212,7 @@ Error Icmp::HandleEchoRequest(Message &aRequestMessage, const MessageInfo &aMess
     SuccessOrExit(error = Get<Ip6>().SendDatagram(*replyMessage, replyMessageInfo, kProtoIcmp6));
 
     IgnoreError(replyMessage->Read(replyMessage->GetOffset(), icmp6Header));
-    otLogInfoIcmp("Sent Echo Reply (seq = %d)", icmp6Header.GetSequence());
+    otLogInfo("Sent Echo Reply (seq = %d)", icmp6Header.GetSequence());
 
 exit:
     FreeMessageOnError(replyMessage, error);

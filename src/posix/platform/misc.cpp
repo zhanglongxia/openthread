@@ -36,6 +36,7 @@
 #include <unistd.h>
 
 #include <openthread/platform/misc.h>
+#include <openthread/logging.h>
 
 #include "common/code_utils.hpp"
 #include "common/logging.hpp"

@@ -31,6 +31,8 @@
  *   This file implements the channel monitoring module.
  */
 
+#define OT_LOG_TAG "UTIL"
+
 #include "channel_monitor.hpp"
 
 #if OPENTHREAD_CONFIG_CHANNEL_MONITOR_ENABLE
@@ -74,7 +76,7 @@ Error ChannelMonitor::Start(void)
     VerifyOrExit(!IsRunning(), error = kErrorAlready);
     Clear();
     mTimer.Start(kTimerInterval);
-    otLogDebgUtil("ChannelMonitor: Starting");
+    otLogDebg("ChannelMonitor: Starting");
 
 exit:
     return error;
@@ -86,7 +88,7 @@ Error ChannelMonitor::Stop(void)
 
     VerifyOrExit(IsRunning(), error = kErrorAlready);
     mTimer.Stop();
-    otLogDebgUtil("ChannelMonitor: Stopping");
+    otLogDebg("ChannelMonitor: Stopping");
 
 exit:
     return error;
@@ -98,7 +100,7 @@ void ChannelMonitor::Clear(void)
     mSampleCount      = 0;
     memset(mChannelOccupancy, 0, sizeof(mChannelOccupancy));
 
-    otLogDebgUtil("ChannelMonitor: Clearing data");
+    otLogDebg("ChannelMonitor: Clearing data");
 }
 
 uint16_t ChannelMonitor::GetChannelOccupancy(uint8_t aChannel) const
@@ -154,7 +156,7 @@ void ChannelMonitor::HandleEnergyScanResult(Mac::EnergyScanResult *aResult)
 
         OT_ASSERT(channelIndex < kNumChannels);
 
-        otLogDebgUtil("ChannelMonitor: channel: %d, rssi:%d", aResult->mChannel, aResult->mMaxRssi);
+        otLogDebg("ChannelMonitor: channel: %d, rssi:%d", aResult->mChannel, aResult->mMaxRssi);
 
         if (aResult->mMaxRssi != OT_RADIO_RSSI_INVALID)
         {
@@ -199,7 +201,7 @@ void ChannelMonitor::LogResults(void)
         writer.Append("%02x ", channel >> 8);
     }
 
-    otLogInfoUtil("ChannelMonitor: %u [%s]", mSampleCount, logString.AsCString());
+    otLogInfo("ChannelMonitor: %u [%s]", mSampleCount, logString.AsCString());
 #endif
 }
 

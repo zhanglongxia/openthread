@@ -31,6 +31,8 @@
  *   This file implements the necessary hooks for mbedTLS.
  */
 
+#define OT_LOG_TAG "MESH-CP"
+
 #include "dtls.hpp"
 
 #include <mbedtls/debug.h>
@@ -331,12 +333,12 @@ Error Dtls::Setup(bool aClient)
 
     if (mCipherSuites[0] == MBEDTLS_TLS_ECJPAKE_WITH_AES_128_CCM_8)
     {
-        otLogInfoMeshCoP("DTLS started");
+        otLogInfo("DTLS started");
     }
 #if OPENTHREAD_CONFIG_COAP_SECURE_API_ENABLE
     else
     {
-        otLogInfoCoap("Application Coap Secure DTLS started");
+        otLogInfo("Application Coap Secure DTLS started");
     }
 #endif
 
@@ -394,7 +396,7 @@ int Dtls::SetApplicationCoapSecureKeys(void)
         break;
 
     default:
-        otLogCritCoap("Application Coap Secure DTLS: Not supported cipher.");
+        otLogCrit("Application Coap Secure DTLS: Not supported cipher.");
         rval = MBEDTLS_ERR_SSL_BAD_INPUT_DATA;
         ExitNow();
         break;
@@ -573,12 +575,12 @@ int Dtls::HandleMbedtlsTransmit(const unsigned char *aBuf, size_t aLength)
 
     if (mCipherSuites[0] == MBEDTLS_TLS_ECJPAKE_WITH_AES_128_CCM_8)
     {
-        otLogDebgMeshCoP("Dtls::HandleMbedtlsTransmit");
+        otLogDebg("Dtls::HandleMbedtlsTransmit");
     }
 #if OPENTHREAD_CONFIG_COAP_SECURE_API_ENABLE
     else
     {
-        otLogDebgCoap("Dtls::ApplicationCoapSecure HandleMbedtlsTransmit");
+        otLogDebg("Dtls::ApplicationCoapSecure HandleMbedtlsTransmit");
     }
 #endif
 
@@ -598,7 +600,7 @@ int Dtls::HandleMbedtlsTransmit(const unsigned char *aBuf, size_t aLength)
         break;
 
     default:
-        otLogWarnMeshCoP("Dtls::HandleMbedtlsTransmit: %s error", ErrorToString(error));
+        otLogCrit("Dtls::HandleMbedtlsTransmit: %s error", ErrorToString(error));
         rval = MBEDTLS_ERR_NET_SEND_FAILED;
         break;
     }
@@ -617,12 +619,12 @@ int Dtls::HandleMbedtlsReceive(unsigned char *aBuf, size_t aLength)
 
     if (mCipherSuites[0] == MBEDTLS_TLS_ECJPAKE_WITH_AES_128_CCM_8)
     {
-        otLogDebgMeshCoP("Dtls::HandleMbedtlsReceive");
+        otLogDebg("Dtls::HandleMbedtlsReceive");
     }
 #if OPENTHREAD_CONFIG_COAP_SECURE_API_ENABLE
     else
     {
-        otLogDebgCoap("Dtls:: ApplicationCoapSecure HandleMbedtlsReceive");
+        otLogDebg("Dtls:: ApplicationCoapSecure HandleMbedtlsReceive");
     }
 #endif
 
@@ -652,12 +654,12 @@ int Dtls::HandleMbedtlsGetTimer(void)
 
     if (mCipherSuites[0] == MBEDTLS_TLS_ECJPAKE_WITH_AES_128_CCM_8)
     {
-        otLogDebgMeshCoP("Dtls::HandleMbedtlsGetTimer");
+        otLogDebg("Dtls::HandleMbedtlsGetTimer");
     }
 #if OPENTHREAD_CONFIG_COAP_SECURE_API_ENABLE
     else
     {
-        otLogDebgCoap("Dtls:: ApplicationCoapSecure HandleMbedtlsGetTimer");
+        otLogDebg("Dtls:: ApplicationCoapSecure HandleMbedtlsGetTimer");
     }
 #endif
 
@@ -690,12 +692,12 @@ void Dtls::HandleMbedtlsSetTimer(uint32_t aIntermediate, uint32_t aFinish)
 {
     if (mCipherSuites[0] == MBEDTLS_TLS_ECJPAKE_WITH_AES_128_CCM_8)
     {
-        otLogDebgMeshCoP("Dtls::SetTimer");
+        otLogDebg("Dtls::SetTimer");
     }
 #if OPENTHREAD_CONFIG_COAP_SECURE_API_ENABLE
     else
     {
-        otLogDebgCoap("Dtls::ApplicationCoapSecure SetTimer");
+        otLogDebg("Dtls::ApplicationCoapSecure SetTimer");
     }
 #endif
 
@@ -742,12 +744,12 @@ int Dtls::HandleMbedtlsExportKeys(const unsigned char *aMasterSecret,
 
     if (mCipherSuites[0] == MBEDTLS_TLS_ECJPAKE_WITH_AES_128_CCM_8)
     {
-        otLogDebgMeshCoP("Generated KEK");
+        otLogDebg("Generated KEK");
     }
 #if OPENTHREAD_CONFIG_COAP_SECURE_API_ENABLE
     else
     {
-        otLogDebgCoap("ApplicationCoapSecure Generated KEK");
+        otLogDebg("ApplicationCoapSecure Generated KEK");
     }
 #endif
     return 0;
@@ -890,20 +892,20 @@ void Dtls::HandleMbedtlsDebug(int aLevel, const char *aFile, int aLine, const ch
     switch (aLevel)
     {
     case 1:
-        otLogCritMbedTls("[%hu] %s", mSocket.GetSockName().mPort, aStr);
+        otLogCrit("[%hu] %s", mSocket.GetSockName().mPort, aStr);
         break;
 
     case 2:
-        otLogWarnMbedTls("[%hu] %s", mSocket.GetSockName().mPort, aStr);
+        otLogCrit("[%hu] %s", mSocket.GetSockName().mPort, aStr);
         break;
 
     case 3:
-        otLogInfoMbedTls("[%hu] %s", mSocket.GetSockName().mPort, aStr);
+        otLogInfo("[%hu] %s", mSocket.GetSockName().mPort, aStr);
         break;
 
     case 4:
     default:
-        otLogDebgMbedTls("[%hu] %s", mSocket.GetSockName().mPort, aStr);
+        otLogDebg("[%hu] %s", mSocket.GetSockName().mPort, aStr);
         break;
     }
 }

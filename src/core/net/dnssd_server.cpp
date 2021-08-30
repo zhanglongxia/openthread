@@ -31,6 +31,8 @@
  *   This file implements the DNS-SD server.
  */
 
+#define OT_LOG_TAG "DNS"
+
 #include "dnssd_server.hpp"
 
 #if OPENTHREAD_CONFIG_DNSSD_SERVER_ENABLE
@@ -73,7 +75,7 @@ Error Server::Start(void)
     SuccessOrExit(error = mSocket.Bind(kPort, OT_NETIF_UNSPECIFIED));
 
 exit:
-    otLogInfoDns("[server] started: %s", ErrorToString(error));
+    otLogInfo("[server] started: %s", ErrorToString(error));
 
     if (error != kErrorNone)
     {
@@ -95,7 +97,7 @@ void Server::Stop(void)
     mTimer.Stop();
 
     IgnoreError(mSocket.Close());
-    otLogInfoDns("[server] stopped");
+    otLogInfo("[server] stopped");
 }
 
 void Server::HandleUdpReceive(void *aContext, otMessage *aMessage, const otMessageInfo *aMessageInfo)
@@ -177,7 +179,7 @@ void Server::SendResponse(Header                  aHeader,
 
     if (aResponseCode == Header::kResponseServerFailure)
     {
-        otLogWarnDns("[server] failed to handle DNS query due to server failure");
+        otLogWarn("[server] failed to handle DNS query due to server failure");
         aHeader.SetQuestionCount(0);
         aHeader.SetAnswerCount(0);
         aHeader.SetAdditionalRecordCount(0);
@@ -193,11 +195,11 @@ void Server::SendResponse(Header                  aHeader,
 
     if (error != kErrorNone)
     {
-        otLogWarnDns("[server] failed to send DNS-SD reply: %s", otThreadErrorToString(error));
+        otLogWarn("[server] failed to send DNS-SD reply: %s", otThreadErrorToString(error));
     }
     else
     {
-        otLogInfoDns("[server] send DNS-SD reply: %s, RCODE=%d", otThreadErrorToString(error), aResponseCode);
+        otLogInfo("[server] send DNS-SD reply: %s, RCODE=%d", otThreadErrorToString(error), aResponseCode);
     }
 }
 
@@ -605,7 +607,7 @@ Header::Response Server::ResolveBySrp(Header &                  aResponseHeader,
         response = ResolveQuestionBySrp(name, question, aResponseHeader, aResponseMessage, aCompressInfo,
                                         /* aAdditional */ false);
 
-        otLogInfoDns("[server] ANSWER: TRANSACTION=0x%04x, QUESTION=[%s %d %d], RCODE=%d",
+        otLogInfo("[server] ANSWER: TRANSACTION=0x%04x, QUESTION=[%s %d %d], RCODE=%d",
                      aResponseHeader.GetMessageId(), name, question.GetClass(), question.GetType(), response);
     }
 
@@ -624,7 +626,7 @@ Header::Response Server::ResolveBySrp(Header &                  aResponseHeader,
                                                                                 /* aAdditional */ true),
                          response = Header::kResponseServerFailure);
 
-            otLogInfoDns("[server] ADDITIONAL: TRANSACTION=0x%04x, QUESTION=[%s %d %d], RCODE=%d",
+            otLogInfo("[server] ADDITIONAL: TRANSACTION=0x%04x, QUESTION=[%s %d %d], RCODE=%d",
                          aResponseHeader.GetMessageId(), name, question.GetClass(), question.GetType(), response);
         }
     }

@@ -31,6 +31,8 @@
  *   This file implements common MeshCoP utility functions.
  */
 
+#define OT_LOG_TAG "MESH-CP"
+
 #include "meshcop.hpp"
 
 #include "common/crc16.hpp"
@@ -360,7 +362,7 @@ void LogError(const char *aActionText, Error aError)
 {
     if (aError != kErrorNone)
     {
-        otLogWarnMeshCoP("Failed to %s: %s", aActionText, ErrorToString(aError));
+        otLogWarn("Failed to %s: %s", aActionText, ErrorToString(aError));
     }
 }
 #endif

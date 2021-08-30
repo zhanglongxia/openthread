@@ -31,6 +31,8 @@
  *   This file implements FTD-specific mesh forwarding of IPv6/6LoWPAN messages.
  */
 
+#define OT_LOG_TAG "MAC"
+
 #include "mesh_forwarder.hpp"
 
 #if OPENTHREAD_FTD
@@ -801,7 +803,7 @@ exit:
 
     if (error != kErrorNone)
     {
-        otLogInfoMac("Dropping rx mesh frame, error:%s, len:%d, src:%s, sec:%s", ErrorToString(error), aFrameLength,
+        otLogInfo("Dropping rx mesh frame, error:%s, len:%d, src:%s, sec:%s", ErrorToString(error), aFrameLength,
                      aMacSource.ToString().AsCString(), aLinkInfo.IsLinkSecurityEnabled() ? "yes" : "no");
         FreeMessage(message);
     }
@@ -976,7 +978,7 @@ void MeshForwarder::GetForwardFramePriority(const uint8_t *     aFrame,
 exit:
     if (error != kErrorNone)
     {
-        otLogNoteMac("Failed to get forwarded frame priority, error:%s, len:%d, src:%d, dst:%s", ErrorToString(error),
+        otLogNote("Failed to get forwarded frame priority, error:%s, len:%d, src:%d, dst:%s", ErrorToString(error),
                      aFrameLength, aMeshSource.ToString().AsCString(), aMeshDest.ToString().AsCString());
     }
     else if (isFragment)

@@ -31,6 +31,8 @@
  *   This file implements the Notifier class.
  */
 
+#define OT_LOG_TAG "CORE"
+
 #include "notifier.hpp"
 
 #include "border_router/routing_manager.hpp"
@@ -222,7 +224,7 @@ void Notifier::LogEvents(Events aEvents) const
         {
             if (writer.GetLength() >= kFlagsStringLineLimit)
             {
-                otLogInfoCore("Notifier: StateChanged (0x%08x) %s%s ...", aEvents.GetAsFlags(), didLog ? "... " : "[",
+                otLogInfo("Notifier: StateChanged (0x%08x) %s%s ...", aEvents.GetAsFlags(), didLog ? "... " : "[",
                               string.AsCString());
                 writer.Clear();
                 didLog   = true;
@@ -237,7 +239,7 @@ void Notifier::LogEvents(Events aEvents) const
     }
 
 exit:
-    otLogInfoCore("Notifier: StateChanged (0x%08x) %s%s]", aEvents.GetAsFlags(), didLog ? "... " : "[",
+    otLogInfo("Notifier: StateChanged (0x%08x) %s%s]", aEvents.GetAsFlags(), didLog ? "... " : "[",
                   string.AsCString());
 }
 

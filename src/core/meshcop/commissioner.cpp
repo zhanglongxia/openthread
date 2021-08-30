@@ -31,6 +31,8 @@
  *   This file implements a Commissioner role.
  */
 
+#define OT_LOG_TAG "MESH-CP"
+
 #include "commissioner.hpp"
 
 #if OPENTHREAD_FTD && OPENTHREAD_CONFIG_COMMISSIONER_ENABLE
@@ -94,7 +96,7 @@ void Commissioner::SetState(State aState)
 
     SuccessOrExit(Get<Notifier>().Update(mState, aState, kEventCommissionerStateChanged));
 
-    otLogInfoMeshCoP("CommissionerState: %s -> %s", StateToString(oldState), StateToString(aState));
+    otLogInfo("CommissionerState: %s -> %s", StateToString(oldState), StateToString(aState));
 
     if (mStateCallback)
     {
@@ -645,7 +647,7 @@ void Commissioner::HandleJoinerExpirationTimer(void)
 
         if (joiner.mExpirationTime <= now)
         {
-            otLogDebgMeshCoP("removing joiner due to timeout or successfully joined");
+            otLogDebg("removing joiner due to timeout or successfully joined");
             RemoveJoinerEntry(joiner);
         }
     }
@@ -715,7 +717,7 @@ Error Commissioner::SendMgmtCommissionerGetRequest(const uint8_t *aTlvs, uint8_t
     SuccessOrExit(error = Get<Tmf::Agent>().SendMessage(*message, messageInfo,
                                                         Commissioner::HandleMgmtCommissionerGetResponse, this));
 
-    otLogInfoMeshCoP("sent MGMT_COMMISSIONER_GET.req to leader");
+    otLogInfo("sent MGMT_COMMISSIONER_GET.req to leader");
 
 exit:
     FreeMessageOnError(message, error);
@@ -738,7 +740,7 @@ void Commissioner::HandleMgmtCommissionerGetResponse(Coap::Message *         aMe
     OT_UNUSED_VARIABLE(aMessageInfo);
 
     VerifyOrExit(aResult == kErrorNone && aMessage->GetCode() == Coap::kCodeChanged);
-    otLogInfoMeshCoP("received MGMT_COMMISSIONER_GET response");
+    otLogInfo("received MGMT_COMMISSIONER_GET response");
 
 exit:
     return;
@@ -789,7 +791,7 @@ Error Commissioner::SendMgmtCommissionerSetRequest(const otCommissioningDataset 
     SuccessOrExit(error = Get<Tmf::Agent>().SendMessage(*message, messageInfo,
                                                         Commissioner::HandleMgmtCommissionerSetResponse, this));
 
-    otLogInfoMeshCoP("sent MGMT_COMMISSIONER_SET.req to leader");
+    otLogInfo("sent MGMT_COMMISSIONER_SET.req to leader");
 
 exit:
     FreeMessageOnError(message, error);
@@ -812,7 +814,7 @@ void Commissioner::HandleMgmtCommissionerSetResponse(Coap::Message *         aMe
     OT_UNUSED_VARIABLE(aMessageInfo);
 
     VerifyOrExit(aResult == kErrorNone && aMessage->GetCode() == Coap::kCodeChanged);
-    otLogInfoMeshCoP("received MGMT_COMMISSIONER_SET response");
+    otLogInfo("received MGMT_COMMISSIONER_SET response");
 
 exit:
     return;
@@ -843,7 +845,7 @@ Error Commissioner::SendPetition(void)
     SuccessOrExit(
         error = Get<Tmf::Agent>().SendMessage(*message, messageInfo, Commissioner::HandleLeaderPetitionResponse, this));
 
-    otLogInfoMeshCoP("sent petition");
+    otLogInfo("sent petition");
 
 exit:
     FreeMessageOnError(message, error);
@@ -872,7 +874,7 @@ void Commissioner::HandleLeaderPetitionResponse(Coap::Message *         aMessage
     VerifyOrExit(aResult == kErrorNone && aMessage->GetCode() == Coap::kCodeChanged,
                  retransmit = (mState == kStatePetition));
 
-    otLogInfoMeshCoP("received Leader Petition response");
+    otLogInfo("received Leader Petition response");
 
     SuccessOrExit(Tlv::Find<StateTlv>(*aMessage, state));
     VerifyOrExit(state == StateTlv::kAccept, IgnoreError(Stop(/* aResign */ false)));
@@ -938,7 +940,7 @@ void Commissioner::SendKeepAlive(uint16_t aSessionId)
     SuccessOrExit(error = Get<Tmf::Agent>().SendMessage(*message, messageInfo,
                                                         Commissioner::HandleLeaderKeepAliveResponse, this));
 
-    otLogInfoMeshCoP("sent keep alive");
+    otLogInfo("sent keep alive");
 
 exit:
     FreeMessageOnError(message, error);
@@ -966,7 +968,7 @@ void Commissioner::HandleLeaderKeepAliveResponse(Coap::Message *         aMessag
     VerifyOrExit(aResult == kErrorNone && aMessage->GetCode() == Coap::kCodeChanged,
                  IgnoreError(Stop(/* aResign */ false)));
 
-    otLogInfoMeshCoP("received Leader keep-alive response");
+    otLogInfo("received Leader keep-alive response");
 
     SuccessOrExit(Tlv::Find<StateTlv>(*aMessage, state));
     VerifyOrExit(state == StateTlv::kAccept, IgnoreError(Stop(/* aResign */ false)));
@@ -1031,7 +1033,7 @@ void Commissioner::HandleRelayReceive(Coap::Message &aMessage, const Ip6::Messag
     mJoinerPort = joinerPort;
     mJoinerRloc = joinerRloc;
 
-    otLogInfoMeshCoP("Received Relay Receive (%s, 0x%04x)", mJoinerIid.ToString().AsCString(), mJoinerRloc);
+    otLogInfo("Received Relay Receive (%s, 0x%04x)", mJoinerIid.ToString().AsCString(), mJoinerRloc);
 
     aMessage.SetOffset(offset);
     SuccessOrExit(error = aMessage.SetLength(offset + length));
@@ -1056,11 +1058,11 @@ void Commissioner::HandleDatasetChanged(Coap::Message &aMessage, const Ip6::Mess
 {
     VerifyOrExit(aMessage.IsConfirmablePostRequest());
 
-    otLogInfoMeshCoP("received dataset changed");
+    otLogInfo("received dataset changed");
 
     SuccessOrExit(Get<Tmf::Agent>().SendEmptyAck(aMessage, aMessageInfo));
 
-    otLogInfoMeshCoP("sent dataset changed acknowledgment");
+    otLogInfo("sent dataset changed acknowledgment");
 
 exit:
     return;
@@ -1079,7 +1081,7 @@ void Commissioner::HandleJoinerFinalize(Coap::Message &aMessage, const Ip6::Mess
     StateTlv::State    state = StateTlv::kAccept;
     ProvisioningUrlTlv provisioningUrl;
 
-    otLogInfoMeshCoP("received joiner finalize");
+    otLogInfo("received joiner finalize");
 
     if (Tlv::FindTlv(aMessage, provisioningUrl) == kErrorNone)
     {
@@ -1143,7 +1145,7 @@ void Commissioner::SendJoinFinalizeResponse(const Coap::Message &aRequest, State
         RemoveJoiner(*mActiveJoiner, kRemoveJoinerDelay);
     }
 
-    otLogInfoMeshCoP("sent joiner finalize response");
+    otLogInfo("sent joiner finalize response");
 
 exit:
     FreeMessageOnError(message, error);
@@ -1214,8 +1216,8 @@ exit:
 
 // LCOV_EXCL_START
 
-#if (OPENTHREAD_CONFIG_LOG_LEVEL >= OT_LOG_LEVEL_INFO) && (OPENTHREAD_CONFIG_LOG_MESHCOP == 1)
-
+// #if (OPENTHREAD_CONFIG_LOG_LEVEL >= OT_LOG_LEVEL_INFO) && (OPENTHREAD_CONFIG_LOG_MESHCOP == 1)
+#if 1
 const char *Commissioner::StateToString(State aState)
 {
     static const char *const kStateStrings[] = {
@@ -1239,16 +1241,16 @@ void Commissioner::LogJoinerEntry(const char *aAction, const Joiner &aJoiner) co
         break;
 
     case Joiner::kTypeAny:
-        otLogInfoMeshCoP("%s Joiner (any, %s)", aAction, aJoiner.mPskd.GetAsCString());
+        otLogInfo("%s Joiner (any, %s)", aAction, aJoiner.mPskd.GetAsCString());
         break;
 
     case Joiner::kTypeEui64:
-        otLogInfoMeshCoP("%s Joiner (eui64:%s, %s)", aAction, aJoiner.mSharedId.mEui64.ToString().AsCString(),
+        otLogInfo("%s Joiner (eui64:%s, %s)", aAction, aJoiner.mSharedId.mEui64.ToString().AsCString(),
                          aJoiner.mPskd.GetAsCString());
         break;
 
     case Joiner::kTypeDiscerner:
-        otLogInfoMeshCoP("%s Joiner (disc:%s, %s)", aAction, aJoiner.mSharedId.mDiscerner.ToString().AsCString(),
+        otLogInfo("%s Joiner (disc:%s, %s)", aAction, aJoiner.mSharedId.mDiscerner.ToString().AsCString(),
                          aJoiner.mPskd.GetAsCString());
         break;
     }

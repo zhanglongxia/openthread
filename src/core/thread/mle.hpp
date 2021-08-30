@@ -1514,7 +1514,9 @@ protected:
      */
     bool IsAnnounceAttach(void) const { return mAlternatePanId != Mac::kPanIdBroadcast; }
 
-#if (OPENTHREAD_CONFIG_LOG_LEVEL >= OT_LOG_LEVEL_NOTE) && (OPENTHREAD_CONFIG_LOG_MLE == 1)
+//#if (OPENTHREAD_CONFIG_LOG_LEVEL >= OT_LOG_LEVEL_NOTE) && (OPENTHREAD_CONFIG_LOG_MLE == 1)
+#if 1
+
     /**
      * This method converts an `AttachMode` enumeration value into a human-readable string.
      *

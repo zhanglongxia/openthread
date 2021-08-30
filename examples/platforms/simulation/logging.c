@@ -62,6 +62,7 @@ OT_TOOL_WEAK void otPlatLog(otLogLevel aLogLevel, otLogRegion aLogRegion, const 
     int          charsWritten;
     va_list      args;
 
+    printf("%s -------------------------- plat\r\n", __func__);
     offset = 0;
 
     LOG_PRINTF("[%d] ", gNodeId);

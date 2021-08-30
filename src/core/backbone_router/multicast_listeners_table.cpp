@@ -31,6 +31,8 @@
  *   This file implements the Multicast Listeners Table.
  */
 
+#define OT_LOG_TAG "BBR"
+
 #include "multicast_listeners_table.hpp"
 
 #if OPENTHREAD_FTD && OPENTHREAD_CONFIG_BACKBONE_ROUTER_MULTICAST_ROUTING_ENABLE
@@ -154,7 +156,7 @@ void MulticastListenersTable::LogMulticastListenersTable(const char *        aAc
     OT_UNUSED_VARIABLE(aExpireTime);
     OT_UNUSED_VARIABLE(aError);
 
-    otLogDebgBbr("MulticastListenersTable: %s %s expire %u: %s", aAction, aAddress.ToString().AsCString(),
+    otLogDebg("MulticastListenersTable: %s %s expire %u: %s", aAction, aAddress.ToString().AsCString(),
                  aExpireTime.GetValue(), ErrorToString(aError));
 }
 

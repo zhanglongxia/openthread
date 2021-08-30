@@ -31,6 +31,8 @@
  *   This file implements the Energy Scan Server.
  */
 
+#define OT_LOG_TAG "MESH-CP"
+
 #include "energy_scan_server.hpp"
 
 #include "coap/coap_message.hpp"
@@ -97,7 +99,7 @@ void EnergyScanServer::HandleRequest(Coap::Message &aMessage, const Ip6::Message
     if (aMessage.IsConfirmable() && !aMessageInfo.GetSockAddr().IsMulticast())
     {
         SuccessOrExit(Get<Tmf::Agent>().SendEmptyAck(aMessage, responseInfo));
-        otLogInfoMeshCoP("sent energy scan query response");
+        otLogInfo("sent energy scan query response");
     }
 
 exit:
@@ -194,7 +196,7 @@ void EnergyScanServer::SendReport(void)
     messageInfo.SetPeerPort(Tmf::kUdpPort);
     SuccessOrExit(error = Get<Tmf::Agent>().SendMessage(*message, messageInfo));
 
-    otLogInfoMeshCoP("sent scan results");
+    otLogInfo("sent scan results");
 
 exit:
     FreeMessageOnError(message, error);

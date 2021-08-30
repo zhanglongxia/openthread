@@ -31,6 +31,8 @@
  *   This file implements the PAN ID Query Server.
  */
 
+#define OT_LOG_TAG "MESH-CP"
+
 #include "panid_query_server.hpp"
 
 #include "coap/coap_message.hpp"
@@ -81,7 +83,7 @@ void PanIdQueryServer::HandleQuery(Coap::Message &aMessage, const Ip6::MessageIn
     if (aMessage.IsConfirmable() && !aMessageInfo.GetSockAddr().IsMulticast())
     {
         SuccessOrExit(Get<Tmf::Agent>().SendEmptyAck(aMessage, responseInfo));
-        otLogInfoMeshCoP("sent panid query response");
+        otLogInfo("sent panid query response");
     }
 
 exit:
@@ -131,7 +133,7 @@ void PanIdQueryServer::SendConflict(void)
     messageInfo.SetPeerPort(Tmf::kUdpPort);
     SuccessOrExit(error = Get<Tmf::Agent>().SendMessage(*message, messageInfo));
 
-    otLogInfoMeshCoP("sent panid conflict");
+    otLogInfo("sent panid conflict");
 
 exit:
     FreeMessageOnError(message, error);
