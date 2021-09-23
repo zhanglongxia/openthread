@@ -65,6 +65,12 @@ public:
      */
     virtual void Process(const otSysMainloopContext &aContext) = 0;
 
+    /**
+     * This destructor deinitializes the object.
+     *
+     */
+    virtual ~Source(void) = default;
+
 private:
     Source *mNext = nullptr;
 };
