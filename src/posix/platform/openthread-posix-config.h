@@ -232,6 +232,16 @@
 #endif
 #endif
 
+/**
+ * @def OPENTHREAD_POSIX_CONFIG_BACKTRACE_ENABLE
+ *
+ * Define to 1 to enable backtrace.
+ *
+ */
+#ifndef OPENTHREAD_POSIX_CONFIG_BACKTRACE_ENABLE
+#define OPENTHREAD_POSIX_CONFIG_BACKTRACE_ENABLE 1
+#endif
+
 #ifdef __APPLE__
 
 /**

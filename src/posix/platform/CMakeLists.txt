@@ -80,9 +80,12 @@ if(NOT OT_CONFIG)
     set(OT_CONFIG "openthread-core-posix-config.h" PARENT_SCOPE)
 endif()
 
+set (CMAKE_EXE_LINKER_FLAGS "-rdynamic ${CMAKE_EXE_LINKER_FLAGS}" PARENT_SCOPE)
+
 add_library(openthread-posix
     alarm.cpp
     backbone.cpp
+    backtrace.cpp
     daemon.cpp
     entropy.cpp
     firewall.cpp

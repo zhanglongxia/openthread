@@ -36,6 +36,8 @@ target_compile_options(ot-daemon PRIVATE
     ${OT_CFLAGS}
 )
 
+#target_link_options(ot-daemon PRIVATE -rdynamic)
+
 target_link_libraries(ot-daemon PRIVATE
     openthread-cli-ftd
     openthread-posix

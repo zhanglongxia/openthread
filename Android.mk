@@ -378,6 +378,7 @@ LOCAL_SRC_FILES                                                  := \
     src/lib/url/url.cpp                                             \
     src/posix/platform/alarm.cpp                                    \
     src/posix/platform/backbone.cpp                                 \
+    src/posix/platform/backtrace.cpp                                \
     src/posix/platform/daemon.cpp                                   \
     src/posix/platform/entropy.cpp                                  \
     src/posix/platform/firewall.cpp                                 \

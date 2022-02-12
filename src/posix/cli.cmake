@@ -34,6 +34,8 @@ add_executable(ot-cli
 
 target_include_directories(ot-cli PRIVATE ${COMMON_INCLUDES})
 
+# target_link_options(ot-cli PRIVATE -rdynamic)
+
 if (READLINE)
 target_compile_definitions(ot-cli PRIVATE
     $<$<BOOL:${READLINE}>:HAVE_LIB$<UPPER_CASE:${OT_READLINE}>=1>)

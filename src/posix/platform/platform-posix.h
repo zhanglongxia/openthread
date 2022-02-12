@@ -493,6 +493,12 @@ void platformBackboneDeinit(void);
 void platformBackboneStateChange(otInstance *aInstance, otChangedFlags aFlags);
 
 /**
+ * This function initializes backtrace.
+ *
+ */
+void platformBacktraceInit(void);
+
+/**
  * A pointer to the OpenThread instance.
  *
  */
