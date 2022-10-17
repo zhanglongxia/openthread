@@ -37,6 +37,7 @@ namespace Posix {
 class Udp : public Mainloop::Source, private NonCopyable
 {
 public:
+    ~Udp(void) override {}
     static Udp &Get(void);
 
     void Init(const char *aIfName);

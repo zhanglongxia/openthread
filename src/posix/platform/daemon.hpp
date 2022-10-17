@@ -39,6 +39,7 @@ namespace Posix {
 class Daemon : public Mainloop::Source, private NonCopyable
 {
 public:
+    ~Daemon(void) override {}
     static Daemon &Get(void);
 
     void SetUp(void);

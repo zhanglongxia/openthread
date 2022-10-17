@@ -51,6 +51,8 @@ namespace Posix {
 class InfraNetif : public Mainloop::Source, private NonCopyable
 {
 public:
+    ~InfraNetif(void) override {}
+
     /**
      * This method updates the fd_set and timeout for mainloop.
      *

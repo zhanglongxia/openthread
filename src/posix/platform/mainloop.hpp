@@ -49,6 +49,8 @@ class Source
     friend class Manager;
 
 public:
+    virtual ~Source() {}
+
     /**
      * This method registers events in the mainloop.
      *

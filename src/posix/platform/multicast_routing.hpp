@@ -57,6 +57,7 @@ public:
         , mMulticastRouterSock(-1)
     {
     }
+    ~MulticastRoutingManager(void) override {}
 
     void SetUp(void);
     void TearDown(void);
