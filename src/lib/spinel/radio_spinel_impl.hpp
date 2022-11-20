@@ -2516,16 +2516,17 @@ uint8_t RadioSpinel<InterfaceType, ProcessContextType>::GetCslUncertainty(void)
 
 #if OPENTHREAD_PLATFORM_CONFIG_POWER_CALIBRATION_ENABLE
 template <typename InterfaceType, typename ProcessContextType>
-otError RadioSpinel<InterfaceType, ProcessContextType>::AddCalibratedPower(uint8_t                  aChannel,
-                                                                           int16_t                  aActualPower,
-                                                                           const otRawPowerSetting *aRawPowerSetting)
+otError RadioSpinel<InterfaceType, ProcessContextType>::AddCalibratedPower(uint8_t        aChannel,
+                                                                           int16_t        aActualPower,
+                                                                           const uint8_t *aRawPowerSetting,
+                                                                           uint16_t       aRawPowerSettingLength)
 {
     otError error;
 
     assert(aRawPowerSetting != nullptr);
     SuccessOrExit(error = Insert(SPINEL_PROP_RADIO_CALIBRATED_POWER,
                                  SPINEL_DATATYPE_UINT8_S SPINEL_DATATYPE_INT16_S SPINEL_DATATYPE_DATA_WLEN_S, aChannel,
-                                 aActualPower, aRawPowerSetting->m8, aRawPowerSetting->mLength));
+                                 aActualPower, aRawPowerSetting, aRawPowerSettingLength));
 
 exit:
     return error;
@@ -2534,7 +2535,7 @@ exit:
 template <typename InterfaceType, typename ProcessContextType>
 otError RadioSpinel<InterfaceType, ProcessContextType>::ClearCalibratedPowers(void)
 {
-    return Remove(SPINEL_PROP_RADIO_CALIBRATED_POWER, nullptr);
+    return Set(SPINEL_PROP_RADIO_CALIBRATED_POWER, nullptr);
 }
 
 template <typename InterfaceType, typename ProcessContextType>
