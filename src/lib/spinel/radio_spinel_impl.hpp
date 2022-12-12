@@ -2524,7 +2524,7 @@ otError RadioSpinel<InterfaceType, ProcessContextType>::AddCalibratedPower(uint8
     otError error;
 
     assert(aRawPowerSetting != nullptr);
-    SuccessOrExit(error = Insert(SPINEL_PROP_RADIO_CALIBRATED_POWER,
+    SuccessOrExit(error = Insert(SPINEL_PROP_PHY_CALIBRATED_POWER,
                                  SPINEL_DATATYPE_UINT8_S SPINEL_DATATYPE_INT16_S SPINEL_DATATYPE_DATA_WLEN_S, aChannel,
                                  aActualPower, aRawPowerSetting, aRawPowerSettingLength));
 
@@ -2535,7 +2535,7 @@ exit:
 template <typename InterfaceType, typename ProcessContextType>
 otError RadioSpinel<InterfaceType, ProcessContextType>::ClearCalibratedPowers(void)
 {
-    return Set(SPINEL_PROP_RADIO_CALIBRATED_POWER, nullptr);
+    return Set(SPINEL_PROP_PHY_CALIBRATED_POWER, nullptr);
 }
 
 template <typename InterfaceType, typename ProcessContextType>
@@ -2543,7 +2543,7 @@ otError RadioSpinel<InterfaceType, ProcessContextType>::SetChannelTargetPower(ui
 {
     otError error = OT_ERROR_NONE;
     VerifyOrExit(aChannel >= Radio::kChannelMin && aChannel <= Radio::kChannelMax, error = OT_ERROR_INVALID_ARGS);
-    error = Set(SPINEL_PROP_RADIO_CHAN_TARGET_POWER, SPINEL_DATATYPE_UINT8_S SPINEL_DATATYPE_INT16_S, aChannel,
+    error = Set(SPINEL_PROP_PHY_CHAN_TARGET_POWER, SPINEL_DATATYPE_UINT8_S SPINEL_DATATYPE_INT16_S, aChannel,
                 aTargetPower);
 
 exit:
@@ -3126,7 +3126,7 @@ void RadioSpinel<InterfaceType, ProcessContextType>::LogSpinelFrame(const uint8_
     }
     break;
 
-    case SPINEL_PROP_RADIO_CALIBRATED_POWER:
+    case SPINEL_PROP_PHY_CALIBRATED_POWER:
     {
         if (cmd == SPINEL_CMD_PROP_VALUE_INSERT)
         {
@@ -3150,7 +3150,7 @@ void RadioSpinel<InterfaceType, ProcessContextType>::LogSpinelFrame(const uint8_
     }
     break;
 
-    case SPINEL_PROP_RADIO_CHAN_TARGET_POWER:
+    case SPINEL_PROP_PHY_CHAN_TARGET_POWER:
     {
         uint8_t channel;
         int16_t targetPower;
