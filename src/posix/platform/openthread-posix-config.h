@@ -345,7 +345,12 @@
  *
  */
 #ifndef OPENTHREAD_POSIX_CONFIG_FACTORY_CONFIG_FILE
+#if OTBR_ENABLE
+#define OPENTHREAD_POSIX_CONFIG_FACTORY_CONFIG_FILE \
+    "third_party/openthread/repo/src/posix/platform/openthread.conf.example"
+#else
 #define OPENTHREAD_POSIX_CONFIG_FACTORY_CONFIG_FILE "src/posix/platform/openthread.conf.example"
+#endif
 #endif
 
 /**
@@ -355,7 +360,12 @@
  *
  */
 #ifndef OPENTHREAD_POSIX_CONFIG_PRODUCT_CONFIG_FILE
+#if OTBR_ENABLE
+#define OPENTHREAD_POSIX_CONFIG_PRODUCT_CONFIG_FILE \
+    "third_party/openthread/repo/src/posix/platform/openthread.conf.example"
+#else
 #define OPENTHREAD_POSIX_CONFIG_PRODUCT_CONFIG_FILE "src/posix/platform/openthread.conf.example"
+#endif
 #endif
 
 #endif // OPENTHREAD_PLATFORM_CONFIG_H_
