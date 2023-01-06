@@ -58,6 +58,21 @@ otError ConfigFile::Get(const char *aKey, int &aIterator, char *aValue, int aVal
     char    *ret;
     long int pos;
 
+    {
+        char path[kFileNameMaxSize];
+
+        otLogCritPlat("Config File: %s\r\n", mFilePath);
+
+        if (!getcwd(path, kFileNameMaxSize))
+        {
+            otLogCritPlat("Get current working directory failed\r\n");
+        }
+        else
+        {
+            otLogCritPlat("Current working directory: %s\r\n", path);
+        }
+    }
+
     VerifyOrExit((aKey != nullptr) && (aValue != nullptr), error = OT_ERROR_INVALID_ARGS);
     VerifyOrExit((fp = fopen(mFilePath, "r")) != nullptr, error = OT_ERROR_NOT_FOUND);
     VerifyOrDie(fseek(fp, aIterator, SEEK_SET) == 0, OT_EXIT_ERROR_ERRNO);
