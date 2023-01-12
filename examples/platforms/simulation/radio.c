@@ -383,8 +383,10 @@ static void initFds(void)
 
     otEXPECT_ACTION(setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)) != -1,
                     perror("setsockopt(sRxFd, SO_REUSEADDR)"));
+#if defined(SO_REUSEPORT)
     otEXPECT_ACTION(setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one)) != -1,
                     perror("setsockopt(sRxFd, SO_REUSEPORT)"));
+#endif
 
     {
         struct ip_mreqn mreq;

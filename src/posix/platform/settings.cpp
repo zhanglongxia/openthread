@@ -89,6 +89,7 @@ static void getSettingsFileName(otInstance *aInstance, char aFileName[kMaxFileNa
 
     otPlatRadioGetIeeeEui64(aInstance, reinterpret_cast<uint8_t *>(&nodeId));
     nodeId = ot::Encoding::BigEndian::HostSwap64(nodeId);
+    snprintf(aFileName, kMaxFileNameSize, OPENTHREAD_CONFIG_POSIX_SETTINGS_PATH "/%s_%lld.%s",
     snprintf(aFileName, kMaxFileNameSize, OPENTHREAD_CONFIG_POSIX_SETTINGS_PATH "/%s_%" PRIx64 ".%s",
              offset == nullptr ? "0" : offset, nodeId, (aSwap ? "swap" : "data"));
 }
