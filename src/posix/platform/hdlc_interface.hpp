@@ -170,6 +170,15 @@ public:
     otError ResetConnection(void);
 
     /**
+     * This method hardware resets the RCP.
+     *
+     * @retval OT_ERROR_NONE             Successfully hardware reseted the RCP.
+     * @retval OT_ERROR_NOT_IMPLEMENTED  This method is not implemented.
+     *
+     */
+    otError HardwareReset(void) { return OT_ERROR_NOT_IMPLEMENTED; }
+
+    /**
      * This method returns the RCP interface metrics.
      *
      * @returns The RCP interface metrics.

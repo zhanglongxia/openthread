@@ -95,9 +95,12 @@ void SpiInterface::OnRcpReset(void)
     memset(mSpiTxFrameBuffer, 0, sizeof(mSpiTxFrameBuffer));
     memset(&mInterfaceMetrics, 0, sizeof(mInterfaceMetrics));
     mInterfaceMetrics.mRcpInterfaceType = OT_POSIX_RCP_BUS_SPI;
+}
 
+otError SpiInterface::HardwareReset(void)
+{
     TriggerReset();
-    usleep(static_cast<useconds_t>(mSpiResetDelay) * kUsecPerMsec);
+    return OT_ERROR_NONE;
 }
 
 otError SpiInterface::Init(const Url::Url &aRadioUrl)
@@ -181,12 +184,6 @@ otError SpiInterface::Init(const Url::Url &aRadioUrl)
 
     InitResetPin(spiGpioResetDevice, spiGpioResetLine);
     InitSpiDev(aRadioUrl.GetPath(), spiMode, spiSpeed);
-
-    // Reset RCP chip.
-    TriggerReset();
-
-    // Waiting for the RCP chip starts up.
-    usleep(static_cast<useconds_t>(spiResetDelay) * kUsecPerMsec);
 
     return OT_ERROR_NONE;
 }
