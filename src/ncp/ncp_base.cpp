@@ -2594,6 +2594,18 @@ template <> otError NcpBase::HandlePropertySet<SPINEL_PROP_PHY_CALIBRATED_POWER>
 }
 #endif // OPENTHREAD_CONFIG_PLATFORM_POWER_CALIBRATION_ENABLE
 
+template <> otError NcpBase::HandlePropertySet<SPINEL_PROP_HOST_LOG_READY>(void)
+{
+    otError error;
+    bool    enable;
+
+    SuccessOrExit(error = mDecoder.ReadBool(enable));
+    otPlatLogSpinelHostReady(enable);
+
+exit:
+    return error;
+}
+
 } // namespace Ncp
 } // namespace ot
 
@@ -2653,3 +2665,5 @@ extern "C" void otPlatLog(otLogLevel aLogLevel, otLogRegion aLogRegion, const ch
 }
 
 #endif // (OPENTHREAD_CONFIG_LOG_OUTPUT == OPENTHREAD_CONFIG_LOG_OUTPUT_APP)
+
+OT_TOOL_WEAK void otPlatLogSpinelHostReady(bool aEnable) { OT_UNUSED_VARIABLE(aEnable); }

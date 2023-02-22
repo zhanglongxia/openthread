@@ -420,7 +420,7 @@
  * Please see section "Spinel definition compatibility guideline" for more details.
  *
  */
-#define SPINEL_RCP_API_VERSION 8
+#define SPINEL_RCP_API_VERSION 9
 
 /**
  * @def SPINEL_MIN_HOST_SUPPORTED_RCP_API_VERSION
@@ -4286,6 +4286,15 @@ enum
      *
      */
     SPINEL_PROP_SRP_CLIENT_SERVICE_KEY_ENABLED = SPINEL_PROP_OPENTHREAD__BEGIN + 27,
+
+    /// The host is ready for receiving log stream.
+    /** Format: `b` (write only)
+     *
+     * This boolean property indicates whether the host is ready for receiving logs from the RCP via the property
+     * `SPINEL_PROP_STREAM_LOG`.
+     *
+     */
+    SPINEL_PROP_HOST_LOG_READY = SPINEL_PROP_OPENTHREAD__BEGIN + 28,
 
     SPINEL_PROP_OPENTHREAD__END = 0x2000,
 

@@ -627,6 +627,7 @@ NcpBase::PropertyHandler NcpBase::FindSetPropertyHandler(spinel_prop_key_t aKey)
 #endif
 #endif
 #endif // OPENTHREAD_MTD || OPENTHREAD_FTD
+        OT_NCP_SET_HANDLER_ENTRY(SPINEL_PROP_HOST_LOG_READY),
 #if OPENTHREAD_CONFIG_LOG_LEVEL_DYNAMIC_ENABLE
         OT_NCP_SET_HANDLER_ENTRY(SPINEL_PROP_DEBUG_NCP_LOG_LEVEL),
 #endif

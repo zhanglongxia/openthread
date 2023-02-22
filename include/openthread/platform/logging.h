@@ -37,6 +37,7 @@
 
 #include <stdarg.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -173,6 +174,18 @@ void otPlatLog(otLogLevel aLogLevel, otLogRegion aLogRegion, const char *aFormat
  *
  */
 void otPlatLogHandleLevelChanged(otLogLevel aLogLevel);
+
+/**
+ * This function notifies the platform that the Spinel host is ready for receiving logs.
+ *
+ * This platform function is optional since an empty weak implementation has been provided.
+ *
+ * @note Only called by the Spinel client.
+ *
+ * @param[in] aEnable  TRUE if Spinel host is ready for receiving logs, FALSE otherwise.
+ *
+ */
+void otPlatLogSpinelHostReady(bool aEnable);
 
 /**
  * @}

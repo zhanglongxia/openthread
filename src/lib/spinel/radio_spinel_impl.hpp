@@ -265,6 +265,12 @@ void RadioSpinel<InterfaceType, ProcessContextType>::Init(bool aResetRadio,
         DieNow(exitCode);
     }
 
+    if (mSupportsLogStream)
+    {
+        // Notify the RCP that the host is ready for receiving logs.
+        IgnoreReturnValue(Set(SPINEL_PROP_HOST_LOG_READY, SPINEL_DATATYPE_BOOL_S, true));
+    }
+
     if (!aSkipRcpCompatibilityCheck)
     {
         SuccessOrDie(CheckRcpApiVersion(supportsRcpApiVersion, supportsRcpMinHostApiVersion));
@@ -2635,6 +2641,7 @@ void RadioSpinel<InterfaceType, ProcessContextType>::LogSpinelFrame(const uint8_
     case SPINEL_PROP_MAC_SRC_MATCH_ENABLED:
     case SPINEL_PROP_PHY_ENABLED:
     case SPINEL_PROP_RADIO_COEX_ENABLE:
+    case SPINEL_PROP_HOST_LOG_READY:
     {
         bool enabled;
 
