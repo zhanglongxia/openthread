@@ -49,7 +49,16 @@
  * Define to 1 to enable Factory Diagnostics support.
  */
 #ifndef OPENTHREAD_CONFIG_DIAG_ENABLE
-#define OPENTHREAD_CONFIG_DIAG_ENABLE 0
+#define OPENTHREAD_CONFIG_DIAG_ENABLE 1
+#endif
+
+/**
+ * @def OPENTHREAD_CONFIG_DIAG_SITE_SURVEY_ENABLE
+ *
+ * Define to 1 to enable site survey module support.
+ */
+#ifndef OPENTHREAD_CONFIG_DIAG_SITE_SURVEY_ENABLE
+#define OPENTHREAD_CONFIG_DIAG_SITE_SURVEY_ENABLE OPENTHREAD_CONFIG_DIAG_ENABLE
 #endif
 
 /**

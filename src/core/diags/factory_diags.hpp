@@ -48,7 +48,8 @@
 #include "common/locator.hpp"
 #include "common/non_copyable.hpp"
 #include "common/string.hpp"
-#include "mac/mac_types.hpp"
+#include "diags/site_survey.hpp"
+#include "mac/mac_frame.hpp"
 
 namespace ot {
 namespace FactoryDiags {
@@ -228,6 +229,9 @@ private:
 #if OPENTHREAD_RADIO && !OPENTHREAD_RADIO_CLI
     Error ProcessEcho(uint8_t aArgsLength, char *aArgs[]);
 #endif
+#if OPENTHREAD_CONFIG_DIAG_ENABLE
+    Error ProcessSiteSurvey(uint8_t aArgsLength, char *aArgs[]);
+#endif
 
     Error GetRawPowerSetting(RawPowerSetting &aRawPowerSetting);
     Error GetPowerSettings(uint8_t aChannel, PowerSettings &aPowerSettings);
@@ -269,6 +273,10 @@ private:
     bool          mIsAsyncSend : 1;
     bool          mDiagSendOn : 1;
     bool          mIsSleepOn : 1;
+#endif
+
+#if !(OPENTHREAD_RADIO && !OPENTHREAD_RADIO_CLI) && OPENTHREAD_CONFIG_DIAG_SITE_SURVEY_ENABLE
+    SiteSurvey mSiteSurvey;
 #endif
 
     ReceiveConfig        mReceiveConfig;

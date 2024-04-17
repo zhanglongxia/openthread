@@ -1,5 +1,6 @@
+#!/usr/bin/expect -f
 #
-#  Copyright (c) 2020, The OpenThread Authors.
+#  Copyright (c) 2025, The OpenThread Authors.
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -26,21 +27,35 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 #
 
-option(OT_BUILD_GTEST "enable gtest")
+source "tests/scripts/expect/_common.exp"
+source "tests/scripts/expect/_multinode.exp"
 
-if(OT_FTD AND BUILD_TESTING AND (NOT OT_PLATFORM STREQUAL "nexus"))
-    #add_subdirectory(unit)
-    if(OT_BUILD_GTEST)
-        #add_subdirectory(gtest)
-    endif()
-endif()
+spawn_node 1
+spawn_node 2
 
-option(OT_FUZZ_TARGETS "enable fuzz targets" OFF)
+switch_node 1
 
-if(OT_FUZZ_TARGETS)
-    add_subdirectory(fuzz)
-endif()
+send "extaddr deadbeef00000001\n"
+expect_line "Done"
 
-if(OT_PLATFORM STREQUAL "nexus")
-    add_subdirectory(nexus)
-endif()
+send "diag start\n"
+expect_line "Done"
+
+send "diag channel 11\n"
+expect_line "Done"
+
+send "diag sitesurvey server start\n"
+expect_line "Done"
+
+switch_node 2
+
+send "diag start\n"
+expect_line "Done"
+
+send "diag channel 11\n"
+expect_line "Done"
+
+send "diag sitesurvey client deadbeef00000001 -c 20 -a 20 -l 64 -n 10 -i 50 \n"
+expect_line "Done"
+
+dispose_all

@@ -184,6 +184,9 @@ const struct Diags::Command Diags::sCommands[] = {
     {"radio", &Diags::ProcessRadio},
     {"repeat", &Diags::ProcessRepeat},
     {"send", &Diags::ProcessSend},
+#if OPENTHREAD_CONFIG_DIAG_SITE_SURVEY_ENABLE
+    {"sitesurvey", &Diags::ProcessSiteSurvey},
+#endif
     {"start", &Diags::ProcessStart},
     {"stats", &Diags::ProcessStats},
     {"stop", &Diags::ProcessStop},
@@ -202,6 +205,9 @@ Diags::Diags(Instance &aInstance)
     , mIsTxPacketSet(false)
     , mIsAsyncSend(false)
     , mDiagSendOn(false)
+#if OPENTHREAD_CONFIG_DIAG_SITE_SURVEY_ENABLE
+    , mSiteSurvey(aInstance, mTxPacket)
+#endif
     , mOutputCallback(nullptr)
     , mOutputContext(nullptr)
 {
@@ -344,7 +350,9 @@ Error Diags::ProcessChannel(uint8_t aArgsLength, char *aArgs[])
 
         mChannel = channel;
         otPlatDiagChannelSet(mChannel);
-
+#if OPENTHREAD_CONFIG_DIAG_SITE_SURVEY_ENABLE
+        mSiteSurvey.SetChannel(mChannel);
+#endif
         if (!mIsSleepOn)
         {
             IgnoreError(Get<Radio>().Receive(mChannel));
@@ -382,6 +390,10 @@ Error Diags::ProcessRepeat(uint8_t aArgsLength, char *aArgs[])
 {
     Error error = kErrorNone;
 
+    VerifyOrExit(otPlatDiagModeGet(), error = kErrorInvalidState);
+#if OPENTHREAD_CONFIG_DIAG_SITE_SURVEY_ENABLE
+    VerifyOrExit(mSiteSurvey.IsRunning(), error = kErrorBusy);
+#endif
     VerifyOrExit(aArgsLength > 0, error = kErrorInvalidArgs);
 
     if (StringMatch(aArgs[0], "stop"))
@@ -434,6 +446,9 @@ Error Diags::ProcessSend(uint8_t aArgsLength, char *aArgs[])
 
     VerifyOrExit(aArgsLength >= 1, error = kErrorInvalidArgs);
     VerifyOrExit(mCurTxCmd == kTxCmdNone, error = kErrorInvalidState);
+#if OPENTHREAD_CONFIG_DIAG_SITE_SURVEY_ENABLE
+    // VerifyOrExit(mSiteSurvey.IsRunning(), error = kErrorBusy);
+#endif
 
     if (StringMatch(aArgs[0], "async"))
     {
@@ -778,6 +793,13 @@ exit:
     return error;
 }
 
+#if OPENTHREAD_CONFIG_DIAG_SITE_SURVEY_ENABLE
+Error Diags::ProcessSiteSurvey(uint8_t aArgsLength, char *aArgs[])
+{
+    return mSiteSurvey.ProcessCommand(aArgsLength, aArgs);
+}
+#endif
+
 extern "C" void otPlatDiagAlarmFired(otInstance *aInstance) { AsCoreType(aInstance).Get<Diags>().AlarmFired(); }
 
 void Diags::AlarmFired(void)
@@ -789,6 +811,12 @@ void Diags::AlarmFired(void)
         IgnoreError(TransmitPacket());
         otPlatAlarmMilliStartAt(&GetInstance(), now, mTxPeriod);
     }
+#if OPENTHREAD_CONFIG_DIAG_SITE_SURVEY_ENABLE
+    else if (mSiteSurvey.IsRunning())
+    {
+        mSiteSurvey.TimerFired();
+    }
+#endif
     else
     {
         otPlatDiagAlarmCallback(&GetInstance());
@@ -839,7 +867,14 @@ exit:
 
 void Diags::ReceiveDone(otRadioFrame *aFrame, Error aError)
 {
-    if (aError == kErrorNone)
+#if OPENTHREAD_CONFIG_DIAG_SITE_SURVEY_ENABLE
+    if (mSiteSurvey.IsRunning())
+    {
+        VerifyOrExit(aFrame != nullptr);
+        mSiteSurvey.ReceiveDone(*reinterpret_cast<Mac::RxFrame *>(aFrame), aError);
+    }
+    else
+#endif
     {
         if (mReceiveConfig.mIsFilterEnabled)
         {
@@ -851,17 +886,19 @@ void Diags::ReceiveDone(otRadioFrame *aFrame, Error aError)
         // for sensitivity test, only record the rssi and lqi for the first and last packet
         if (mStats.mReceivedPackets == 0)
         {
-            mStats.mFirstRssi = aFrame->mInfo.mRxInfo.mRssi;
-            mStats.mFirstLqi  = aFrame->mInfo.mRxInfo.mLqi;
+            // for sensitivity test, only record the rssi and lqi for the first and last packet
+            if (mStats.mReceivedPackets == 0)
+            {
+                mStats.mFirstRssi = aFrame->mInfo.mRxInfo.mRssi;
+                mStats.mFirstLqi  = aFrame->mInfo.mRxInfo.mLqi;
+            }
+
+            mStats.mLastRssi = aFrame->mInfo.mRxInfo.mRssi;
+            mStats.mLastLqi  = aFrame->mInfo.mRxInfo.mLqi;
+
+            mStats.mReceivedPackets++;
         }
-
-        mStats.mLastRssi = aFrame->mInfo.mRxInfo.mRssi;
-        mStats.mLastLqi  = aFrame->mInfo.mRxInfo.mLqi;
-
-        mStats.mReceivedPackets++;
     }
-
-    otPlatDiagRadioReceived(&GetInstance(), aFrame, aError);
 
 exit:
     return;
@@ -869,6 +906,14 @@ exit:
 
 void Diags::TransmitDone(Error aError)
 {
+#if OPENTHREAD_CONFIG_DIAG_SITE_SURVEY_ENABLE
+    if (mSiteSurvey.IsRunning())
+    {
+        mSiteSurvey.TransmitDone(aError);
+        ExitNow();
+    }
+#endif
+
     VerifyOrExit(mDiagSendOn);
     mDiagSendOn = false;
 
@@ -1233,6 +1278,9 @@ void Diags::SetOutputCallback(otDiagOutputCallback aCallback, void *aContext)
     mOutputContext  = aContext;
 
     otPlatDiagSetOutputCallback(&GetInstance(), aCallback, aContext);
+#if !(OPENTHREAD_RADIO && !OPENTHREAD_RADIO_CLI) && OPENTHREAD_CONFIG_DIAG_SITE_SURVEY_ENABLE
+    mSiteSurvey.SetOutputCallback(aCallback, aContext);
+#endif
 }
 
 void Diags::Output(const char *aFormat, ...)
