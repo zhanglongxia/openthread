@@ -131,6 +131,7 @@ set(COMMON_SOURCES
     crypto/sha256.cpp
     crypto/storage.cpp
     diags/factory_diags.cpp
+    diags/sitesurvey.cpp
     instance/instance.cpp
     mac/channel_mask.cpp
     mac/data_poll_handler.cpp
@@ -285,6 +286,7 @@ set(RADIO_COMMON_SOURCES
     crypto/crypto_platform.cpp
     crypto/storage.cpp
     diags/factory_diags.cpp
+    diags/sitesurvey.cpp
     instance/instance.cpp
     mac/link_raw.cpp
     mac/mac_frame.cpp

@@ -414,6 +414,11 @@ private:
 
 #endif // OPENTHREAD_FTD || OPENTHREAD_MTD
 
+#if OPENTHREAD_CONFIG_DIAG_ENABLE
+    static void HandleDiagOutput(void *aContext, const char *aFormat, va_list aArguments);
+    void        HandleDiagOutput(const char *aFormat, va_list aArguments);
+#endif
+
     void SetCommandTimeout(uint32_t aTimeoutMilli);
 
     static void HandleTimer(Timer &aTimer);

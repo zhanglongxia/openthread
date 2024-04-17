@@ -47,6 +47,8 @@
 #include "common/locator.hpp"
 #include "common/non_copyable.hpp"
 #include "common/string.hpp"
+#include "diags/sitesurvey.hpp"
+#include "mac/mac_frame.hpp"
 
 namespace ot {
 namespace FactoryDiags {
@@ -123,6 +125,8 @@ public:
      */
     void TransmitDone(Error aError);
 
+    void SetOutputCallback(otDiagOutputCallback aCallback, void *aContext);
+
 private:
     static constexpr uint8_t kMaxArgs = OPENTHREAD_CONFIG_DIAG_CMD_LINE_ARGS_MAX;
 
@@ -196,6 +200,7 @@ private:
 #if OPENTHREAD_RADIO && !OPENTHREAD_RADIO_CLI
     Error ProcessEcho(uint8_t aArgsLength, char *aArgs[], char *aOutput, size_t aOutputMaxLen);
 #endif
+    Error ProcessSiteSurvey(uint8_t aArgsLength, char *aArgs[], char *aOutput, size_t aOutputMaxLen);
 
     Error GetRawPowerSetting(RawPowerSetting &aRawPowerSetting);
     Error GetPowerSettings(uint8_t aChannel, PowerSettings &aPowerSettings);
@@ -219,6 +224,8 @@ private:
     uint8_t       mTxLen;
     bool          mRepeatActive;
     bool          mDiagSendOn;
+
+    SiteSurvey mSiteSurvey;
 #endif
 };
 

@@ -169,6 +169,11 @@ Interpreter::Interpreter(Instance *aInstance, otCliOutputCallback aCallback, voi
 #if (OPENTHREAD_FTD || OPENTHREAD_MTD) && OPENTHREAD_CONFIG_CLI_REGISTER_IP6_RECV_CALLBACK
     otIp6SetReceiveCallback(GetInstancePtr(), &Interpreter::HandleIp6Receive, this);
 #endif
+
+#if OPENTHREAD_CONFIG_DIAG_ENABLE
+    otDiagSetOutputCallback(GetInstancePtr(), &Interpreter::HandleDiagOutput, this);
+#endif
+
     ClearAllBytes(mUserCommands);
 
     OutputPrompt();
@@ -252,6 +257,13 @@ template <> otError Interpreter::Process<Cmd("diag")>(Arg aArgs[])
 
     return error;
 }
+
+void Interpreter::HandleDiagOutput(void *aContext, const char *aFormat, va_list aArguments)
+{
+    static_cast<Interpreter *>(aContext)->HandleDiagOutput(aFormat, aArguments);
+}
+
+void Interpreter::HandleDiagOutput(const char *aFormat, va_list aArguments) { OutputFormatV(aFormat, aArguments); }
 #endif
 
 template <> otError Interpreter::Process<Cmd("version")>(Arg aArgs[])

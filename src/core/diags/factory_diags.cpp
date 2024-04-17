@@ -48,12 +48,8 @@
 #include "radio/radio.hpp"
 #include "utils/parse_cmdline.hpp"
 
-OT_TOOL_WEAK
-otError otPlatDiagProcess(otInstance *aInstance,
-                          uint8_t     aArgsLength,
-                          char       *aArgs[],
-                          char       *aOutput,
-                          size_t      aOutputMaxLen)
+OT_TOOL_WEAK otError
+otPlatDiagProcess(otInstance *aInstance, uint8_t aArgsLength, char *aArgs[], char *aOutput, size_t aOutputMaxLen)
 {
     OT_UNUSED_VARIABLE(aArgsLength);
     OT_UNUSED_VARIABLE(aArgs);
@@ -194,6 +190,7 @@ const struct Diags::Command Diags::sCommands[] = {
     {"radio", &Diags::ProcessRadio},
     {"repeat", &Diags::ProcessRepeat},
     {"send", &Diags::ProcessSend},
+    {"sitesurvey", &Diags::ProcessSiteSurvey},
     {"start", &Diags::ProcessStart},
     {"stats", &Diags::ProcessStats},
     {"stop", &Diags::ProcessStop},
@@ -210,6 +207,7 @@ Diags::Diags(Instance &aInstance)
     , mTxLen(0)
     , mRepeatActive(false)
     , mDiagSendOn(false)
+    , mSiteSurvey(aInstance, mTxPacket)
 {
     mStats.Clear();
 }
@@ -234,6 +232,7 @@ Error Diags::ProcessChannel(uint8_t aArgsLength, char *aArgs[], char *aOutput, s
         mChannel = static_cast<uint8_t>(value);
         IgnoreError(Get<Radio>().Receive(mChannel));
         otPlatDiagChannelSet(mChannel);
+        mSiteSurvey.SetChannel(mChannel);
 
         snprintf(aOutput, aOutputMaxLen, "set channel to %d\r\nstatus 0x%02x\r\n", mChannel, error);
     }
@@ -276,6 +275,7 @@ Error Diags::ProcessRepeat(uint8_t aArgsLength, char *aArgs[], char *aOutput, si
     Error error = kErrorNone;
 
     VerifyOrExit(otPlatDiagModeGet(), error = kErrorInvalidState);
+    VerifyOrExit(mSiteSurvey.IsRunning(), error = kErrorBusy);
     VerifyOrExit(aArgsLength > 0, error = kErrorInvalidArgs);
 
     if (strcmp(aArgs[0], "stop") == 0)
@@ -316,6 +316,7 @@ Error Diags::ProcessSend(uint8_t aArgsLength, char *aArgs[], char *aOutput, size
     long  value;
 
     VerifyOrExit(otPlatDiagModeGet(), error = kErrorInvalidState);
+    // VerifyOrExit(mSiteSurvey.IsRunning(), error = kErrorBusy);
     VerifyOrExit(aArgsLength == 2, error = kErrorInvalidArgs);
 
     SuccessOrExit(error = ParseLong(aArgs[0], value));
@@ -489,11 +490,20 @@ exit:
     return error;
 }
 
+Error Diags::ProcessSiteSurvey(uint8_t aArgsLength, char *aArgs[], char *aOutput, size_t aOutputMaxLen)
+{
+    return mSiteSurvey.Process(aArgsLength, aArgs, aOutput, aOutputMaxLen);
+}
+
 extern "C" void otPlatDiagAlarmFired(otInstance *aInstance) { AsCoreType(aInstance).Get<Diags>().AlarmFired(); }
 
 void Diags::AlarmFired(void)
 {
-    if (mRepeatActive)
+    if (mSiteSurvey.IsRunning())
+    {
+        mSiteSurvey.TimerFired();
+    }
+    else if (mRepeatActive)
     {
         uint32_t now = otPlatAlarmMilliGetNow();
 
@@ -508,51 +518,77 @@ void Diags::AlarmFired(void)
 
 void Diags::ReceiveDone(otRadioFrame *aFrame, Error aError)
 {
-    if (aError == kErrorNone)
+    if (mSiteSurvey.IsRunning())
     {
-        // for sensitivity test, only record the rssi and lqi for the first and last packet
-        if (mStats.mReceivedPackets == 0)
+        VerifyOrExit(aFrame != nullptr);
+        mSiteSurvey.ReceiveDone(*reinterpret_cast<Mac::RxFrame *>(aFrame), aError);
+    }
+    else
+    {
+        if (aError == kErrorNone)
         {
-            mStats.mFirstRssi = aFrame->mInfo.mRxInfo.mRssi;
-            mStats.mFirstLqi  = aFrame->mInfo.mRxInfo.mLqi;
+            // for sensitivity test, only record the rssi and lqi for the first and last packet
+            if (mStats.mReceivedPackets == 0)
+            {
+                mStats.mFirstRssi = aFrame->mInfo.mRxInfo.mRssi;
+                mStats.mFirstLqi  = aFrame->mInfo.mRxInfo.mLqi;
+            }
+
+            mStats.mLastRssi = aFrame->mInfo.mRxInfo.mRssi;
+            mStats.mLastLqi  = aFrame->mInfo.mRxInfo.mLqi;
+
+            mStats.mReceivedPackets++;
         }
-
-        mStats.mLastRssi = aFrame->mInfo.mRxInfo.mRssi;
-        mStats.mLastLqi  = aFrame->mInfo.mRxInfo.mLqi;
-
-        mStats.mReceivedPackets++;
     }
 
+exit:
     otPlatDiagRadioReceived(&GetInstance(), aFrame, aError);
 }
 
 void Diags::TransmitDone(Error aError)
 {
-    VerifyOrExit(mDiagSendOn);
-    mDiagSendOn = false;
-
-    if (aError == kErrorNone)
+    if (mSiteSurvey.IsRunning())
     {
-        mStats.mSentPackets++;
-
-        if (mTxPackets > 1)
-        {
-            mTxPackets--;
-        }
-        else
-        {
-            ExitNow();
-        }
+        mSiteSurvey.TransmitDone(aError);
     }
+    else
+    {
+        VerifyOrExit(mDiagSendOn);
+        mDiagSendOn = false;
 
-    VerifyOrExit(!mRepeatActive);
-    TransmitPacket();
+        if (aError == kErrorNone)
+        {
+            mStats.mSentPackets++;
+
+            if (mTxPackets > 1)
+            {
+                mTxPackets--;
+            }
+            else
+            {
+                ExitNow();
+            }
+        }
+
+        VerifyOrExit(!mRepeatActive);
+        TransmitPacket();
+    }
 
 exit:
     return;
 }
 
 #endif // OPENTHREAD_RADIO
+
+void Diags::SetOutputCallback(otDiagOutputCallback aCallback, void *aContext)
+{
+    OT_UNUSED_VARIABLE(aCallback);
+    OT_UNUSED_VARIABLE(aContext);
+
+#if OPENTHREAD_FTD || OPENTHREAD_MTD || (OPENTHREAD_RADIO && OPENTHREAD_RADIO_CLI)
+    mSiteSurvey.SetOutputCallback(aCallback, aContext);
+#endif
+}
 
 Error Diags::ProcessContinuousWave(uint8_t aArgsLength, char *aArgs[], char *aOutput, size_t aOutputMaxLen)
 {

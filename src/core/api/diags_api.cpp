@@ -42,6 +42,13 @@
 
 using namespace ot;
 
+void otDiagSetOutputCallback(otInstance *aInstance, otDiagOutputCallback aCallback, void *aContext)
+{
+    AssertPointerIsNotNull(aCallback);
+
+    AsCoreType(aInstance).Get<FactoryDiags::Diags>().SetOutputCallback(aCallback, aContext);
+}
+
 otError otDiagProcessCmdLine(otInstance *aInstance, const char *aString, char *aOutput, size_t aOutputMaxLen)
 {
     AssertPointerIsNotNull(aString);

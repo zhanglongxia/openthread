@@ -51,6 +51,10 @@ extern "C" {
  *
  */
 
+typedef void (*otDiagOutputCallback)(void *aContext, const char *aFormat, va_list aArguments);
+
+void otDiagSetOutputCallback(otInstance *aInstance, otDiagOutputCallback aCallback, void *aContext);
+
 /**
  * Processes a factory diagnostics command line.
  *
