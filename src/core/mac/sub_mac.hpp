@@ -526,8 +526,10 @@ public:
 
 private:
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
+    void        CslInit(void);
     static void HandleCslTimer(Timer &aTimer);
     void        HandleCslTimer(void);
+    void        UpdateCslLastSyncTimestamp(RxFrame *aFrame, Error aError);
     void        GetCslWindowEdges(uint32_t &aAhead, uint32_t &aAfter);
 #if OPENTHREAD_CONFIG_MAC_CSL_DEBUG_ENABLE
     void LogReceived(RxFrame *aFrame);
