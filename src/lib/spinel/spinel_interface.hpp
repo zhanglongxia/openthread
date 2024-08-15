@@ -163,6 +163,7 @@ protected:
         kSpinelInterfaceTypeHdlc   = 1, ///< The type of Spinel HDLC interface.
         kSpinelInterfaceTypeSpi    = 2, ///< The type of Spinel SPI interface.
         kSpinelInterfaceTypeVendor = 3, ///< The type of Spinel Vendor interface.
+        kSpinelInterfaceTypeSocket = 4, ///< The type of Spinel Socket interface.
     };
 
     /**

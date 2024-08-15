@@ -146,6 +146,7 @@ add_library(openthread-posix
     rcp_caps_diag.cpp
     resolver.cpp
     settings.cpp
+    socket_interface.cpp
     spinel_manager.cpp
     spi_interface.cpp
     system.cpp

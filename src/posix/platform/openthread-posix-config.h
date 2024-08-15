@@ -93,6 +93,16 @@
 #endif
 
 /**
+ * @def OPENTHREAD_POSIX_CONFIG_SPINEL_SOCKET_INTERFACE_ENABLE
+ *
+ * Define as 1 to enable the spinel socket interface.
+ *
+ */
+#ifndef OPENTHREAD_POSIX_CONFIG_SPINEL_SOCKET_INTERFACE_ENABLE
+#define OPENTHREAD_POSIX_CONFIG_SPINEL_SOCKET_INTERFACE_ENABLE 1
+#endif
+
+/**
  * @def OPENTHREAD_POSIX_CONFIG_SPINEL_VENDOR_INTERFACE_URL_PROTOCOL_NAME
  *
  * Define the URL protocol name of the vendor Spinel interface.

@@ -35,6 +35,7 @@
 #include "lib/spinel/spinel_driver.hpp"
 #include "posix/platform/hdlc_interface.hpp"
 #include "posix/platform/radio_url.hpp"
+#include "posix/platform/socket_interface.hpp"
 #include "posix/platform/spi_interface.hpp"
 #include "posix/platform/spinel_driver_getter.hpp"
 #include "posix/platform/vendor_interface.hpp"
@@ -120,6 +121,12 @@ Spinel::SpinelInterface *SpinelManager::CreateSpinelInterface(const char *aInter
     else if (VendorInterface::IsInterfaceNameMatch(aInterfaceName))
     {
         interface = new (&mSpinelInterfaceRaw) VendorInterface(mUrl);
+    }
+#endif
+#if OPENTHREAD_POSIX_CONFIG_SPINEL_SOCKET_INTERFACE_ENABLE
+    else if (SocketInterface::IsInterfaceNameMatch(aInterfaceName))
+    {
+        interface = new (&mSpinelInterfaceRaw) SocketInterface(mUrl);
     }
 #endif
     else
