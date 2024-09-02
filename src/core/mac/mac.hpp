@@ -606,13 +606,14 @@ public:
      * @param[in]  aChannel  The CSL channel.
      *
      */
-    void SetCslChannel(uint8_t aChannel);
+    Error SetCslChannel(uint8_t aChannel);
 
     /**
      * Centralizes CSL state switching conditions evaluating, configuring SubMac accordingly.
      *
      */
-    void UpdateCsl(void);
+    Error CslStop(void);
+    Error CslStart(void);
 
     /**
      * Gets the CSL period.
@@ -639,7 +640,7 @@ public:
      * @param[in]  aPeriod  The CSL period in 10 symbols.
      *
      */
-    void SetCslPeriod(uint16_t aPeriod);
+    Error SetCslPeriod(uint16_t aPeriod);
 
     /**
      * This method converts a given CSL period in units of 10 symbols to microseconds.
@@ -659,6 +660,9 @@ public:
      *
      */
     bool IsCslEnabled(void) const;
+
+    void SetCslOn(bool aOn) { mCslOn = aOn; }
+    bool IsCslOn(void) const { return mCslOn; }
 
     /**
      * Indicates whether Link is capable of starting CSL.
@@ -855,6 +859,10 @@ private:
 #if OPENTHREAD_CONFIG_MAC_STAY_AWAKE_BETWEEN_FRAGMENTS
     bool mShouldDelaySleep : 1;
     bool mDelayingSleep : 1;
+#endif
+#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
+    bool mCslEnabled : 1;
+    bool mCslOn : 1;
 #endif
     Operation   mOperation;
     uint16_t    mPendingOperations;

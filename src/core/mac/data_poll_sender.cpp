@@ -504,7 +504,7 @@ uint32_t DataPollSender::CalculatePollPeriod(void) const
         period = Min(period, kRetxPollPeriod);
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-        if (Get<Mac::Mac>().GetCslPeriodInMsec() > 0)
+        if (Get<Mac::Mac>().IsCslEnabled())
         {
             period = Min(period, Get<Mac::Mac>().GetCslPeriodInMsec());
         }

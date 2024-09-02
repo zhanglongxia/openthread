@@ -1029,6 +1029,7 @@ uint8_t otLinkGetCslChannel(otInstance *aInstance);
  *                            within the range [1, 10] (if 915-MHz supported) and [11, 26] (if 2.4 GHz supported).
  *
  * @retval OT_ERROR_NONE           Successfully set the CSL parameters.
+ * @retval OT_ERROR_INVALID_STATE  The CSL receiver is running.
  * @retval OT_ERROR_INVALID_ARGS   Invalid @p aChannel.
  *
  */
@@ -1053,7 +1054,7 @@ otError otLinkSetCslChannel(otInstance *aInstance, uint8_t aChannel);
 uint32_t otLinkGetCslPeriod(otInstance *aInstance);
 
 /**
- * Sets the CSL period in microseconds. Disable CSL by setting this parameter to `0`.
+ * Sets the CSL period in microseconds.
  *
  * The CSL period MUST be a multiple of `OT_LINK_CSL_PERIOD_TEN_SYMBOLS_UNIT_IN_USEC`, otherwise `OT_ERROR_INVALID_ARGS`
  * is returned.
@@ -1062,6 +1063,7 @@ uint32_t otLinkGetCslPeriod(otInstance *aInstance);
  * @param[in]  aPeriod        The CSL period in microseconds.
  *
  * @retval OT_ERROR_NONE           Successfully set the CSL period.
+ * @retval OT_ERROR_INVALID_STATE  The CSL receiver is running.
  * @retval OT_ERROR_INVALID_ARGS   Invalid CSL period
  *
  */
@@ -1145,6 +1147,26 @@ bool otLinkIsCslEnabled(otInstance *aInstance);
  *
  */
 bool otLinkIsCslSupported(otInstance *aInstance);
+
+/**
+ * Turns on the CSL.
+ *
+ * @param[in]  aInstance  A pointer to an OpenThread instance.
+ * @param[in]  aOn        TRUE to turn on the CSL, FALSE otherwise.
+ *
+ */
+void otLinkSetCslOn(otInstance *aInstance, bool aOn);
+
+/**
+ * Indicates whether or not CSL is turned on.
+ *
+ * @param[in]  aInstance  A pointer to an OpenThread instance.
+ *
+ * @retval TRUE   If the CSL was turned on.
+ * @retval FALSE  If the CSL was turned off.
+ *
+ */
+bool otLinkIsCslOn(otInstance *aInstance);
 
 /**
  * Instructs the device to send an empty IEEE 802.15.4 data frame.

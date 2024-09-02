@@ -391,6 +391,10 @@ uint16_t otLinkGetCcaFailureRate(otInstance *aInstance)
 }
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
+void otLinkSetCslOn(otInstance *aInstance, bool aOn) { AsCoreType(aInstance).Get<Mac::Mac>().SetCslOn(aOn); }
+
+bool otLinkIsCslOn(otInstance *aInstance) { return AsCoreType(aInstance).Get<Mac::Mac>().IsCslOn(); }
+
 bool otLinkIsCslEnabled(otInstance *aInstance) { return AsCoreType(aInstance).Get<Mac::Mac>().IsCslEnabled(); }
 
 bool otLinkIsCslSupported(otInstance *aInstance) { return AsCoreType(aInstance).Get<Mac::Mac>().IsCslSupported(); }
@@ -403,7 +407,7 @@ otError otLinkSetCslChannel(otInstance *aInstance, uint8_t aChannel)
 
     VerifyOrExit(Radio::IsCslChannelValid(aChannel), error = kErrorInvalidArgs);
 
-    AsCoreType(aInstance).Get<Mac::Mac>().SetCslChannel(aChannel);
+    error = AsCoreType(aInstance).Get<Mac::Mac>().SetCslChannel(aChannel);
 
 exit:
     return error;
@@ -419,18 +423,11 @@ otError otLinkSetCslPeriod(otInstance *aInstance, uint32_t aPeriod)
     Error    error = kErrorNone;
     uint16_t periodInTenSymbolsUnit;
 
-    if (aPeriod == 0)
-    {
-        periodInTenSymbolsUnit = 0;
-    }
-    else
-    {
-        VerifyOrExit((aPeriod % kUsPerTenSymbols) == 0, error = kErrorInvalidArgs);
-        periodInTenSymbolsUnit = ClampToUint16(aPeriod / kUsPerTenSymbols);
-        VerifyOrExit(periodInTenSymbolsUnit >= kMinCslPeriod, error = kErrorInvalidArgs);
-    }
+    VerifyOrExit((aPeriod % kUsPerTenSymbols) == 0, error = kErrorInvalidArgs);
+    periodInTenSymbolsUnit = ClampToUint16(aPeriod / kUsPerTenSymbols);
+    VerifyOrExit(periodInTenSymbolsUnit >= kMinCslPeriod, error = kErrorInvalidArgs);
 
-    AsCoreType(aInstance).Get<Mac::Mac>().SetCslPeriod(periodInTenSymbolsUnit);
+    error = AsCoreType(aInstance).Get<Mac::Mac>().SetCslPeriod(periodInTenSymbolsUnit);
 
 exit:
     return error;

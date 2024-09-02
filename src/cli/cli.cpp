@@ -2502,7 +2502,7 @@ template <> otError Interpreter::Process<Cmd("csl")>(Arg aArgs[])
     /**
      * @cli csl timeout
      * @code
-     * cls timeout 10
+     * csl timeout 10
      * Done
      * @endcode
      * @cparam csl timeout @ca{timeout}
@@ -2512,6 +2512,32 @@ template <> otError Interpreter::Process<Cmd("csl")>(Arg aArgs[])
     else if (aArgs[0] == "timeout")
     {
         error = ProcessSet(aArgs + 1, otLinkSetCslTimeout);
+    }
+    /**
+     * @cli csl on
+     * @code
+     * csl on
+     * Done
+     * @endcode
+     * @par api_copy
+     * #otLinkSetCslOn
+     */
+    else if (aArgs[0] == "on")
+    {
+        otLinkSetCslOn(GetInstancePtr(), true);
+    }
+    /**
+     * @cli csl off
+     * @code
+     * csl off
+     * Done
+     * @endcode
+     * @par api_copy
+     * #otLinkSetCslOn
+     */
+    else if (aArgs[0] == "off")
+    {
+        otLinkSetCslOn(GetInstancePtr(), false);
     }
     else
     {

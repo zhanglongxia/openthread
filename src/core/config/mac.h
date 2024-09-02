@@ -220,6 +220,16 @@
 #endif
 
 /**
+ * @def OPENTHREAD_CONFIG_MAC_CSL_PERIOD
+ *
+ * Define the CSL period, in units of 10 symbols (160 microseconds).
+ *
+ */
+#ifndef OPENTHREAD_CONFIG_MAC_CSL_PERIOD
+#define OPENTHREAD_CONFIG_MAC_CSL_PERIOD 6000
+#endif
+
+/**
  * @def OPENTHREAD_CONFIG_MAC_FILTER_ENABLE
  *
  * Define to 1 to enable MAC filter support.

@@ -712,7 +712,7 @@ void Mle::SetStateDetached(void)
     Get<MleRouter>().HandleDetachStart();
 #endif
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-    Get<Mac::Mac>().UpdateCsl();
+    Get<Mac::Mac>().CslStop();
 #endif
 }
 
@@ -761,7 +761,10 @@ void Mle::SetStateChild(uint16_t aRloc16)
     mPreviousParentRloc = mParent.GetRloc16();
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-    Get<Mac::Mac>().UpdateCsl();
+    if (!IsRxOnWhenIdle() && GetParent().IsEnhancedKeepAliveSupported())
+    {
+        Get<Mac::Mac>().CslStart();
+    }
 #endif
 }
 

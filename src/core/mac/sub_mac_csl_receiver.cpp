@@ -51,6 +51,7 @@ void SubMac::CslInit(void)
     mCslChannel    = 0;
     mCslPeerShort  = 0;
     mIsCslSampling = false;
+    mCslEnabled    = false;
     mCslSampleTime = TimeMicro{0};
     mCslLastSync   = TimeMicro{0};
     mCslTimer.Stop();
@@ -88,53 +89,59 @@ exit:
     return;
 }
 
-void SubMac::CslSample(void)
+Error SubMac::SetCslEnabled(bool aEnabled)
 {
-#if OPENTHREAD_CONFIG_MAC_FILTER_ENABLE
-    VerifyOrExit(!mRadioFilterEnabled, IgnoreError(Get<Radio>().Sleep()));
-#endif
+    Error error = kErrorNone;
 
-    SetState(kStateCslSample);
-
-    if (mIsCslSampling && !RadioSupportsReceiveTiming())
-    {
-        IgnoreError(Get<Radio>().Receive(mCslChannel));
-        ExitNow();
-    }
-
-#if !OPENTHREAD_CONFIG_MAC_CSL_DEBUG_ENABLE
-    IgnoreError(Get<Radio>().Sleep()); // Don't actually sleep for debugging
-#endif
-
-exit:
-    return;
-}
-
-bool SubMac::UpdateCsl(uint16_t aPeriod, uint8_t aChannel, otShortAddress aShortAddr, const otExtAddress *aExtAddr)
-{
-    bool diffPeriod  = aPeriod != mCslPeriod;
-    bool diffChannel = aChannel != mCslChannel;
-    bool diffPeer    = aShortAddr != mCslPeerShort;
-    bool retval      = diffPeriod || diffChannel || diffPeer;
-
-    VerifyOrExit(retval);
-    mCslChannel = aChannel;
-
-    VerifyOrExit(diffPeriod || diffPeer);
-    mCslPeriod    = aPeriod;
-    mCslPeerShort = aShortAddr;
-    IgnoreError(Get<Radio>().EnableCsl(aPeriod, aShortAddr, aExtAddr));
+    VerifyOrExit(mCslEnabled != aEnabled, error = kErrorAlready);
+    mCslEnabled = aEnabled;
+    IgnoreError(Get<Radio>().SetCslEnabled(aEnabled));
 
     mCslTimer.Stop();
-    if (mCslPeriod > 0)
+    if (mCslEnabled)
     {
+#if OPENTHREAD_CONFIG_MAC_FILTER_ENABLE
+        VerifyOrExit(!mRadioFilterEnabled, IgnoreError(Get<Radio>().Sleep()));
+#endif
+
+        SetState(kStateCslSample);
+
+        if (mIsCslSampling && !RadioSupportsReceiveTiming())
+        {
+            IgnoreError(Get<Radio>().Receive(mCslChannel));
+            ExitNow();
+        }
+#if !OPENTHREAD_CONFIG_MAC_CSL_DEBUG_ENABLE
+        IgnoreError(Get<Radio>().Sleep()); // Don't actually sleep for debugging
+#endif
+
         mCslSampleTime = TimeMicro(static_cast<uint32_t>(otPlatRadioGetNow(&GetInstance())));
         mIsCslSampling = false;
         HandleCslTimer();
     }
 
 exit:
-    return retval;
+    return error;
+}
+
+Error SubMac::SetCslParams(uint16_t aPeriod, uint8_t aChannel, otShortAddress aShortAddr, const otExtAddress *aExtAddr)
+{
+    Error error = kErrorNone;
+
+    bool diffPeriod  = aPeriod != mCslPeriod;
+    bool diffChannel = aChannel != mCslChannel;
+    bool diffPeer    = aShortAddr != mCslPeerShort;
+    bool retval      = diffPeriod || diffChannel || diffPeer;
+
+    VerifyOrExit(retval);
+    SuccessOrExit(error = Get<Radio>().SetCslParams(aPeriod, aShortAddr, aExtAddr));
+
+    mCslChannel   = aChannel;
+    mCslPeriod    = aPeriod;
+    mCslPeerShort = aShortAddr;
+
+exit:
+    return kErrorNone;
 }
 
 void SubMac::HandleCslTimer(Timer &aTimer) { aTimer.Get<SubMac>().HandleCslTimer(); }

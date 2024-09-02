@@ -437,6 +437,13 @@ OT_TOOL_WEAK uint8_t otPlatRadioGetCslAccuracy(otInstance *)
 {
     return static_cast<uint8_t>(otPlatTimeGetXtalAccuracy() / 2);
 }
+
+OT_TOOL_WEAK otError otPlatRadioSetCslEnabled(otInstance *aInstance, bool) { return OT_ERROR_NONE; }
+OT_TOOL_WEAK otError otPlatRadioSetCslParams(otInstance *, uint32_t, otShortAddress, const otExtAddress *)
+{
+    return OT_ERROR_NONE;
+}
+
 #endif
 
 #if OPENTHREAD_CONFIG_OTNS_ENABLE
