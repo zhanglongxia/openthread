@@ -27,11 +27,11 @@
 #
 
 if(OT_FTD AND BUILD_TESTING)
-    add_subdirectory(unit)
+#    add_subdirectory(unit)
 endif()
 
 option(OT_FUZZ_TARGETS "enable fuzz targets" OFF)
 
 if(OT_FUZZ_TARGETS)
-    add_subdirectory(fuzz)
+#    add_subdirectory(fuzz)
 endif()

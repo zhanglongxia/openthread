@@ -43,7 +43,6 @@
 
 #include "simul_utils.h"
 #include "utils/code_utils.h"
-#include "utils/link_metrics.h"
 #include "utils/mac_frame.h"
 #include "utils/soft_source_match_table.h"
 
@@ -94,11 +93,8 @@ struct RadioMessage
 
 static void radioTransmit(struct RadioMessage *aMessage, const struct otRadioFrame *aFrame);
 static void radioSendMessage(otInstance *aInstance);
-static void radioSendAck(void);
+static void radioSendAck(otInstance *aInstance);
 static void radioProcessFrame(otInstance *aInstance);
-#if OPENTHREAD_CONFIG_THREAD_VERSION >= OT_THREAD_VERSION_1_2
-static uint8_t generateAckIeData(uint8_t *aLinkMetricsIeData, uint8_t aLinkMetricsIeDataLen);
-#endif
 
 static otRadioState        sState = OT_RADIO_STATE_DISABLED;
 static struct RadioMessage sReceiveMessage;
@@ -132,14 +128,14 @@ static uint8_t sCurrentChannel = kMinChannel;
 
 static bool sSrcMatchEnabled = false;
 
-#if OPENTHREAD_CONFIG_THREAD_VERSION >= OT_THREAD_VERSION_1_2
-static uint8_t sAckIeData[OT_ACK_IE_MAX_SIZE];
-static uint8_t sAckIeDataLength = 0;
-#endif
+//#if OPENTHREAD_CONFIG_THREAD_VERSION >= OT_THREAD_VERSION_1_2
+// static uint8_t sAckIeData[OT_ACK_IE_MAX_SIZE];
+// static uint8_t sAckIeDataLength = 0;
+//#endif
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-static uint32_t sCslSampleTime;
-static uint32_t sCslPeriod;
+// static uint32_t sCslSampleTime;
+// static uint32_t sCslPeriod;
 #endif
 
 #if OPENTHREAD_CONFIG_PLATFORM_RADIO_COEX_ENABLE
@@ -153,12 +149,12 @@ otRadioCaps gRadioCaps =
     OT_RADIO_CAPS_NONE;
 #endif
 
-static uint32_t         sMacFrameCounter;
-static uint8_t          sKeyId;
-static otMacKeyMaterial sPrevKey;
-static otMacKeyMaterial sCurrKey;
-static otMacKeyMaterial sNextKey;
-static otRadioKeyType   sKeyType;
+// static uint32_t         sMacFrameCounter;
+// static uint8_t          sKeyId;
+// static otMacKeyMaterial sPrevKey;
+// static otMacKeyMaterial sCurrKey;
+// static otMacKeyMaterial sNextKey;
+// static otRadioKeyType sKeyType;
 
 static int8_t GetRssi(uint16_t aChannel);
 
@@ -427,22 +423,7 @@ void platformRadioInit(void)
     {
         sChannelMaxTransmitPower[i] = OT_RADIO_POWER_INVALID;
     }
-
-#if OPENTHREAD_CONFIG_MLE_LINK_METRICS_SUBJECT_ENABLE
-    otLinkMetricsInit(SIM_RECEIVE_SENSITIVITY);
-#endif
 }
-
-#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-static uint16_t getCslPhase(void)
-{
-    uint32_t curTime       = otPlatAlarmMicroGetNow();
-    uint32_t cslPeriodInUs = sCslPeriod * OT_US_PER_TEN_SYMBOLS;
-    uint32_t diff = ((sCslSampleTime % cslPeriodInUs) - (curTime % cslPeriodInUs) + cslPeriodInUs) % cslPeriodInUs;
-
-    return (uint16_t)(diff / OT_US_PER_TEN_SYMBOLS);
-}
-#endif
 
 bool otPlatRadioIsEnabled(otInstance *aInstance)
 {
@@ -659,92 +640,11 @@ static void radioComputeCrc(struct RadioMessage *aMessage, uint16_t aLength)
     aMessage->mPsdu[crc_offset + 1] = crc >> 8;
 }
 
-static otError radioProcessTransmitSecurity(otRadioFrame *aFrame)
-{
-    otError error = OT_ERROR_NONE;
-#if OPENTHREAD_CONFIG_THREAD_VERSION >= OT_THREAD_VERSION_1_2
-    otMacKeyMaterial *key = NULL;
-    uint8_t           keyId;
-
-    otEXPECT(otMacFrameIsSecurityEnabled(aFrame) && otMacFrameIsKeyIdMode1(aFrame) &&
-             !aFrame->mInfo.mTxInfo.mIsSecurityProcessed);
-
-    if (otMacFrameIsAck(aFrame))
-    {
-        keyId = otMacFrameGetKeyId(aFrame);
-
-        otEXPECT_ACTION(keyId != 0, error = OT_ERROR_FAILED);
-
-        if (keyId == sKeyId)
-        {
-            key = &sCurrKey;
-        }
-        else if (keyId == sKeyId - 1)
-        {
-            key = &sPrevKey;
-        }
-        else if (keyId == sKeyId + 1)
-        {
-            key = &sNextKey;
-        }
-        else
-        {
-            error = OT_ERROR_SECURITY;
-            otEXPECT(false);
-        }
-    }
-    else
-    {
-        key   = &sCurrKey;
-        keyId = sKeyId;
-    }
-
-    aFrame->mInfo.mTxInfo.mAesKey = key;
-
-    if (!aFrame->mInfo.mTxInfo.mIsHeaderUpdated)
-    {
-        otMacFrameSetKeyId(aFrame, keyId);
-        otMacFrameSetFrameCounter(aFrame, sMacFrameCounter++);
-    }
-#else
-    otEXPECT(!aFrame->mInfo.mTxInfo.mIsSecurityProcessed);
-#endif // OPENTHREAD_CONFIG_THREAD_VERSION >= OT_THREAD_VERSION_1_2
-
-    otMacFrameProcessTransmitAesCcm(aFrame, &sExtAddress);
-
-exit:
-    return error;
-}
-
 void radioSendMessage(otInstance *aInstance)
 {
-#if OPENTHREAD_CONFIG_MAC_HEADER_IE_SUPPORT && OPENTHREAD_CONFIG_TIME_SYNC_ENABLE
-    if (sTransmitFrame.mInfo.mTxInfo.mIeInfo->mTimeIeOffset != 0)
-    {
-        uint8_t *timeIe = sTransmitFrame.mPsdu + sTransmitFrame.mInfo.mTxInfo.mIeInfo->mTimeIeOffset;
-        uint64_t time = (uint64_t)((int64_t)otPlatTimeGet() + sTransmitFrame.mInfo.mTxInfo.mIeInfo->mNetworkTimeOffset);
-
-        *timeIe = sTransmitFrame.mInfo.mTxInfo.mIeInfo->mTimeSyncSeq;
-
-        *(++timeIe) = (uint8_t)(time & 0xff);
-        for (uint8_t i = 1; i < sizeof(uint64_t); i++)
-        {
-            time        = time >> 8;
-            *(++timeIe) = (uint8_t)(time & 0xff);
-        }
-    }
-#endif // OPENTHREAD_CONFIG_MAC_HEADER_IE_SUPPORT && OPENTHREAD_CONFIG_TIME_SYNC_ENABLE
-
-#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-    if (sCslPeriod > 0 && !sTransmitFrame.mInfo.mTxInfo.mIsHeaderUpdated)
-    {
-        otMacFrameSetCslIe(&sTransmitFrame, (uint16_t)sCslPeriod, getCslPhase());
-    }
-#endif
-
+    otEXPECT(otPlatRadioUpdateDataIe(aInstance, &sTransmitFrame) == OT_ERROR_NONE);
     sTransmitMessage.mChannel = sTransmitFrame.mChannel;
 
-    otEXPECT(radioProcessTransmitSecurity(&sTransmitFrame) == OT_ERROR_NONE);
     otPlatRadioTxStarted(aInstance, &sTransmitFrame);
     radioComputeCrc(&sTransmitMessage, sTransmitFrame.mLength);
     radioTransmit(&sTransmitMessage, &sTransmitFrame);
@@ -874,8 +774,10 @@ void radioTransmit(struct RadioMessage *aMessage, const struct otRadioFrame *aFr
 #endif
 }
 
-void radioSendAck(void)
+void radioSendAck(otInstance *aInstance)
 {
+    OT_UNUSED_VARIABLE(aInstance);
+
     if (
 #if OPENTHREAD_CONFIG_THREAD_VERSION >= OT_THREAD_VERSION_1_2
         // Determine if frame pending should be set
@@ -893,38 +795,10 @@ void radioSendAck(void)
     // Use enh-ack for 802.15.4-2015 frames
     if (otMacFrameIsVersion2015(&sReceiveFrame))
     {
-        uint8_t  linkMetricsDataLen = 0;
-        uint8_t *dataPtr            = NULL;
-
-#if OPENTHREAD_CONFIG_MLE_LINK_METRICS_SUBJECT_ENABLE
-        uint8_t      linkMetricsData[OT_ENH_PROBING_IE_DATA_MAX_SIZE];
-        otMacAddress macAddress;
-
-        otEXPECT(otMacFrameGetSrcAddr(&sReceiveFrame, &macAddress) == OT_ERROR_NONE);
-
-        linkMetricsDataLen = otLinkMetricsEnhAckGenData(&macAddress, sReceiveFrame.mInfo.mRxInfo.mLqi,
-                                                        sReceiveFrame.mInfo.mRxInfo.mRssi, linkMetricsData);
-
-        if (linkMetricsDataLen > 0)
-        {
-            dataPtr = linkMetricsData;
-        }
-#endif
-
-        sAckIeDataLength = generateAckIeData(dataPtr, linkMetricsDataLen);
-
-        otEXPECT(otMacFrameGenerateEnhAck(&sReceiveFrame, sReceiveFrame.mInfo.mRxInfo.mAckedWithFramePending,
-                                          sAckIeData, sAckIeDataLength, &sAckFrame) == OT_ERROR_NONE);
-#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-        if (sCslPeriod > 0)
-        {
-            otMacFrameSetCslIe(&sAckFrame, (uint16_t)sCslPeriod, getCslPhase());
-        }
-#endif
-        if (otMacFrameIsSecurityEnabled(&sAckFrame))
-        {
-            otEXPECT(radioProcessTransmitSecurity(&sAckFrame) == OT_ERROR_NONE);
-        }
+        otEXPECT(otMacFrameGenerateEnhAck(&sReceiveFrame, sReceiveFrame.mInfo.mRxInfo.mAckedWithFramePending, NULL, 0,
+                                          &sAckFrame) == OT_ERROR_NONE);
+        otEXPECT(otPlatRadioUpdateAckIe(aInstance, &sAckFrame, sReceiveFrame.mInfo.mRxInfo.mRssi,
+                                        sReceiveFrame.mInfo.mRxInfo.mLqi) == OT_ERROR_NONE);
     }
     else
 #endif
@@ -967,7 +841,7 @@ void radioProcessFrame(otInstance *aInstance)
     // generate acknowledgment
     if (otMacFrameIsAckRequested(&sReceiveFrame))
     {
-        radioSendAck();
+        radioSendAck(aInstance);
 #if OPENTHREAD_CONFIG_THREAD_VERSION >= OT_THREAD_VERSION_1_2
         if (otMacFrameIsSecurityEnabled(&sAckFrame))
         {
@@ -1172,100 +1046,15 @@ uint64_t otPlatRadioGetNow(otInstance *aInstance)
     return otPlatTimeGet();
 }
 
-#if OPENTHREAD_CONFIG_THREAD_VERSION >= OT_THREAD_VERSION_1_2
-static uint8_t generateAckIeData(uint8_t *aLinkMetricsIeData, uint8_t aLinkMetricsIeDataLen)
-{
-    OT_UNUSED_VARIABLE(aLinkMetricsIeData);
-    OT_UNUSED_VARIABLE(aLinkMetricsIeDataLen);
-
-    uint8_t offset = 0;
-
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-    if (sCslPeriod > 0)
-    {
-        offset += otMacFrameGenerateCslIeTemplate(sAckIeData);
-    }
-#endif
-
-#if OPENTHREAD_CONFIG_MLE_LINK_METRICS_SUBJECT_ENABLE
-    if (aLinkMetricsIeData != NULL && aLinkMetricsIeDataLen > 0)
-    {
-        offset += otMacFrameGenerateEnhAckProbingIe(sAckIeData, aLinkMetricsIeData, aLinkMetricsIeDataLen);
-    }
-#endif
-
-    return offset;
-}
-#endif
-
-#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-otError otPlatRadioEnableCsl(otInstance         *aInstance,
-                             uint32_t            aCslPeriod,
-                             otShortAddress      aShortAddr,
-                             const otExtAddress *aExtAddr)
-{
-    OT_UNUSED_VARIABLE(aInstance);
-    OT_UNUSED_VARIABLE(aShortAddr);
-    OT_UNUSED_VARIABLE(aExtAddr);
-
-    sCslPeriod = aCslPeriod;
-
-    return OT_ERROR_NONE;
-}
-
-otError otPlatRadioResetCsl(otInstance *aInstance)
-{
-    OT_UNUSED_VARIABLE(aInstance);
-
-    sCslPeriod = 0;
-
-    return OT_ERROR_NONE;
-}
-
-void otPlatRadioUpdateCslSampleTime(otInstance *aInstance, uint32_t aCslSampleTime)
-{
-    OT_UNUSED_VARIABLE(aInstance);
-
-    sCslSampleTime = aCslSampleTime;
-}
-
 uint8_t otPlatRadioGetCslAccuracy(otInstance *aInstance)
 {
     OT_UNUSED_VARIABLE(aInstance);
 
     return 0;
 }
+
 #endif // OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-
-void otPlatRadioSetMacKey(otInstance             *aInstance,
-                          uint8_t                 aKeyIdMode,
-                          uint8_t                 aKeyId,
-                          const otMacKeyMaterial *aPrevKey,
-                          const otMacKeyMaterial *aCurrKey,
-                          const otMacKeyMaterial *aNextKey,
-                          otRadioKeyType          aKeyType)
-{
-    OT_UNUSED_VARIABLE(aInstance);
-    OT_UNUSED_VARIABLE(aKeyIdMode);
-
-    otEXPECT(aPrevKey != NULL && aCurrKey != NULL && aNextKey != NULL);
-
-    sKeyId   = aKeyId;
-    sKeyType = aKeyType;
-    memcpy(&sPrevKey, aPrevKey, sizeof(otMacKeyMaterial));
-    memcpy(&sCurrKey, aCurrKey, sizeof(otMacKeyMaterial));
-    memcpy(&sNextKey, aNextKey, sizeof(otMacKeyMaterial));
-
-exit:
-    return;
-}
-
-void otPlatRadioSetMacFrameCounter(otInstance *aInstance, uint32_t aMacFrameCounter)
-{
-    OT_UNUSED_VARIABLE(aInstance);
-
-    sMacFrameCounter = aMacFrameCounter;
-}
 
 otError otPlatRadioSetChannelMaxTransmitPower(otInstance *aInstance, uint8_t aChannel, int8_t aMaxPower)
 {
@@ -1279,18 +1068,6 @@ otError otPlatRadioSetChannelMaxTransmitPower(otInstance *aInstance, uint8_t aCh
 exit:
     return error;
 }
-
-#if OPENTHREAD_CONFIG_MLE_LINK_METRICS_SUBJECT_ENABLE
-otError otPlatRadioConfigureEnhAckProbing(otInstance          *aInstance,
-                                          otLinkMetrics        aLinkMetrics,
-                                          const otShortAddress aShortAddress,
-                                          const otExtAddress  *aExtAddress)
-{
-    OT_UNUSED_VARIABLE(aInstance);
-
-    return otLinkMetricsConfigureEnhAckProbing(aShortAddress, aExtAddress, aLinkMetrics);
-}
-#endif
 
 otError otPlatRadioSetRegion(otInstance *aInstance, uint16_t aRegionCode)
 {

@@ -26,7 +26,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "link_metrics.h"
+#include "mac/link_metrics.hpp"
 
 #include <openthread/link_metrics.h>
 
@@ -218,26 +218,26 @@ exit:
     return error;
 }
 
-LinkMetricsDataInfo *GetLinkMetricsInfoByMacAddress(const otMacAddress *aMacAddress)
+LinkMetricsDataInfo *GetLinkMetricsInfoByMacAddress(const ot::Mac::Address *aMacAddress)
 {
     LinkMetricsDataInfo *dataInfo = nullptr;
 
     VerifyOrExit(aMacAddress != nullptr);
 
-    if (aMacAddress->mType == OT_MAC_ADDRESS_TYPE_SHORT)
+    if (aMacAddress->IsShort())
     {
-        dataInfo = GetLinkMetricsDataInfoActiveList().FindMatching(aMacAddress->mAddress.mShortAddress);
+        dataInfo = GetLinkMetricsDataInfoActiveList().FindMatching(aMacAddress->GetShort());
     }
-    else if (aMacAddress->mType == OT_MAC_ADDRESS_TYPE_EXTENDED)
+    else if (aMacAddress->IsExtended())
     {
-        dataInfo = GetLinkMetricsDataInfoActiveList().FindMatching(aMacAddress->mAddress.mExtAddress);
+        dataInfo = GetLinkMetricsDataInfoActiveList().FindMatching(aMacAddress->GetExtended());
     }
 
 exit:
     return dataInfo;
 }
 
-uint8_t otLinkMetricsEnhAckGenData(const otMacAddress *aMacAddress, uint8_t aLqi, int8_t aRssi, uint8_t *aData)
+uint8_t otLinkMetricsEnhAckGenData(const ot::Mac::Address *aMacAddress, uint8_t aLqi, int8_t aRssi, uint8_t *aData)
 {
     uint8_t              bytes    = 0;
     LinkMetricsDataInfo *dataInfo = GetLinkMetricsInfoByMacAddress(aMacAddress);
@@ -250,7 +250,7 @@ exit:
     return bytes;
 }
 
-uint8_t otLinkMetricsEnhAckGetDataLen(const otMacAddress *aMacAddress)
+uint8_t otLinkMetricsEnhAckGetDataLen(const ot::Mac::Address *aMacAddress)
 {
     uint8_t              len      = 0;
     LinkMetricsDataInfo *dataInfo = GetLinkMetricsInfoByMacAddress(aMacAddress);

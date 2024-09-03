@@ -123,7 +123,13 @@ bool SubMac::UpdateCsl(uint16_t aPeriod, uint8_t aChannel, otShortAddress aShort
     VerifyOrExit(diffPeriod || diffPeer);
     mCslPeriod    = aPeriod;
     mCslPeerShort = aShortAddr;
-    IgnoreError(Get<Radio>().EnableCsl(aPeriod, aShortAddr, aExtAddr));
+
+    if (aExtAddr != nullptr)
+    {
+        mCslPeerExt = *reinterpret_cast<const ExtAddress *>(aExtAddr);
+    }
+
+    // IgnoreError(Get<Radio>().EnableCsl(aPeriod, aShortAddr, aExtAddr));
 
     mCslTimer.Stop();
     if (mCslPeriod > 0)
@@ -211,7 +217,7 @@ void SubMac::HandleCslTimer(void)
         winDuration = timeAhead + timeAfter;
         mCslSampleTime += periodUs;
 
-        Get<Radio>().UpdateCslSampleTime(mCslSampleTime.GetValue());
+        // Get<Radio>().UpdateCslSampleTime(mCslSampleTime.GetValue());
 
         // Schedule reception window for any state except RX - so that CSL RX Window has lower priority
         // than scanning or RX after the data poll.

@@ -136,6 +136,7 @@ set(COMMON_SOURCES
     mac/channel_mask.cpp
     mac/data_poll_handler.cpp
     mac/data_poll_sender.cpp
+    mac/link_metrics.cpp
     mac/link_raw.cpp
     mac/mac.cpp
     mac/mac_filter.cpp
@@ -145,6 +146,7 @@ set(COMMON_SOURCES
     mac/sub_mac.cpp
     mac/sub_mac_callbacks.cpp
     mac/sub_mac_csl_receiver.cpp
+    mac/sub_mac_radio.cpp
     meshcop/announce_begin_client.cpp
     meshcop/border_agent.cpp
     meshcop/commissioner.cpp
@@ -287,12 +289,14 @@ set(RADIO_COMMON_SOURCES
     crypto/storage.cpp
     diags/factory_diags.cpp
     instance/instance.cpp
+    mac/link_metrics.cpp
     mac/link_raw.cpp
     mac/mac_frame.cpp
     mac/mac_types.cpp
     mac/sub_mac.cpp
     mac/sub_mac_callbacks.cpp
     mac/sub_mac_csl_receiver.cpp
+    mac/sub_mac_radio.cpp
     radio/radio.cpp
     radio/radio_callbacks.cpp
     radio/radio_platform.cpp

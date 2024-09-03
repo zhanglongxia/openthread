@@ -977,6 +977,10 @@ extern void otPlatRadioTxDone(otInstance *aInstance, otRadioFrame *aFrame, otRad
  */
 extern void otPlatDiagRadioTransmitDone(otInstance *aInstance, otRadioFrame *aFrame, otError aError);
 
+extern otError otPlatRadioUpdateDataIe(otInstance *aInstance, otRadioFrame *aFrame);
+extern void    otPlatRadioUpdateRxFrameAckInfo(otInstance *aInstance, otRadioFrame *aRxFrame);
+extern otError otPlatRadioUpdateAckIe(otInstance *aInstance, otRadioFrame *aAckFrame, int8_t aRssi, int8_t aLqi);
+
 /**
  * Get the most recent RSSI measurement.
  *

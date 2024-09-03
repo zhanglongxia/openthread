@@ -36,6 +36,8 @@
 #include "common/as_core_type.hpp"
 #include "common/code_utils.hpp"
 #include "instance/instance.hpp"
+#include "mac/link_metrics.hpp"
+#include "mac/sub_mac.hpp"
 #include "radio/radio.hpp"
 
 using namespace ot;
@@ -154,6 +156,21 @@ extern "C" void otPlatDiagRadioTransmitDone(otInstance *aInstance, otRadioFrame 
 }
 #endif
 
+extern "C" otError otPlatRadioUpdateDataIe(otInstance *aInstance, otRadioFrame *aFrame)
+{
+    return AsCoreType(aInstance).Get<Mac::SubMac>().UpdateDataIe(aFrame);
+}
+
+extern "C" void otPlatRadioUpdateRxFrameAckInfo(otInstance *aInstance, otRadioFrame *aFrame)
+{
+    AsCoreType(aInstance).Get<Mac::SubMac>().UpdateRxFrameAckInfo(aFrame);
+}
+
+extern "C" otError otPlatRadioUpdateAckIe(otInstance *aInstance, otRadioFrame *aAckFrame, int8_t aRssi, int8_t aLqi)
+{
+    return AsCoreType(aInstance).Get<Mac::SubMac>().UpdateAckIe(aAckFrame, aRssi, aLqi);
+}
+
 #else // #if OPENTHREAD_CONFIG_RADIO_LINK_IEEE_802_15_4_ENABLE
 
 extern "C" void otPlatRadioReceiveDone(otInstance *, otRadioFrame *, otError) {}
@@ -172,6 +189,8 @@ extern "C" void otPlatDiagRadioReceiveDone(otInstance *, otRadioFrame *, otError
 extern "C" void otPlatDiagRadioTransmitDone(otInstance *, otRadioFrame *, otError) {}
 #endif
 
+extern "C" otError otPlatRadioUpdateDataIe(otInstance *, otRadioFrame *) {}
+extern "C" otError otPlatRadioUpdateAckIe(otInstance *aInstance, otRadioFrame *, int8_t, int8_t) {}
 #endif // // #if OPENTHREAD_CONFIG_RADIO_LINK_IEEE_802_15_4_ENABLE
 
 //---------------------------------------------------------------------------------------------------------------------
@@ -271,10 +290,10 @@ OT_TOOL_WEAK uint32_t otPlatRadioGetBusLatency(otInstance *aInstance)
 }
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-OT_TOOL_WEAK otError otPlatRadioResetCsl(otInstance *aInstance)
-{
-    return otPlatRadioEnableCsl(aInstance, 0, Mac::kShortAddrInvalid, nullptr);
-}
+// OT_TOOL_WEAK otError otPlatRadioResetCsl(otInstance *aInstance)
+//{
+//     return otPlatRadioEnableCsl(aInstance, 0, Mac::kShortAddrInvalid, nullptr);
+// }
 #endif
 
 OT_TOOL_WEAK uint8_t otPlatRadioGetCslAccuracy(otInstance *aInstance)
@@ -347,3 +366,15 @@ OT_TOOL_WEAK void otPlatRadioSetRxOnWhenIdle(otInstance *aInstance, bool aEnable
     OT_UNUSED_VARIABLE(aInstance);
     OT_UNUSED_VARIABLE(aEnable);
 }
+
+#if OPENTHREAD_CONFIG_MLE_LINK_METRICS_SUBJECT_ENABLE
+otError otPlatRadioConfigureEnhAckProbing(otInstance          *aInstance,
+                                          otLinkMetrics        aLinkMetrics,
+                                          const otShortAddress aShortAddress,
+                                          const otExtAddress  *aExtAddress)
+{
+    OT_UNUSED_VARIABLE(aInstance);
+
+    return otLinkMetricsConfigureEnhAckProbing(aShortAddress, aExtAddress, aLinkMetrics);
+}
+#endif

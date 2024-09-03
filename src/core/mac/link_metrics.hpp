@@ -36,16 +36,13 @@
  *
  */
 
-#ifndef OPENTHREAD_UTILS_LINK_METRICS_H
-#define OPENTHREAD_UTILS_LINK_METRICS_H
+#ifndef MAC_LINK_METRICS_HPP_
+#define MAC_LINK_METRICS_HPP_
 
 #include <openthread/link_metrics.h>
+#include <openthread/platform/radio.h>
 
-#include "mac_frame.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "mac/mac_types.hpp"
 
 /**
  * Initializes the Link Metrics util module.
@@ -95,7 +92,7 @@ otError otLinkMetricsConfigureEnhAckProbing(otShortAddress      aShortAddress,
  * @returns  The size of data read. Would be `0` if the Initiator is not found or @p aData is invalid.
  *
  */
-uint8_t otLinkMetricsEnhAckGenData(const otMacAddress *aMacAddress, uint8_t aLqi, int8_t aRssi, uint8_t *aData);
+uint8_t otLinkMetricsEnhAckGenData(const ot::Mac::Address *aMacAddress, uint8_t aLqi, int8_t aRssi, uint8_t *aData);
 
 /**
  * Returns the data length of Enhanced-ACK Based Probing for a specific Initiator.
@@ -105,7 +102,7 @@ uint8_t otLinkMetricsEnhAckGenData(const otMacAddress *aMacAddress, uint8_t aLqi
  * @returns  The size of data. `0` if it's not configured for the Initiator.
  *
  */
-uint8_t otLinkMetricsEnhAckGetDataLen(const otMacAddress *aMacAddress);
+uint8_t otLinkMetricsEnhAckGetDataLen(const ot::Mac::Address *aMacAddress);
 
 /**
  * This method resets Enhanced-ACK Based Probing data.
@@ -113,8 +110,4 @@ uint8_t otLinkMetricsEnhAckGetDataLen(const otMacAddress *aMacAddress);
  */
 void otLinkMetricsResetEnhAckProbing(void);
 
-#ifdef __cplusplus
-} // extern "C"
-#endif
-
-#endif // OPENTHREAD_UTILS_LINK_METRICS_H
+#endif // MAC_LINK_METRICS_HPP_

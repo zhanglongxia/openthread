@@ -95,6 +95,8 @@ void SubMac::Init(void)
     mKeyId        = 0;
     mTimer.Stop();
 
+    RadioInit();
+
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
     CslInit();
 #endif
@@ -478,6 +480,14 @@ void SubMac::BeginTransmit(void)
         mPcapCallback.Invoke(&mTransmitFrame, true);
     }
 
+#if OPENTHREAD_CONFIG_THREAD_VERSION >= OT_THREAD_VERSION_1_2
+    if (mTransmitFrame.GetSecurityEnabled() && mTransmitFrame.IsKeyIdMode1() && !mTransmitFrame.IsARetransmission())
+    {
+        mTransmitFrame.SetKeyId(mKeyId);
+        mTransmitFrame.SetFrameCounter(mFrameCounter++);
+    }
+#endif
+
     error = Get<Radio>().Transmit(mTransmitFrame);
 
     if (error == kErrorInvalidState && mTransmitFrame.mInfo.mTxInfo.mTxDelay > 0)
@@ -507,6 +517,12 @@ void SubMac::HandleTransmitDone(TxFrame &aFrame, RxFrame *aAckFrame, Error aErro
 {
     bool ccaSuccess = true;
     bool shouldRetx;
+
+    if ((aAckFrame == nullptr) || (aError != kErrorNone))
+    {
+        sAckedWithFramePending = false;
+        sAckedWithSecEnhAck    = false;
+    }
 
     // Stop ack timeout timer.
 
@@ -919,7 +935,15 @@ void SubMac::SetMacKey(uint8_t            aKeyIdMode,
 
     VerifyOrExit(!ShouldHandleTransmitSecurity());
 
-    Get<Radio>().SetMacKey(aKeyIdMode, aKeyId, aPrevKey, aCurrKey, aNextKey);
+    // Get<Radio>().SetMacKey(aKeyIdMode, aKeyId, aPrevKey, aCurrKey, aNextKey);
+
+    // sKeyId               = aKeyId;
+    // sPrevKey             = *aPrevKey;
+    // sCurrKey             = *aCurrKey;
+    // sNextKey             = *aNextKey;
+    //  sPrevMacFrameCounter = sMacFrameCounter;
+
+    mPrevFrameCounter = mFrameCounter;
 
 exit:
     return;
@@ -948,20 +972,34 @@ exit:
 
 void SubMac::SetFrameCounter(uint32_t aFrameCounter, bool aSetIfLarger)
 {
-    if (!aSetIfLarger || (aFrameCounter > mFrameCounter))
-    {
-        mFrameCounter = aFrameCounter;
-    }
+    /*
+        if (!aSetIfLarger || (aFrameCounter > mFrameCounter))
+        {
+            mFrameCounter = aFrameCounter;
+        }
+    */
 
     VerifyOrExit(!ShouldHandleTransmitSecurity());
 
     if (aSetIfLarger)
     {
-        Get<Radio>().SetMacFrameCounterIfLarger(aFrameCounter);
+        // Get<Radio>().SetMacFrameCounterIfLarger(aFrameCounter);
+
+        // CRITICAL_REGION_ENTER();
+
+        if (aFrameCounter > mFrameCounter)
+        {
+            mFrameCounter = aFrameCounter;
+        }
+
+        // CRITICAL_REGION_EXIT();
     }
     else
     {
-        Get<Radio>().SetMacFrameCounter(aFrameCounter);
+        // Get<Radio>().SetMacFrameCounter(aFrameCounter);
+        // CRITICAL_REGION_ENTER();
+        mFrameCounter = aFrameCounter;
+        // CRITICAL_REGION_EXIT();
     }
 
 exit:

@@ -1089,6 +1089,18 @@ exit:
     return static_cast<uint8_t>(index);
 }
 
+uint8_t *Frame::GetHeaderIe(void)
+{
+    uint8_t *headerIe;
+    uint16_t index = SkipSecurityHeaderIndex();
+
+    VerifyOrExit(index != kInvalidIndex, headerIe = nullptr);
+    headerIe = &mPsdu[index];
+
+exit:
+    return headerIe;
+}
+
 const uint8_t *Frame::GetPayload(void) const
 {
     uint8_t        index = FindPayloadIndex();

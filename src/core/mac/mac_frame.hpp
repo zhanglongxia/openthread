@@ -721,6 +721,17 @@ public:
      *
      */
     Error GetKeyIdMode(uint8_t &aKeyIdMode) const;
+    bool  IsKeyIdMode1(void) const
+    {
+        bool    ret = false;
+        uint8_t keyIdMode;
+
+        VerifyOrExit(GetKeyIdMode(keyIdMode));
+        ret = (keyIdMode == kKeyIdMode1);
+
+    exit:
+        return ret;
+    }
 
     /**
      * Gets the Frame Counter.
@@ -889,6 +900,8 @@ public:
      *
      */
     uint8_t *GetHeader(void) { return GetPsdu(); }
+
+    uint8_t *GetHeaderIe(void);
 
     /**
      * Returns a pointer to the MAC Header.
@@ -1279,6 +1292,11 @@ public:
      */
     uint8_t ReadTimeSyncSeq(void) const { return GetTimeIe()->GetSequence(); }
 #endif // OPENTHREAD_CONFIG_TIME_SYNC_ENABLE
+
+    void SetAckedWithFramePending(bool aAcked) { mInfo.mRxInfo.mAckedWithFramePending = aAcked; }
+    void SetAckedWithSecEnhAck(bool aAcked) { mInfo.mRxInfo.mAckedWithSecEnhAck = aAcked; }
+    void SetAckFrameCounter(uint32_t aFrameCounter) { mInfo.mRxInfo.mAckFrameCounter = aFrameCounter; }
+    void SetAckKeyId(uint8_t aKeyId) { mInfo.mRxInfo.mAckKeyId = aKeyId; }
 };
 
 /**
@@ -1524,13 +1542,17 @@ public:
         mInfo.mTxInfo.mIeInfo->mNetworkTimeOffset = aNetworkTimeOffset;
     }
 
+    uint64_t GetNetworkTimeOffset(void) { return mInfo.mTxInfo.mIeInfo->mNetworkTimeOffset; }
+
     /**
      * Sets the time sync sequence.
      *
      * @param[in]  aTimeSyncSeq  The time sync sequence.
      *
      */
-    void SetTimeSyncSeq(uint8_t aTimeSyncSeq) { mInfo.mTxInfo.mIeInfo->mTimeSyncSeq = aTimeSyncSeq; }
+    void    SetTimeSyncSeq(uint8_t aTimeSyncSeq) { mInfo.mTxInfo.mIeInfo->mTimeSyncSeq = aTimeSyncSeq; }
+    uint8_t GetTimeSyncSeq(void) { return mInfo.mTxInfo.mIeInfo->mTimeSyncSeq; }
+
 #endif // OPENTHREAD_CONFIG_TIME_SYNC_ENABLE
 
     /**

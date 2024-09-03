@@ -524,6 +524,16 @@ public:
     bool IsRadioFilterEnabled(void) const { return mRadioFilterEnabled; }
 #endif
 
+    void  RadioInit(void);
+    Error UpdateDataIe(otRadioFrame *aFrame);
+    Error UpdateAckIe(otRadioFrame *aAckFrame, int8_t aRssi, int8_t aLqi);
+    void  UpdateRxFrameAckInfo(otRadioFrame *aFrame);
+
+    void     TxAckProcessSecurity(TxFrame &aAckFrame);
+    uint16_t GetCslPhase(void);
+    uint8_t  UpdateCslIe(uint8_t *aIeData, const Address &aDest);
+    uint8_t  UpdateLinkMetricsIe(uint8_t *aIeData, const Address &aDestAddress, int8_t aRssi, int8_t aLqi);
+
 private:
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
     void        CslInit(void);
@@ -553,6 +563,10 @@ private:
     static constexpr uint32_t kEnergyScanRssiSampleInterval = 128; // RSSI sample interval for energy scan, in usec
 #else
     static constexpr uint32_t kEnergyScanRssiSampleInterval = 1000; // RSSI sample interval for energy scan, in usec
+#endif
+
+#if OPENTHREAD_CONFIG_MLE_LINK_METRICS_SUBJECT_ENABLE
+    static constexpr int8_t kRadioNoiseFloor = OPENTHREAD_CONFIG_RADIO_NOISE_FLOOR;
 #endif
 
     enum State : uint8_t
@@ -670,16 +684,28 @@ private:
     SubMacTimer mTimer;
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-    uint16_t mCslPeriod;            // The CSL sample period, in units of 10 symbols (160 microseconds).
-    uint8_t  mCslChannel : 7;       // The CSL sample channel.
-    bool     mIsCslSampling : 1;    // Indicates that the radio is receiving in CSL state for platforms not supporting
-                                    // delayed reception.
-    uint16_t    mCslPeerShort;      // The CSL peer short address.
+    uint16_t mCslPeriod;         // The CSL sample period, in units of 10 symbols (160 microseconds).
+    uint8_t  mCslChannel : 7;    // The CSL sample channel.
+    bool     mIsCslSampling : 1; // Indicates that the radio is receiving in CSL state for platforms not supporting
+                                 // delayed reception.
+    uint16_t    mCslPeerShort;   // The CSL peer short address.
+    ExtAddress  mCslPeerExt;
     TimeMicro   mCslSampleTime;     // The CSL sample time of the current period relative to the local radio clock.
     TimeMicro   mCslLastSync;       // The timestamp of the last successful CSL synchronization.
     CslAccuracy mCslParentAccuracy; // The parent's CSL accuracy (clock accuracy and uncertainty).
     TimerMicro  mCslTimer;
 #endif
+
+    // uint32_t sMacFrameCounter;
+    uint32_t mPrevFrameCounter;
+    // uint8_t  sKeyId;
+    //  otMacKeyMaterial sPrevKey;
+    //  otMacKeyMaterial sCurrKey;
+    //  otMacKeyMaterial sNextKey;
+    bool     sAckedWithFramePending;
+    bool     sAckedWithSecEnhAck;
+    uint32_t sAckFrameCounter;
+    uint8_t  sAckKeyId;
 };
 
 /**

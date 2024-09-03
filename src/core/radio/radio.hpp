@@ -957,10 +957,10 @@ inline Error Radio::Receive(uint8_t aChannel)
 }
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-inline void Radio::UpdateCslSampleTime(uint32_t aCslSampleTime)
-{
-    otPlatRadioUpdateCslSampleTime(GetInstancePtr(), aCslSampleTime);
-}
+// inline void Radio::UpdateCslSampleTime(uint32_t aCslSampleTime)
+//{
+//     otPlatRadioUpdateCslSampleTime(GetInstancePtr(), aCslSampleTime);
+// }
 
 inline Error Radio::ReceiveAt(uint8_t aChannel, uint32_t aStart, uint32_t aDuration)
 {
@@ -974,12 +974,12 @@ inline Error Radio::ReceiveAt(uint8_t aChannel, uint32_t aStart, uint32_t aDurat
     return error;
 }
 
-inline Error Radio::EnableCsl(uint32_t aCslPeriod, otShortAddress aShortAddr, const otExtAddress *aExtAddr)
-{
-    return otPlatRadioEnableCsl(GetInstancePtr(), aCslPeriod, aShortAddr, aExtAddr);
-}
+// inline Error Radio::EnableCsl(uint32_t aCslPeriod, otShortAddress aShortAddr, const otExtAddress *aExtAddr)
+//{
+//     return otPlatRadioEnableCsl(GetInstancePtr(), aCslPeriod, aShortAddr, aExtAddr);
+// }
 
-inline Error Radio::ResetCsl(void) { return otPlatRadioResetCsl(GetInstancePtr()); }
+// inline Error Radio::ResetCsl(void) { return otPlatRadioResetCsl(GetInstancePtr()); }
 #endif
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE || OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
