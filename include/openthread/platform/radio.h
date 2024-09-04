@@ -1166,38 +1166,37 @@ bool otPlatRadioIsCoexEnabled(otInstance *aInstance);
 otError otPlatRadioGetCoexMetrics(otInstance *aInstance, otRadioCoexMetrics *aCoexMetrics);
 
 /**
- * Enable or disable CSL receiver.
+ * Set CSL parameters.
  *
  * @param[in]  aInstance     The OpenThread instance structure.
- * @param[in]  aCslPeriod    CSL period, 0 for disabling CSL. CSL period is in unit of 10 symbols.
+ * @param[in]  aCslPeriod    CSL period, in unit of 10 symbols.
  * @param[in]  aShortAddr    The short source address of CSL receiver's peer.
  * @param[in]  aExtAddr      The extended source address of CSL receiver's peer.
  *
- * @note Platforms should use CSL peer addresses to include CSL IE when generating enhanced acks.
+ * @retval  OT_ERROR_NOT_IMPLEMENTED Radio driver doesn't support CSL.
+ * @retval  OT_ERROR_NONE            Successfully set CSL parameters.
+ *
+ */
+otError otPlatRadioSetCslParams(otInstance         *aInstance,
+                                uint32_t            aCslPeriod,
+                                otShortAddress      aShortAddr,
+                                const otExtAddress *aExtAddr);
+
+/**
+ * Enable or disable the CSL.
+ *
+ * @note When the @p aEnabled is set to TRUE, the platform should use CSL peer addresses to include CSL IE when
+ *       generating enhanced acks. Otherwise, no CSL IE should be included in generated enhanced acks.
+ *
+ * @param[in]  aInstance  The OpenThread instance structure.
+ * @param[in]  aEnabled   TRUE to enable the CSL receiver, FALSE otherwise.
  *
  * @retval  OT_ERROR_NOT_IMPLEMENTED Radio driver doesn't support CSL.
  * @retval  OT_ERROR_FAILED          Other platform specific errors.
  * @retval  OT_ERROR_NONE            Successfully enabled or disabled CSL.
  *
  */
-otError otPlatRadioEnableCsl(otInstance         *aInstance,
-                             uint32_t            aCslPeriod,
-                             otShortAddress      aShortAddr,
-                             const otExtAddress *aExtAddr);
-
-/**
- * Reset CSL receiver in the platform.
- *
- * @note Defaults to `otPlatRadioEnableCsl(aInstance,0, Mac::kShortAddrInvalid, nullptr);`
- *
- * @param[in]  aInstance     The OpenThread instance structure.
- *
- * @retval  OT_ERROR_NOT_IMPLEMENTED Radio driver doesn't support CSL.
- * @retval  OT_ERROR_FAILED          Other platform specific errors.
- * @retval  OT_ERROR_NONE            Successfully disabled CSL.
- *
- */
-otError otPlatRadioResetCsl(otInstance *aInstance);
+otError otPlatRadioSetCslEnabled(otInstance *aInstance, bool aEnabled);
 
 /**
  * Update CSL sample time in radio driver.

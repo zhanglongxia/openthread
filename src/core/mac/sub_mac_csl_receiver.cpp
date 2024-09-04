@@ -123,7 +123,16 @@ bool SubMac::UpdateCsl(uint16_t aPeriod, uint8_t aChannel, otShortAddress aShort
     VerifyOrExit(diffPeriod || diffPeer);
     mCslPeriod    = aPeriod;
     mCslPeerShort = aShortAddr;
-    IgnoreError(Get<Radio>().EnableCsl(aPeriod, aShortAddr, aExtAddr));
+
+    if (mCslPeriod > 0)
+    {
+        IgnoreError(Get<Radio>().SetCslParams(aPeriod, aShortAddr, aExtAddr));
+        IgnoreError(Get<Radio>().SetCslEnabled(true));
+    }
+    else
+    {
+        IgnoreError(Get<Radio>().SetCslEnabled(false));
+    }
 
     mCslTimer.Stop();
     if (mCslPeriod > 0)

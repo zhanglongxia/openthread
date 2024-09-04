@@ -533,30 +533,27 @@ public:
     Error ReceiveAt(uint8_t aChannel, uint32_t aStart, uint32_t aDuration);
 
     /**
-     * Enables CSL sampling in radio.
+     * Set CSL parameters.
      *
-     * @param[in]  aCslPeriod    CSL period, 0 for disabling CSL.
+     * @param[in]  aCslPeriod    CSL period, in units of 10 symbols.
      * @param[in]  aShortAddr    The short source address of CSL receiver's peer.
      * @param[in]  aExtAddr      The extended source address of CSL receiver's peer.
      *
-     * @note Platforms should use CSL peer addresses to include CSL IE when generating enhanced acks.
-     *
      * @retval  kErrorNotImplemented Radio driver doesn't support CSL.
-     * @retval  kErrorFailed         Other platform specific errors.
      * @retval  kErrorNone           Successfully enabled or disabled CSL.
      *
      */
-    Error EnableCsl(uint32_t aCslPeriod, otShortAddress aShortAddr, const otExtAddress *aExtAddr);
+    Error SetCslParams(uint32_t aCslPeriod, otShortAddress aShortAddr, const otExtAddress *aExtAddr);
 
     /**
-     * Resets CSL receiver in radio.
+     * Enable or disable the CSL.
      *
      * @retval  kErrorNotImplemented Radio driver doesn't support CSL.
-     * @retval  kErrorFailed         Other platform specific errors.
-     * @retval  kErrorNone           Successfully disabled CSL.
+     * @retval  kErrorNone           Successfully enabled or disabled CSL.
      *
      */
-    Error ResetCsl(void);
+    Error SetCslEnabled(bool aEnabled);
+
 #endif // OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE || OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
@@ -974,12 +971,12 @@ inline Error Radio::ReceiveAt(uint8_t aChannel, uint32_t aStart, uint32_t aDurat
     return error;
 }
 
-inline Error Radio::EnableCsl(uint32_t aCslPeriod, otShortAddress aShortAddr, const otExtAddress *aExtAddr)
+inline Error Radio::SetCslEnabled(bool aEnabled) { return otPlatRadioSetCslEnabled(GetInstancePtr(), aEnabled); }
+inline Error Radio::SetCslParams(uint32_t aCslPeriod, otShortAddress aShortAddr, const otExtAddress *aExtAddr)
 {
-    return otPlatRadioEnableCsl(GetInstancePtr(), aCslPeriod, aShortAddr, aExtAddr);
+    return otPlatRadioSetCslParams(GetInstancePtr(), aCslPeriod, aShortAddr, aExtAddr);
 }
 
-inline Error Radio::ResetCsl(void) { return otPlatRadioResetCsl(GetInstancePtr()); }
 #endif
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE || OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
@@ -1081,13 +1078,8 @@ inline Error Radio::Receive(uint8_t) { return kErrorNone; }
 inline void Radio::UpdateCslSampleTime(uint32_t) {}
 
 inline Error Radio::ReceiveAt(uint8_t, uint32_t, uint32_t) { return kErrorNone; }
-
-inline Error Radio::EnableCsl(uint32_t, otShortAddress aShortAddr, const otExtAddress *)
-{
-    return kErrorNotImplemented;
-}
-
-inline Error Radio::ResetCsl(void) { return kErrorNotImplemented; }
+inline Error Radio::SetCslEnabled(bool) { return kErrorNotImplemented; }
+inline Error Radio::SetCslParams(uint32_t, otShortAddress, const otExtAddress *) { return kErrorNotImplemented; }
 #endif
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE || OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE

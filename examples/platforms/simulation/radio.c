@@ -140,6 +140,7 @@ static uint8_t sAckIeDataLength = 0;
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
 static uint32_t sCslSampleTime;
 static uint32_t sCslPeriod;
+static bool     sCslEnabled = false;
 #endif
 
 #if OPENTHREAD_CONFIG_PLATFORM_RADIO_COEX_ENABLE
@@ -736,7 +737,7 @@ void radioSendMessage(otInstance *aInstance)
 #endif // OPENTHREAD_CONFIG_MAC_HEADER_IE_SUPPORT && OPENTHREAD_CONFIG_TIME_SYNC_ENABLE
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-    if (sCslPeriod > 0 && !sTransmitFrame.mInfo.mTxInfo.mIsHeaderUpdated)
+    if (sCslEnabled && !sTransmitFrame.mInfo.mTxInfo.mIsHeaderUpdated)
     {
         otMacFrameSetCslIe(&sTransmitFrame, (uint16_t)sCslPeriod, getCslPhase());
     }
@@ -916,7 +917,7 @@ void radioSendAck(void)
         otEXPECT(otMacFrameGenerateEnhAck(&sReceiveFrame, sReceiveFrame.mInfo.mRxInfo.mAckedWithFramePending,
                                           sAckIeData, sAckIeDataLength, &sAckFrame) == OT_ERROR_NONE);
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-        if (sCslPeriod > 0)
+        if (sCslEnabled)
         {
             otMacFrameSetCslIe(&sAckFrame, (uint16_t)sCslPeriod, getCslPhase());
         }
@@ -1181,7 +1182,7 @@ static uint8_t generateAckIeData(uint8_t *aLinkMetricsIeData, uint8_t aLinkMetri
     uint8_t offset = 0;
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-    if (sCslPeriod > 0)
+    if (sCslEnabled)
     {
         offset += otMacFrameGenerateCslIeTemplate(sAckIeData);
     }
@@ -1199,10 +1200,10 @@ static uint8_t generateAckIeData(uint8_t *aLinkMetricsIeData, uint8_t aLinkMetri
 #endif
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-otError otPlatRadioEnableCsl(otInstance         *aInstance,
-                             uint32_t            aCslPeriod,
-                             otShortAddress      aShortAddr,
-                             const otExtAddress *aExtAddr)
+otError otPlatRadioSetCslParams(otInstance         *aInstance,
+                                uint32_t            aCslPeriod,
+                                otShortAddress      aShortAddr,
+                                const otExtAddress *aExtAddr)
 {
     OT_UNUSED_VARIABLE(aInstance);
     OT_UNUSED_VARIABLE(aShortAddr);
@@ -1213,11 +1214,11 @@ otError otPlatRadioEnableCsl(otInstance         *aInstance,
     return OT_ERROR_NONE;
 }
 
-otError otPlatRadioResetCsl(otInstance *aInstance)
+otError otPlatRadioSetCslEnabled(otInstance *aInstance, bool aEnabled)
 {
     OT_UNUSED_VARIABLE(aInstance);
 
-    sCslPeriod = 0;
+    sCslEnabled = aEnabled;
 
     return OT_ERROR_NONE;
 }
