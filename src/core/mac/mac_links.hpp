@@ -464,9 +464,6 @@ public:
      */
     void CslSample(void)
     {
-#if OPENTHREAD_CONFIG_RADIO_LINK_IEEE_802_15_4_ENABLE
-        mSubMac.CslSample();
-#endif
 #if OPENTHREAD_CONFIG_RADIO_LINK_TREL_ENABLE
         mTrel.Sleep();
 #endif

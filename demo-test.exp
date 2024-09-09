@@ -1,0 +1,34 @@
+
+# Show Log:
+# tail -f  /var/log/syslog | grep ot-cli > log.txt
+# sed -i -r 's/.{66}//' ./log.txt && vim log.txt
+#
+
+source "_common.exp"
+
+set csl_tx 1
+set dataset "0e080000000000010000000300001635060004001fffe002083ae7ad5bd2c958ef0708fd77c6ccf72ab5230510cceb51a2f1602439b0343c07d6ca981f030f4f70656e5468726561642d363834660102684f0410116d23d1b996bd75d25bdc911aa33fb40c0402a0f7f8"
+
+
+# CSL Transmiter
+spawn_node $csl_tx
+
+#-----------------------------CSL Transmitter-------------------------------------
+switch_node $csl_tx
+send_user "Switch to CSL Transmitter:\n"
+
+send "extaddr dead00beef00caf1\n"
+expect_line "Done"
+
+send "dataset set active $dataset\n"
+expect_line "Done"
+
+send "ifconfig up\n"
+expect_line "Done"
+
+send "thread start\n"
+expect_line "Done"
+
+sleep 0.5
+
+interact

@@ -186,8 +186,8 @@ Error SubMac::Enable(void)
 
     VerifyOrExit(mState == kStateDisabled);
 
-    SuccessOrExit(error = Get<Radio>().Enable());
-    SuccessOrExit(error = Get<Radio>().Sleep());
+    SuccessOrExit(error = Get<RadioManager>().Enable());
+    SuccessOrExit(error = Get<RadioManager>().Sleep());
 
     SetState(kStateSleep);
 
@@ -205,8 +205,8 @@ Error SubMac::Disable(void)
 #endif
 
     mTimer.Stop();
-    SuccessOrExit(error = Get<Radio>().Sleep());
-    SuccessOrExit(error = Get<Radio>().Disable());
+    SuccessOrExit(error = Get<RadioManager>().Sleep());
+    SuccessOrExit(error = Get<RadioManager>().Disable());
     SetState(kStateDisabled);
 
 exit:
@@ -219,7 +219,7 @@ Error SubMac::Sleep(void)
 
     VerifyOrExit(ShouldHandleTransitionToSleep());
 
-    error = Get<Radio>().Sleep();
+    error = Get<RadioManager>().Sleep();
 
 exit:
     if (error != kErrorNone)
@@ -241,12 +241,12 @@ Error SubMac::Receive(uint8_t aChannel)
 #if OPENTHREAD_CONFIG_MAC_FILTER_ENABLE
     if (mRadioFilterEnabled)
     {
-        error = Get<Radio>().Sleep();
+        error = Get<RadioManager>().Sleep();
     }
     else
 #endif
     {
-        error = Get<Radio>().Receive(aChannel);
+        error = Get<RadioManager>().Receive(aChannel);
     }
 
     if (error != kErrorNone)
@@ -431,11 +431,11 @@ void SubMac::StartTimerForBackoff(uint8_t aBackoffExponent)
 
     if (mRxOnWhenIdle)
     {
-        IgnoreError(Get<Radio>().Receive(mTransmitFrame.GetChannel()));
+        IgnoreError(Get<RadioManager>().Receive(mTransmitFrame.GetChannel()));
     }
     else
     {
-        IgnoreError(Get<Radio>().Sleep());
+        IgnoreError(Get<RadioManager>().Sleep());
     }
 
     StartTimer(backoff);
@@ -460,12 +460,12 @@ void SubMac::BeginTransmit(void)
 
     if ((mRadioCaps & OT_RADIO_CAPS_SLEEP_TO_TX) == 0)
     {
-        SuccessOrAssert(Get<Radio>().Receive(mTransmitFrame.GetChannel()));
+        SuccessOrAssert(Get<RadioManager>().Receive(mTransmitFrame.GetChannel()));
     }
 
     SetState(kStateTransmit);
 
-    error = Get<Radio>().Transmit(mTransmitFrame);
+    error = Get<RadioManager>().Transmit(mTransmitFrame);
 
     if (error == kErrorInvalidState && mTransmitFrame.mInfo.mTxInfo.mTxDelay > 0)
     {
@@ -473,9 +473,13 @@ void SubMac::BeginTransmit(void)
         mTransmitFrame.mInfo.mTxInfo.mTxDelay         = 0;
         mTransmitFrame.mInfo.mTxInfo.mTxDelayBaseTime = 0;
 
-        error = Get<Radio>().Transmit(mTransmitFrame);
+        error = Get<RadioManager>().Transmit(mTransmitFrame);
     }
 
+    if (error != kErrorNone)
+    {
+        LogWarn("BeginTransmit() error: %s", ErrorToString(error));
+    }
     SuccessOrAssert(error);
 
 exit:
@@ -503,6 +507,7 @@ void SubMac::HandleTransmitDone(TxFrame &aFrame, RxFrame *aAckFrame, Error aErro
     // Stop ack timeout timer.
 
     mTimer.Stop();
+    Get<RadioManager>().HandleTransmitDone(aFrame, aAckFrame, aError);
 
     // Record CCA success or failure status.
 
@@ -584,7 +589,7 @@ void SubMac::HandleTransmitDone(TxFrame &aFrame, RxFrame *aAckFrame, Error aErro
         // the same as the `Mac` will switch the channel from the
         // `mCallbacks.TransmitDone()`.
 
-        IgnoreError(Get<Radio>().Receive(aFrame.GetRxChannelAfterTxDone()));
+        IgnoreError(Get<RadioManager>().Receive(aFrame.GetRxChannelAfterTxDone()));
     }
 #endif
 
@@ -687,7 +692,7 @@ Error SubMac::EnergyScan(uint8_t aScanChannel, uint16_t aScanDuration)
     }
     else if (ShouldHandleEnergyScan())
     {
-        SuccessOrAssert(Get<Radio>().Receive(aScanChannel));
+        SuccessOrAssert(Get<RadioManager>().Receive(aScanChannel));
 
         SetState(kStateEnergyScan);
         mEnergyScanMaxRssi = Radio::kInvalidRssi;
@@ -748,7 +753,7 @@ void SubMac::HandleTimer(void)
 
     case kStateTransmit:
         LogDebg("Ack timer timed out");
-        IgnoreError(Get<Radio>().Receive(mTransmitFrame.GetChannel()));
+        IgnoreError(Get<RadioManager>().Receive(mTransmitFrame.GetChannel()));
         HandleTransmitDone(mTransmitFrame, nullptr, kErrorNoAck);
         break;
 
