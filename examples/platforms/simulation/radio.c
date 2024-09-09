@@ -458,6 +458,7 @@ otError otPlatRadioEnable(otInstance *aInstance)
         sState = OT_RADIO_STATE_SLEEP;
     }
 
+    otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_MAC, "RadioEnabled()");
     return OT_ERROR_NONE;
 }
 
@@ -471,6 +472,7 @@ otError otPlatRadioDisable(otInstance *aInstance)
     sState = OT_RADIO_STATE_DISABLED;
 
 exit:
+    otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_MAC, "RadioDisable() error=%u", error);
     return error;
 }
 
@@ -488,6 +490,7 @@ otError otPlatRadioSleep(otInstance *aInstance)
         sState = OT_RADIO_STATE_SLEEP;
     }
 
+    otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_MAC, "RadioSleep() error=%u", error);
     return error;
 }
 
@@ -508,6 +511,7 @@ otError otPlatRadioReceive(otInstance *aInstance, uint8_t aChannel)
         sCurrentChannel        = aChannel;
     }
 
+    otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_MAC, "RadioReceive() error=%u channel=%u", error, aChannel);
     return error;
 }
 
@@ -528,6 +532,7 @@ otError otPlatRadioTransmit(otInstance *aInstance, otRadioFrame *aFrame)
         sCurrentChannel = aFrame->mChannel;
     }
 
+    otPlatLog(OT_LOG_LEVEL_INFO, OT_LOG_REGION_MAC, "RadioTransmit() error=%u channel=%u", error, aFrame->mChannel);
     return error;
 }
 
@@ -1328,4 +1333,24 @@ void parseFromEnvAsUint16(const char *aEnvName, uint16_t *aValue)
             exit(EXIT_FAILURE);
         }
     }
+}
+
+#include <openthread/logging.h>
+#include <openthread/platform/misc.h>
+
+void otPlatAssertFail(const char *aFilename, int aLineNumber)
+{
+    int i = 0;
+    otLogCritPlat("assert failed at %s:%d", aFilename, aLineNumber);
+
+    while (i < 5)
+    {
+        sleep(1);
+        i++;
+    }
+
+    // For debug build, use assert to generate a core dump
+    // assert(false);
+    // exit(1);
+    exit(0);
 }

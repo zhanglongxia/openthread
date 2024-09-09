@@ -195,6 +195,7 @@ set(COMMON_SOURCES
     net/udp6.cpp
     radio/ble_secure.cpp
     radio/radio.cpp
+    radio/radio_manager.cpp
     radio/radio_callbacks.cpp
     radio/radio_platform.cpp
     radio/trel_interface.cpp
@@ -294,6 +295,7 @@ set(RADIO_COMMON_SOURCES
     mac/sub_mac_callbacks.cpp
     mac/sub_mac_csl_receiver.cpp
     radio/radio.cpp
+    radio/radio_manager.cpp
     radio/radio_callbacks.cpp
     radio/radio_platform.cpp
     thread/link_quality.cpp

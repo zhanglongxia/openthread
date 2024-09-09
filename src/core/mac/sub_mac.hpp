@@ -407,14 +407,6 @@ public:
     bool UpdateCsl(uint16_t aPeriod, uint8_t aChannel, otShortAddress aShortAddr, const otExtAddress *aExtAddr);
 
     /**
-     * Lets `SubMac` start CSL sample mode given a configured non-zero CSL period.
-     *
-     * `SubMac` would switch the radio state between `Receive` and `Sleep` according the CSL timer.
-     *
-     */
-    void CslSample(void);
-
-    /**
      * Returns parent CSL accuracy (clock accuracy and uncertainty).
      *
      * @returns The parent CSL accuracy.

@@ -78,6 +78,7 @@ Instance::Instance(void)
     , mTimerMicroScheduler(*this)
 #endif
     , mRadio(*this)
+    , mRadioManager(*this)
 #if OPENTHREAD_CONFIG_UPTIME_ENABLE
     , mUptime(*this)
 #endif
