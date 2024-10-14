@@ -1113,7 +1113,7 @@ private:
             mKeyIndex  = (aKeySequence & 0x7f) + 1;
         }
 
-    private:
+        // private:
         static constexpr uint8_t kKeyIdMode2Mic32 =
             static_cast<uint8_t>(Mac::Frame::kKeyIdMode2) | static_cast<uint8_t>(Mac::Frame::kSecurityEncMic32);
 

@@ -465,6 +465,60 @@ void SubMac::BeginTransmit(void)
 
     SetState(kStateTransmit);
 
+    {
+        uint8_t        secControlField = 0;
+        uint8_t        secLevel        = 0;
+        uint8_t        secKeyIdMode    = 0;
+        uint8_t        secKeyId        = 0;
+        uint32_t       secFrameCounter = 0;
+        const uint8_t *keySrc;
+
+        if (mTransmitFrame.GetSecurityEnabled())
+        {
+            mTransmitFrame.GetSecurityControlField(secControlField);
+            mTransmitFrame.GetSecurityLevel(secLevel);
+            mTransmitFrame.GetKeyIdMode(secKeyIdMode);
+            secKeyIdMode = secKeyIdMode >> 3;
+            mTransmitFrame.GetFrameCounter(secFrameCounter);
+
+            if (secKeyIdMode == 0)
+            {
+                LogCrit("154FrameSec: SecCtrlField: %02x (SecLevel:%u, KeyIdMode:%u), FrameCounter:%u", secControlField,
+                        secLevel, secKeyIdMode, secFrameCounter);
+            }
+            else
+            {
+                keySrc = mTransmitFrame.GetKeySource();
+                mTransmitFrame.GetKeyId(secKeyId);
+
+                if (secKeyIdMode == 1)
+                {
+                    LogCrit("154FrameSec: SecCtrlField: %02x (SecLevel:%u, KeyIdMode:%u), FrameCounter:%u, "
+                            "KeyId(KeySource:null, KeyIdIndex:%u)",
+                            secControlField, secLevel, secKeyIdMode, secFrameCounter, secKeyId);
+                }
+                else if (secKeyIdMode == 2)
+                {
+                    LogCrit("154FrameSec: SecCtrlField: %02x (SecLevel:%u, KeyIdMode:%u), FrameCounter:%u, "
+                            "KeyId(KeySource:%02x%02x%02x%02x, KeyIdIndex:%u)",
+                            secControlField, secLevel, secKeyIdMode, secFrameCounter, keySrc[0], keySrc[1], keySrc[2],
+                            keySrc[3], secKeyId);
+                }
+                else if (secKeyIdMode == 3)
+                {
+                    LogCrit("154FrameSec: SecCtrlField: %02x (SecLevel:%u, KeyIdMode:%u), FrameCounter:%u, "
+                            "KeyId(KeySource:%02x%02x%02x%02x%02x%02x%02x%02x, KeyIdIndex:%u)",
+                            secControlField, secLevel, secKeyIdMode, secFrameCounter, keySrc[0], keySrc[1], keySrc[2],
+                            keySrc[3], keySrc[4], keySrc[5], keySrc[6], keySrc[7], secKeyId);
+                }
+            }
+        }
+        else
+        {
+            LogCrit("154FrameSec: sec=0");
+        }
+    }
+
     error = Get<Radio>().Transmit(mTransmitFrame);
 
     if (error == kErrorInvalidState && mTransmitFrame.mInfo.mTxInfo.mTxDelay > 0)

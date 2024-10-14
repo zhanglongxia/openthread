@@ -2277,6 +2277,10 @@ Error Mle::ProcessMessageSecurity(Crypto::AesCcm::Mode    aMode,
 
     if (aMode == Crypto::AesCcm::kEncrypt)
     {
+        LogCrit("MleFrameSec: SecCtrlField: %02x (SecLevel:%u, KeyIdMode:%u), FrameCounter:%u, "
+                "KeyId(KeySource:%08x, KeyIdIndex:%u)",
+                aHeader.mSecurityControl, Mac::Frame::kSecurityEncMic32, Mac::Frame::kKeyIdMode2 >> 3,
+                aHeader.GetKeyId(), aHeader.mKeySource, aHeader.GetFrameCounter());
         SuccessOrExit(error = aMessage.Append(tag));
     }
     else
