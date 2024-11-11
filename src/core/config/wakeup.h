@@ -50,7 +50,7 @@
  * a link with one or more Wake-up End Devices by sending a sequence of wake-up frames.
  */
 #ifndef OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
-#define OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE 0
+#define OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE 1
 #endif
 
 /**
