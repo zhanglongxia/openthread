@@ -397,7 +397,7 @@
  * This setting configures the CSL receiver feature in Thread 1.2.
  */
 #ifndef OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-#define OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE 0
+#define OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE 1
 #endif
 
 /**

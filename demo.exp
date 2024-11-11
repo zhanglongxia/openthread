@@ -1,0 +1,33 @@
+
+# Show Log:
+# tail -f  /var/log/syslog | grep ot-cli > log.txt
+# sed -i -r 's/.{66}//' ./log.txt && vim log.txt
+#
+
+source "_common.exp"
+
+set wc "wc"
+set dataset "0e0800000000000100004a0300000e35060004001fffe002080bce12e0739cae590708fd892acf4510b8e7030f4f70656e5468726561642d3962356301029b5c0410da539bf20e7794e1f7c87a7f0f56e9dd0c0402a0f7f80003000014051000112233445566778899aabbccddcafe"
+
+
+spawn_node $wc
+
+send_user "Switch to WC:\n"
+
+send "extaddr dead00beefcafe02\n"
+expect_line "Done"
+
+send "dataset set active $dataset\n"
+expect "Done"
+
+send "diag start\n"
+expect_line "Done"
+
+#send "diag frame fd875c9bfeca00efbe00addefaca00efbe00adde15000000000000000001820e390005009bb8ea011c000000000000\n"
+send "diag frame 09ec00dddd01fecaefbe00adde02fecaefbe00adde0d000000000000010203040506070809000000000000\n"
+expect_line "Done"
+
+send "diag send 10\n"
+expect_line "Done"
+
+interact
