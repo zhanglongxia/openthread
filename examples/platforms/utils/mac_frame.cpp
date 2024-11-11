@@ -30,6 +30,7 @@
 
 #include <assert.h>
 
+#include <openthread/platform/logging.h>
 #include <openthread/platform/radio.h>
 
 #include "common/code_utils.hpp"
@@ -309,6 +310,18 @@ static uint16_t ComputeCslPhase(uint32_t aRadioTime, otRadioContext *aRadioConte
            OT_US_PER_TEN_SYMBOLS;
 }
 #endif
+
+void KeyToString(const otMacKeyMaterial *key, char *aBuf, uint16_t aLength)
+{
+    snprintf(aBuf, aLength, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\r\n",
+             key->mKeyMaterial.mKey.m8[0], key->mKeyMaterial.mKey.m8[1], key->mKeyMaterial.mKey.m8[2],
+             key->mKeyMaterial.mKey.m8[3], key->mKeyMaterial.mKey.m8[4], key->mKeyMaterial.mKey.m8[5],
+             key->mKeyMaterial.mKey.m8[6], key->mKeyMaterial.mKey.m8[7], key->mKeyMaterial.mKey.m8[8],
+             key->mKeyMaterial.mKey.m8[9], key->mKeyMaterial.mKey.m8[10], key->mKeyMaterial.mKey.m8[11],
+             key->mKeyMaterial.mKey.m8[12], key->mKeyMaterial.mKey.m8[13], key->mKeyMaterial.mKey.m8[14],
+             key->mKeyMaterial.mKey.m8[15]);
+}
+
 otError otMacFrameProcessTransmitSecurity(otRadioFrame *aFrame, otRadioContext *aRadioContext)
 {
     otError error = OT_ERROR_NONE;
@@ -366,6 +379,13 @@ otError otMacFrameProcessTransmitSecurity(otRadioFrame *aFrame, otRadioContext *
         otMacFrameSetKeyId(aFrame, keyId);
         otMacFrameSetFrameCounter(aFrame, frameCounter);
         aFrame->mInfo.mTxInfo.mIsHeaderUpdated = true;
+        {
+            char buf[256] = {0};
+
+            KeyToString(key, buf, sizeof(buf));
+            otPlatLog(OT_LOG_LEVEL_CRIT, OT_LOG_REGION_MAC, "TxSec: keyId=%u, frameCounter=%u, key=%s\r\n", keyId,
+                      frameCounter, buf);
+        }
     }
 #else
     VerifyOrExit(!aFrame->mInfo.mTxInfo.mIsSecurityProcessed);

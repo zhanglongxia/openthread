@@ -199,6 +199,40 @@ static void AddNodeIdToFilter(uint16_t aNodeId)
 
 OT_TOOL_WEAK void otCliOutputFormat(const char *aFmt, ...) { OT_UNUSED_VARIABLE(aFmt); }
 
+void KeyToString(const otMacKeyMaterial *key, char *aBuf, uint16_t aLength)
+{
+    snprintf(aBuf, aLength, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\r\n",
+             key->mKeyMaterial.mKey.m8[0], key->mKeyMaterial.mKey.m8[1], key->mKeyMaterial.mKey.m8[2],
+             key->mKeyMaterial.mKey.m8[3], key->mKeyMaterial.mKey.m8[4], key->mKeyMaterial.mKey.m8[5],
+             key->mKeyMaterial.mKey.m8[6], key->mKeyMaterial.mKey.m8[7], key->mKeyMaterial.mKey.m8[8],
+             key->mKeyMaterial.mKey.m8[9], key->mKeyMaterial.mKey.m8[10], key->mKeyMaterial.mKey.m8[11],
+             key->mKeyMaterial.mKey.m8[12], key->mKeyMaterial.mKey.m8[13], key->mKeyMaterial.mKey.m8[14],
+             key->mKeyMaterial.mKey.m8[15]);
+}
+
+static void outputFrame(const char *aName, struct RadioMessage *aMessage, const struct otRadioFrame *aFrame)
+{
+    OT_UNUSED_VARIABLE(aMessage);
+
+    char  buf[260] = {0};
+    char *start    = buf;
+    char *end      = buf + sizeof(buf);
+
+    for (uint8_t i = 0; i < aFrame->mLength; i++)
+    {
+        start += snprintf(start, end - start, "%02x", aFrame->mPsdu[i]);
+    }
+
+    otPlatLog(OT_LOG_LEVEL_CRIT, OT_LOG_REGION_MAC,
+              "%s: mTxDelay:%u, mMaxCsmaBackoffs:%u, mMaxFrameRetries:%u, mRxChannelAfterTxDone:%u, mTxPower:%d, "
+              "mIsHeaderUpdated:%u, mCsmaCaEnabled:%u, mIsSecurityProcessed=%u, mMacFrameCounter=%u\r\nlen:%u, psdu:%s",
+              aName, (aFrame->mInfo.mTxInfo.mTxDelay), aFrame->mInfo.mTxInfo.mMaxCsmaBackoffs,
+              aFrame->mInfo.mTxInfo.mMaxFrameRetries, aFrame->mInfo.mTxInfo.mRxChannelAfterTxDone,
+              aFrame->mInfo.mTxInfo.mTxPower, aFrame->mInfo.mTxInfo.mIsHeaderUpdated,
+              aFrame->mInfo.mTxInfo.mCsmaCaEnabled, aFrame->mInfo.mTxInfo.mIsSecurityProcessed,
+              sRadioContext.mMacFrameCounter, aFrame->mLength, buf);
+}
+
 otError ProcessNodeIdFilter(void *aContext, uint8_t aArgsLength, char *aArgs[])
 {
     OT_UNUSED_VARIABLE(aContext);
@@ -508,6 +542,8 @@ otError otPlatRadioTransmit(otInstance *aInstance, otRadioFrame *aFrame)
 
     otError error = OT_ERROR_INVALID_STATE;
 
+    outputFrame("PlatfTransmit", &sTransmitMessage, aFrame);
+
     if (sState == OT_RADIO_STATE_RECEIVE)
     {
         error           = OT_ERROR_NONE;
@@ -658,6 +694,7 @@ void radioSendMessage(otInstance *aInstance)
     sTransmitMessage.mChannel = sTransmitFrame.mChannel;
     otPlatRadioTxStarted(aInstance, &sTransmitFrame);
     radioComputeCrc(&sTransmitMessage, sTransmitFrame.mLength);
+    outputFrame("RadioTransmit", &sTransmitMessage, &sTransmitFrame);
     radioTransmit(&sTransmitMessage, &sTransmitFrame);
 
 #if OPENTHREAD_SIMULATION_VIRTUAL_TIME == 0
@@ -1163,6 +1200,15 @@ void otPlatRadioSetMacKey(otInstance             *aInstance,
     memcpy(&sRadioContext.mCurrKey, aCurrKey, sizeof(otMacKeyMaterial));
     memcpy(&sRadioContext.mNextKey, aNextKey, sizeof(otMacKeyMaterial));
 
+    {
+        char currKeyStr[100];
+
+        KeyToString(aCurrKey, currKeyStr, sizeof(currKeyStr));
+
+        otPlatLog(OT_LOG_LEVEL_CRIT, OT_LOG_REGION_MAC,
+                  "SetMacKey: mKeyId=%u, mKeyType=%u, mPrevMacFrameCounter=%u, mMacFrameCounter=%u, currKey=%s\r\n",
+                  aKeyId, aKeyType, sRadioContext.mPrevMacFrameCounter, sRadioContext.mMacFrameCounter, currKeyStr);
+    }
 exit:
     return;
 }
@@ -1172,6 +1218,7 @@ void otPlatRadioSetMacFrameCounter(otInstance *aInstance, uint32_t aMacFrameCoun
     OT_UNUSED_VARIABLE(aInstance);
 
     sRadioContext.mMacFrameCounter = aMacFrameCounter;
+    otPlatLog(OT_LOG_LEVEL_CRIT, OT_LOG_REGION_MAC, "SetMacFrameCounter: mMacFrameCounter=%u\r\n", aMacFrameCounter);
 }
 
 otError otPlatRadioSetChannelMaxTransmitPower(otInstance *aInstance, uint8_t aChannel, int8_t aMaxPower)

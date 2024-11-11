@@ -1491,6 +1491,11 @@ public:
      * @param[in]  aNameData  The Network Name (as a `NameData`).
      */
     void SetNetworkName(const MeshCoP::NameData &aNameData) { aNameData.CopyTo(mNetworkName, sizeof(mNetworkName)); }
+    void SetNetworkName(const char *aNetworkName)
+    {
+        memset(mNetworkName, 0, sizeof(mNetworkName));
+        strcpy(mNetworkName, aNetworkName);
+    }
 
     /**
      * Returns the Extended PAN ID field.

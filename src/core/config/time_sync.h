@@ -49,7 +49,7 @@
  * Define as 1 to enable the time synchronization service feature.
  */
 #ifndef OPENTHREAD_CONFIG_TIME_SYNC_ENABLE
-#define OPENTHREAD_CONFIG_TIME_SYNC_ENABLE 0
+#define OPENTHREAD_CONFIG_TIME_SYNC_ENABLE 1
 #endif
 
 /**
