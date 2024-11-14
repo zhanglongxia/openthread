@@ -36,8 +36,6 @@
 
 #include "openthread-core-config.h"
 
-#if OPENTHREAD_FTD
-
 #include "common/const_cast.hpp"
 #include "common/iterator_utils.hpp"
 #include "common/locator.hpp"
@@ -335,7 +333,5 @@ private:
 };
 
 } // namespace ot
-
-#endif // OPENTHREAD_FTD
 
 #endif // CHILD_TABLE_HPP_

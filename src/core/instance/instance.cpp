@@ -201,7 +201,7 @@ Instance::Instance(void)
     , mSrpAdvertisingProxy(*this)
 #endif
 #endif
-#if OPENTHREAD_FTD
+#if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
     , mChildSupervisor(*this)
 #endif
     , mSupervisionListener(*this)

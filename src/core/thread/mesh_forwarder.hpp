@@ -643,10 +643,7 @@ private:
 
     otIpCounters mIpCounters;
 
-#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
     IndirectSender mIndirectSender;
-#endif
-
 #if OPENTHREAD_FTD
     FwdFrameInfoArray mFwdFrameInfoArray;
 #endif

@@ -33,8 +33,6 @@
 
 #include "child_table.hpp"
 
-#if OPENTHREAD_FTD
-
 #include "instance/instance.hpp"
 
 namespace ot {
@@ -347,5 +345,3 @@ bool ChildTable::HasSleepyChildWithAddress(const Ip6::Address &aIp6Address) cons
 }
 
 } // namespace ot
-
-#endif // OPENTHREAD_FTD

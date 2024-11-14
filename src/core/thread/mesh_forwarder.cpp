@@ -105,9 +105,7 @@ MeshForwarder::MeshForwarder(Instance &aInstance)
     , mTxDelayTimer(aInstance)
 #endif
     , mScheduleTransmissionTask(aInstance)
-#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
     , mIndirectSender(aInstance)
-#endif
     , mDataPollSender(aInstance)
 {
     mFragTag = Random::NonCrypto::GetUint16();
@@ -758,15 +756,8 @@ Mac::TxFrame *MeshForwarder::HandleFrameRequest(Mac::TxFrames &aTxFrames)
             frame = Get<Mle::DiscoverScanner>().PrepareDiscoveryRequestFrame(*frame);
             VerifyOrExit(frame != nullptr);
         }
-#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-        else if (Get<Mac::Mac>().IsCslEnabled() && mSendMessage->IsSubTypeMle())
-        {
-            mSendMessage->SetLinkSecurityEnabled(true);
-        }
-#endif
         mMessageNextOffset =
             PrepareDataFrame(*frame, *mSendMessage, mMacAddrs, mAddMeshHeader, mMeshSource, mMeshDest, addFragHeader);
-
         if (mSendMessage->IsMleCommand(Mle::kCommandChildIdRequest) && mSendMessage->IsLinkSecurityEnabled())
         {
             LogNote("Child ID Request requires fragmentation, aborting tx");
@@ -830,14 +821,31 @@ void MeshForwarder::PrepareMacHeaders(Mac::TxFrame &aTxFrame, Mac::TxFrame::Info
     }
 #endif
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-    if (Get<Mac::Mac>().IsCslEnabled() &&
-        !(aMessage != nullptr && aMessage->IsMleCommand(Mle::kCommandDiscoveryRequest)))
+    if (Get<Mac::Mac>().IsCslEnabled())
     {
         aTxFrameInfo.mAppendCslIe = true;
-        aTxFrameInfo.mVersion     = Mac::Frame::kVersion2015;
+
+        if (aMessage != nullptr)
+        {
+            if (aMessage->IsCslIeSuppressed())
+            {
+                aTxFrameInfo.mAppendCslIe = false;
+            }
+        }
+
+        if (aTxFrameInfo.mAppendCslIe)
+        {
+            aTxFrameInfo.mVersion = Mac::Frame::kVersion2015;
+        }
     }
 #endif
 
+#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
+    if (aMessage != nullptr && aMessage->IsEnhAckRequested())
+    {
+        aTxFrameInfo.mVersion = Mac::Frame::kVersion2015;
+    }
+#endif
     aTxFrameInfo.mEmptyPayload = (aMessage == nullptr) || (aMessage->GetLength() == 0);
 
 #endif // OPENTHREAD_CONFIG_MAC_HEADER_IE_SUPPORT
@@ -845,7 +853,8 @@ void MeshForwarder::PrepareMacHeaders(Mac::TxFrame &aTxFrame, Mac::TxFrame::Info
 #if (OPENTHREAD_FTD && OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE) || \
     OPENTHREAD_CONFIG_MLE_LINK_METRICS_INITIATOR_ENABLE
 
-    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    //-
     // Determine frame version
 
     if (aTxFrameInfo.mVersion == Mac::Frame::kVersion2006)
@@ -869,7 +878,8 @@ void MeshForwarder::PrepareMacHeaders(Mac::TxFrame &aTxFrame, Mac::TxFrame::Info
 
 #endif // OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE || OPENTHREAD_CONFIG_MLE_LINK_METRICS_INITIATOR_ENABLE
 
-    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    //-
     // Prepare MAC headers
 
     aTxFrameInfo.PrepareHeadersIn(aTxFrame);

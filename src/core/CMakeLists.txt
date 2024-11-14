@@ -222,7 +222,6 @@ set(COMMON_SOURCES
     thread/lowpan.cpp
     thread/mesh_forwarder.cpp
     thread/mesh_forwarder_ftd.cpp
-    thread/mesh_forwarder_mtd.cpp
     thread/mle.cpp
     thread/mle_router.cpp
     thread/mle_tlvs.cpp

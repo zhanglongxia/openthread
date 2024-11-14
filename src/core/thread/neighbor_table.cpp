@@ -34,6 +34,7 @@
 #include "neighbor_table.hpp"
 
 #include "instance/instance.hpp"
+#include "thread/csl_tx_scheduler.hpp"
 
 namespace ot {
 
@@ -91,6 +92,10 @@ Neighbor *NeighborTable::FindNeighbor(const Neighbor::AddressMatcher &aMatcher)
         neighbor = FindParent(aMatcher);
     }
 
+    if (neighbor == nullptr)
+    {
+        neighbor = Get<ChildTable>().FindChild(aMatcher);
+    }
     return neighbor;
 }
 

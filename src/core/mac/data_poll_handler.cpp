@@ -33,7 +33,7 @@
 
 #include "data_poll_handler.hpp"
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_MAC_CSL_PEER_ENABLE
 
 #include "instance/instance.hpp"
 
@@ -296,4 +296,4 @@ void DataPollHandler::ResetTxAttempts(Child &aChild)
 
 } // namespace ot
 
-#endif // #if OPENTHREAD_FTD
+#endif // OPENTHREAD_FTD || OPENTHREAD_CONFIG_MAC_CSL_PEER_ENABLE

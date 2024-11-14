@@ -82,8 +82,7 @@ class ThreadNetif;
  * child table.
  */
 
-#if OPENTHREAD_FTD
-
+#if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
 /**
  * Implements a child supervisor.
  */
@@ -127,8 +126,7 @@ private:
     void HandleNotifierEvents(Events aEvents);
 };
 
-#endif // #if OPENTHREAD_FTD
-
+#endif // OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
 /**
  * Implements a child supervision listener.
  */

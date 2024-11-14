@@ -205,6 +205,8 @@ protected:
 #if OPENTHREAD_CONFIG_TIME_SYNC_ENABLE
         bool mTimeSync : 1; // Whether the message is also used for time sync purpose.
 #endif
+        bool    mCslIeSuppressed : 1;
+        bool    mEnhAckRequested : 1;
         uint8_t mPriority : 2; // The message priority level (higher value is higher priority).
         uint8_t mOrigin : 2;   // The origin of the message.
 #if OPENTHREAD_CONFIG_MULTI_RADIO
@@ -234,7 +236,7 @@ protected:
         void        *mQueue;       // The queue where message is queued (if any). Queue type from `mInPriorityQ`.
         RssAverager  mRssAverager; // The averager maintaining the received signal strength (RSS) average.
         LqiAverager  mLqiAverager; // The averager maintaining the Link quality indicator (LQI) average.
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_MAC_CSL_PEER_ENABLE
         ChildMask mChildMask; // ChildMask to indicate which sleepy children need to receive this.
 #endif
     };
@@ -624,6 +626,12 @@ public:
      * @returns The priority level associated with this message.
      */
     Priority GetPriority(void) const { return static_cast<Priority>(GetMetadata().mPriority); }
+
+    bool IsCslIeSuppressed(void) const { return GetMetadata().mCslIeSuppressed; }
+    void SetCslIeSuppressed(bool aSuppressed) { GetMetadata().mCslIeSuppressed = aSuppressed; }
+
+    bool IsEnhAckRequested(void) const { return GetMetadata().mEnhAckRequested; }
+    void SetEnhAckRequested(bool aEnhAckRequested) { GetMetadata().mEnhAckRequested = aEnhAckRequested; }
 
     /**
      * Sets the messages priority.
@@ -1055,7 +1063,6 @@ public:
      */
     void SetDatagramTag(uint32_t aTag) { GetMetadata().mDatagramTag = aTag; }
 
-#if OPENTHREAD_FTD
     /**
      * Gets the indirect transmission `ChildMask` associated with this `Message`.
      *
@@ -1073,7 +1080,6 @@ public:
      * @returns A reference to the indirect transmission `ChildMask`.
      */
     const ChildMask &GetIndirectTxChildMask(void) const { return GetMetadata().mChildMask; }
-#endif
 
     /**
      * Returns the RLOC16 of the mesh destination.

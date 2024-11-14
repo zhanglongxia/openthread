@@ -37,8 +37,6 @@
 
 namespace ot {
 
-#if OPENTHREAD_FTD
-
 //---------------------------------------------------------------------------------------------------------------------
 // Child::Info
 
@@ -76,8 +74,7 @@ void Child::Info::SetFrom(const Child &aChild)
 //---------------------------------------------------------------------------------------------------------------------
 // Child::Ip6AddrEntry
 
-#if OPENTHREAD_CONFIG_TMF_PROXY_MLR_ENABLE
-
+#if OPENTHREAD_FTD && OPENTHREAD_CONFIG_TMF_PROXY_MLR_ENABLE
 MlrState Child::Ip6AddrEntry::GetMlrState(const Child &aChild) const
 {
     MlrState                   state = kMlrStateRegistering;
@@ -112,7 +109,7 @@ void Child::Ip6AddrEntry::SetMlrState(MlrState aState, Child &aChild)
     aChild.mMlrRegisteredSet.Update(index, aState == kMlrStateRegistered);
 }
 
-#endif // OPENTHREAD_CONFIG_TMF_PROXY_MLR_ENABLE
+#endif // OPENTHREAD_FTD && OPENTHREAD_CONFIG_TMF_PROXY_MLR_ENABLE
 
 //---------------------------------------------------------------------------------------------------------------------
 // Child
@@ -285,7 +282,7 @@ exit:
 }
 #endif
 
-#if OPENTHREAD_CONFIG_TMF_PROXY_MLR_ENABLE
+#if OPENTHREAD_FTD && OPENTHREAD_CONFIG_TMF_PROXY_MLR_ENABLE
 
 bool Child::HasMlrRegisteredAddress(const Ip6::Address &aAddress) const
 {
@@ -301,7 +298,5 @@ exit:
 }
 
 #endif
-
-#endif // OPENTHREAD_FTD
 
 } // namespace ot

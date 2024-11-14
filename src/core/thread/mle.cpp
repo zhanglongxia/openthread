@@ -33,8 +33,12 @@
 
 #include "mle.hpp"
 
+#include "common/code_utils.hpp"
 #include "instance/instance.hpp"
 #include "openthread/platform/toolchain.h"
+#include "mac/mac_types.hpp"
+#include "thread/mle_types.hpp"
+#include "thread/neighbor.hpp"
 #include "utils/static_counter.hpp"
 
 namespace ot {
@@ -89,9 +93,9 @@ Mle::Mle(Instance &aInstance)
     , mMessageTransmissionTimer(aInstance)
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
     , mWakeupTxScheduler(aInstance)
-    , mWedAttachState(kWedDetached)
     , mWedAttachTimer(aInstance)
 #endif
+    , mChildTable(aInstance)
 {
     mParent.Init(aInstance);
     mParentCandidate.Init(aInstance);
@@ -134,6 +138,7 @@ Error Mle::Enable(void)
 #if OPENTHREAD_CONFIG_PARENT_SEARCH_ENABLE
     mParentSearch.SetEnabled(true);
 #endif
+
 exit:
     return error;
 }
@@ -1678,6 +1683,7 @@ void Mle::SendParentRequest(ParentRequestType aType)
 #if OPENTHREAD_CONFIG_TIME_SYNC_ENABLE
     SuccessOrExit(error = message->AppendTimeRequestTlv());
 #endif
+    message->SetCslIeSuppressed(true);
 
 #if OPENTHREAD_FTD && OPENTHREAD_CONFIG_PARENT_SEARCH_ENABLE
     if (aType == kToSelectedRouter)
@@ -1791,6 +1797,8 @@ Error Mle::SendChildIdRequest(void)
     SuccessOrExit(error = message->AppendTimeoutTlv(mTimeout));
     SuccessOrExit(error = message->AppendVersionTlv());
     SuccessOrExit(error = message->AppendSupervisionIntervalTlvIfSleepyChild());
+
+    message->SetCslIeSuppressed(true);
 
     if (!IsFullThreadDevice())
     {
@@ -2346,6 +2354,168 @@ exit:
     return error;
 }
 
+void Mle::HandleLinkRequestMtd(RxInfo &aRxInfo)
+{
+    Error          error = kErrorNone;
+    LinkAcceptInfo info;
+
+    Log(kMessageReceive, kTypeLinkRequest, aRxInfo.mMessageInfo.GetPeerAddr());
+
+    SuccessOrExit(error = aRxInfo.mMessage.ReadChallengeTlv(info.mRxChallenge));
+
+    aRxInfo.mMessageInfo.GetPeerAddr().GetIid().ConvertToExtAddress(info.mExtAddress);
+
+    info.mLinkMargin = Get<Mac::Mac>().ComputeLinkMargin(aRxInfo.mMessage.GetAverageRss());
+
+    ProcessKeySequence(aRxInfo);
+
+    if (aRxInfo.mNeighbor == nullptr)
+    {
+        VerifyOrExit((aRxInfo.mNeighbor = mChildTable.GetNewChild()) != nullptr, error = kErrorNoBufs);
+    }
+
+    InitNeighbor(*aRxInfo.mNeighbor, aRxInfo);
+    aRxInfo.mNeighbor->SetState(Neighbor::kStateLinkRequest);
+
+    error = SendLinkAcceptMtd(info, aRxInfo.IsNeighborStateValid());
+
+    if (mWedAttachTimer.IsRunning() && mWakeupTxScheduler.GetWedAddress() == info.mExtAddress)
+    {
+        mWakeupTxScheduler.Stop();
+    }
+
+exit:
+    LogProcessError(kTypeLinkRequest, error);
+}
+
+Error Mle::SendLinkAcceptMtd(const LinkAcceptInfo &aInfo, bool isNeighborStateValid)
+{
+    Error        error   = kErrorNone;
+    TxMessage   *message = nullptr;
+    Command      command = isNeighborStateValid ? kCommandLinkAccept : kCommandLinkAcceptAndRequest;
+    Ip6::Address destination;
+
+    VerifyOrExit((message = NewMleMessage(command)) != nullptr, error = kErrorNoBufs);
+    SuccessOrExit(error = message->AppendVersionTlv());
+    SuccessOrExit(error = message->AppendResponseTlv(aInfo.mRxChallenge));
+    SuccessOrExit(error = message->AppendLinkAndMleFrameCounterTlvs());
+    SuccessOrExit(error = message->AppendLinkMarginTlv(aInfo.mLinkMargin));
+    SuccessOrExit(error = message->AppendCslClockAccuracyTlv());
+
+    message->SetDirectTransmission();
+
+    if (command == kCommandLinkAcceptAndRequest)
+    {
+        mParentRequestChallenge.GenerateRandom();
+
+        SuccessOrExit(error = message->AppendChallengeTlv(mParentRequestChallenge));
+
+        message->SetCslIeSuppressed(true);
+    }
+    else
+    {
+        message->SetEnhAckRequested(true);
+    }
+
+    destination.SetToLinkLocalAddress(aInfo.mExtAddress);
+
+    SuccessOrExit(error = message->SendTo(destination));
+
+    Log(kMessageSend, (command == kCommandLinkAccept) ? kTypeLinkAccept : kTypeLinkAcceptAndRequest, destination);
+
+exit:
+    FreeMessageOnError(message, error);
+    return error;
+}
+
+void Mle::HandleLinkAcceptMtd(RxInfo &aRxInfo, MessageType aMessageType)
+{
+    // Handles "Link Accept" or "Link Accept And Request".
+
+    Error           error = kErrorNone;
+    Neighbor::State neighborState;
+    uint16_t        version;
+    RxChallenge     response;
+    uint32_t        linkFrameCounter;
+    uint32_t        mleFrameCounter;
+    uint8_t         linkMargin;
+    Neighbor       &neighbor = *aRxInfo.mNeighbor;
+
+    Log(kMessageReceive, aMessageType, aRxInfo.mMessageInfo.GetPeerAddr());
+
+    neighborState = aRxInfo.mNeighbor->GetState();
+
+    SuccessOrExit(error = aRxInfo.mMessage.ReadResponseTlv(response));
+
+    switch (neighborState)
+    {
+    case Neighbor::kStateLinkRequest:
+        VerifyOrExit(response == mParentRequestChallenge, error = kErrorSecurity);
+        break;
+
+    case Neighbor::kStateValid:
+        break;
+
+    default:
+        ExitNow(error = kErrorSecurity);
+    }
+
+    SuccessOrExit(error = aRxInfo.mMessage.ReadVersionTlv(version));
+
+    SuccessOrExit(error = aRxInfo.mMessage.ReadFrameCounterTlvs(linkFrameCounter, mleFrameCounter));
+
+    switch (Tlv::Find<LinkMarginTlv>(aRxInfo.mMessage, linkMargin))
+    {
+    case kErrorNone:
+        break;
+    case kErrorNotFound:
+        // The Link Margin TLV may be omitted after a reset. We wait
+        // for MLE Advertisements to establish the routing cost to
+        // the neighbor
+        VerifyOrExit(IsDetached(), error = kErrorNotFound);
+        linkMargin = 0;
+        break;
+    default:
+        ExitNow(error = kErrorParse);
+    }
+
+    InitNeighbor(neighbor, aRxInfo);
+    neighbor.SetState(Neighbor::kStateValid);
+
+    aRxInfo.mClass = RxInfo::kAuthoritativeMessage;
+    ProcessKeySequence(aRxInfo);
+
+    if (aMessageType == kTypeLinkAcceptAndRequest)
+    {
+        LinkAcceptInfo info;
+
+        SuccessOrExit(error = aRxInfo.mMessage.ReadChallengeTlv(info.mRxChallenge));
+
+        switch (aRxInfo.mMessage.ReadTlvRequestTlv(info.mRequestedTlvList))
+        {
+        case kErrorNone:
+        case kErrorNotFound:
+            break;
+        default:
+            ExitNow(error = kErrorParse);
+        }
+
+        info.mExtAddress = aRxInfo.mNeighbor->GetExtAddress();
+        info.mLinkMargin = Get<Mac::Mac>().ComputeLinkMargin(aRxInfo.mMessage.GetAverageRss());
+
+        Get<MeshForwarder>().SetRxOnWhenIdle(IsRxOnWhenIdle());
+        SuccessOrExit(error = SendLinkAcceptMtd(info, true));
+    }
+    else if (mWedAttachTimer.IsRunning() && mWakeupTxScheduler.GetWedAddress() == neighbor.GetExtAddress())
+    {
+        Get<MeshForwarder>().SetRxOnWhenIdle(IsRxOnWhenIdle());
+        mWakeupCallback.Invoke(kErrorNone);
+        mWedAttachTimer.Stop();
+    }
+
+exit:
+    LogProcessError(aMessageType, error);
+}
 void Mle::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageInfo)
 {
     Error           error = kErrorNone;
@@ -2392,7 +2562,6 @@ void Mle::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageIn
         ExitNow();
     }
 
-    VerifyOrExit(!IsDisabled(), error = kErrorInvalidState);
     VerifyOrExit(securitySuite == k154Security, error = kErrorParse);
 
     SuccessOrExit(error = aMessage.Read(aMessage.GetOffset(), header));
@@ -2425,6 +2594,13 @@ void Mle::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageIn
     }
 #endif
 
+    if (neighbor == nullptr && !IsRouterOrLeader() &&
+        (command == kCommandLinkAcceptAndRequest || command == kCommandLinkAccept))
+    {
+        neighbor = mNeighborTable.FindNeighbor(extAddr, Neighbor::kInStateAnyExceptInvalid);
+    }
+
+    LogInfo("neighbor is %s", neighbor ? "found" : "not found");
     if (neighbor != nullptr && neighbor->IsStateValid())
     {
         if (keySequence == neighbor->GetKeySequence())
@@ -2541,15 +2717,36 @@ void Mle::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageIn
 
 #if OPENTHREAD_FTD
     case kCommandLinkRequest:
-        Get<MleRouter>().HandleLinkRequest(rxInfo);
+        if (IsRouterOrLeader())
+        {
+            Get<MleRouter>().HandleLinkRequest(rxInfo);
+        }
+        else
+        {
+            HandleLinkRequestMtd(rxInfo);
+        }
         break;
 
     case kCommandLinkAccept:
-        Get<MleRouter>().HandleLinkAccept(rxInfo);
+        if (IsRouterOrLeader())
+        {
+            Get<MleRouter>().HandleLinkAccept(rxInfo);
+        }
+        else
+        {
+            HandleLinkAcceptMtd(rxInfo, kTypeLinkAccept);
+        }
         break;
 
     case kCommandLinkAcceptAndRequest:
-        Get<MleRouter>().HandleLinkAcceptAndRequest(rxInfo);
+        if (IsRouterOrLeader())
+        {
+            Get<MleRouter>().HandleLinkAcceptAndRequest(rxInfo);
+        }
+        else
+        {
+            HandleLinkAcceptMtd(rxInfo, kTypeLinkAcceptAndRequest);
+        }
         break;
 
     case kCommandDataRequest:
@@ -2562,6 +2759,18 @@ void Mle::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageIn
 
     case kCommandChildIdRequest:
         Get<MleRouter>().HandleChildIdRequest(rxInfo);
+        break;
+#else
+    case kCommandLinkRequest:
+        HandleLinkRequestMtd(rxInfo);
+        break;
+
+    case kCommandLinkAcceptAndRequest:
+        HandleLinkAcceptMtd(rxInfo, kTypeLinkAcceptAndRequest);
+        break;
+
+    case kCommandLinkAccept:
+        HandleLinkAcceptMtd(rxInfo, kTypeLinkAccept);
         break;
 #endif // OPENTHREAD_FTD
 
@@ -4401,23 +4610,15 @@ uint64_t Mle::CalcParentCslMetric(const Mac::CslAccuracy &aCslAccuracy) const
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
 void Mle::HandleWedAttachTimer(void)
 {
-    switch (mWedAttachState)
+    // Connection timeout
+    if (!IsRxOnWhenIdle())
     {
-    case kWedAttaching:
-        // Connection timeout
-        if (!IsRxOnWhenIdle())
-        {
-            Get<MeshForwarder>().SetRxOnWhenIdle(false);
-        }
-
-        LogInfo("Connection window closed");
-
-        mWedAttachState = kWedDetached;
-        mWakeupCallback.InvokeAndClearIfSet(kErrorFailed);
-        break;
-    default:
-        break;
+        Get<MeshForwarder>().SetRxOnWhenIdle(false);
     }
+
+    LogInfo("Connection window closed");
+
+    mWakeupCallback.InvokeAndClearIfSet(kErrorFailed);
 }
 
 Error Mle::Wakeup(const Mac::ExtAddress &aWedAddress,
@@ -4430,11 +4631,9 @@ Error Mle::Wakeup(const Mac::ExtAddress &aWedAddress,
 
     VerifyOrExit((aIntervalUs > 0) && (aDurationMs > 0), error = kErrorInvalidArgs);
     VerifyOrExit(aIntervalUs < aDurationMs * Time::kOneMsecInUsec, error = kErrorInvalidArgs);
-    VerifyOrExit(mWedAttachState == kWedDetached, error = kErrorInvalidState);
 
     SuccessOrExit(error = mWakeupTxScheduler.WakeUp(aWedAddress, aIntervalUs, aDurationMs));
 
-    mWedAttachState = kWedAttaching;
     mWakeupCallback.Set(aCallback, aCallbackContext);
     Get<MeshForwarder>().SetRxOnWhenIdle(true);
     mWedAttachTimer.FireAt(mWakeupTxScheduler.GetTxEndTime() + mWakeupTxScheduler.GetConnectionWindowUs());
@@ -4642,6 +4841,16 @@ void Mle::DelayedSender::ScheduleDiscoveryResponse(const Ip6::Address          &
 
 #endif // OPENTHREAD_FTD
 
+void Mle::DelayedSender::ScheduleLinkRequest(const Mac::ExtAddress &aPeer, uint32_t aDelay)
+{
+    Ip6::Address destination;
+
+    destination.SetToLinkLocalAddress(aPeer);
+
+    RemoveMatchingSchedules(kTypeLinkRequest, destination);
+    AddSchedule(kTypeLinkRequest, destination, aDelay, nullptr, 0);
+}
+
 void Mle::DelayedSender::AddSchedule(MessageType         aMessageType,
                                      const Ip6::Address &aDestination,
                                      uint16_t            aDelay,
@@ -4751,15 +4960,22 @@ void Mle::DelayedSender::Execute(const Schedule &aSchedule)
 
     case kTypeLinkRequest:
     {
-        uint16_t rlco16;
-        Router  *router;
-
-        IgnoreError(aSchedule.Read(sizeof(Header), rlco16));
-        router = Get<RouterTable>().FindRouterByRloc16(rlco16);
-
-        if (router != nullptr)
+        if (Get<Mle>().IsRouterOrLeader())
         {
-            Get<MleRouter>().SendLinkRequest(router);
+            uint16_t rlco16;
+            Router  *router;
+
+            IgnoreError(aSchedule.Read(sizeof(Header), rlco16));
+            router = Get<RouterTable>().FindRouterByRloc16(rlco16);
+
+            if (router != nullptr)
+            {
+                Get<MleRouter>().SendLinkRequest(router);
+            }
+        }
+        else
+        {
+            Get<Mle>().SendLinkRequestMtd(header.mDestination);
         }
 
         break;
@@ -4771,6 +4987,12 @@ void Mle::DelayedSender::Execute(const Schedule &aSchedule)
 
         IgnoreError(aSchedule.Read(sizeof(Header), info));
         IgnoreError(Get<MleRouter>().SendDiscoveryResponse(header.mDestination, info));
+        break;
+    }
+#else
+    case kTypeLinkRequest:
+    {
+        Get<Mle>().SendLinkRequestMtd(header.mDestination);
         break;
     }
 #endif // OPENTHREAD_FTD
@@ -5222,6 +5444,14 @@ Error Mle::TxMessage::SendTo(const Ip6::Address &aDestination)
         Get<KeyManager>().IncrementMleFrameCounter();
     }
 
+#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
+    if (Get<Mac::Mac>().IsCslEnabled() && !IsMleCommand(kCommandLinkAcceptAndRequest) &&
+        !IsMleCommand(kCommandLinkRequest) && !IsMleCommand(kCommandLinkAccept) &&
+        !IsMleCommand(kCommandParentRequest) && !IsMleCommand(kCommandChildIdRequest))
+    {
+        SetLinkSecurityEnabled(true);
+    }
+#endif
     SuccessOrExit(error = Get<Mle>().mSocket.SendTo(*this, messageInfo));
 
 exit:
@@ -5562,6 +5792,44 @@ void Mle::ParentCandidate::CopyTo(Parent &aParent) const
     const Parent *candidateAsParent = this;
 
     aParent = *candidateAsParent;
+}
+
+void Mle::LinkToWakeupParent(const Mac::ExtAddress &aCoord, uint32_t aDelayMs, uint32_t aWindowMs)
+{
+    mWakeupLinkWindowMs = aWindowMs;
+
+    auto *peer = mChildTable.FindChild(aCoord, Child::kInStateAnyExceptInvalid);
+    if (peer == nullptr)
+    {
+        peer = mChildTable.GetNewChild();
+    }
+    peer->GetLinkInfo().Clear();
+    peer->ResetLinkFailures();
+    peer->SetLastHeard(TimerMilli::GetNow());
+    peer->SetExtAddress(aCoord);
+    peer->SetState(Neighbor::kStateLinkRequest);
+    mDelayedSender.ScheduleLinkRequest(aCoord, aDelayMs);
+}
+
+void Mle::SendLinkRequestMtd(const Ip6::Address &aPeer)
+{
+    Error      error   = kErrorNone;
+    TxMessage *message = nullptr;
+
+    VerifyOrExit((message = NewMleMessage(kCommandLinkRequest)) != nullptr, error = kErrorNoBufs);
+    SuccessOrExit(error = message->AppendVersionTlv());
+
+    mParentRequestChallenge.GenerateRandom();
+    SuccessOrExit(error = message->AppendChallengeTlv(mParentRequestChallenge));
+
+    message->SetCslIeSuppressed(true);
+
+    SuccessOrExit(error = message->SendTo(aPeer));
+
+    Log(kMessageSend, kTypeLinkRequest, aPeer);
+
+exit:
+    FreeMessageOnError(message, error);
 }
 
 } // namespace Mle

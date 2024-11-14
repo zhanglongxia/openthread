@@ -46,7 +46,6 @@ WakeupTxScheduler::WakeupTxScheduler(Instance &aInstance)
     , mTxTimeUs(0)
     , mTxEndTimeUs(0)
     , mTimer(aInstance)
-    , mIsRunning(false)
 {
     UpdateFrameRequestAhead();
 }
@@ -55,13 +54,12 @@ Error WakeupTxScheduler::WakeUp(const Mac::ExtAddress &aWedAddress, uint16_t aIn
 {
     Error error = kErrorNone;
 
-    VerifyOrExit(!mIsRunning, error = kErrorInvalidState);
+    VerifyOrExit(!mTimer.IsRunning(), error = kErrorInvalidState);
 
     mWedAddress  = aWedAddress;
     mTxTimeUs    = TimerMicro::GetNow() + mTxRequestAheadTimeUs;
     mTxEndTimeUs = mTxTimeUs + aDurationMs * Time::kOneMsecInUsec + aIntervalUs;
     mIntervalUs  = aIntervalUs;
-    mIsRunning   = true;
 
     LogInfo("Started wake-up sequence to %s", aWedAddress.ToString().AsCString());
 
@@ -84,8 +82,6 @@ Mac::TxFrame *WakeupTxScheduler::PrepareWakeupFrame(Mac::TxFrames &aTxFrames)
     uint32_t           rendezvousTimeUs;
     TimeMicro          nowUs = TimerMicro::GetNow();
     Mac::ConnectionIe *connectionIe;
-
-    VerifyOrExit(mIsRunning);
 
     target.SetExtended(mWedAddress);
     source.SetExtended(Get<Mac::Mac>().GetExtAddress());
@@ -137,7 +133,6 @@ void WakeupTxScheduler::ScheduleTimer(void)
 {
     if (mTxTimeUs >= mTxEndTimeUs)
     {
-        mIsRunning = false;
         LogInfo("Stopped wake-up sequence");
         ExitNow();
     }
@@ -148,11 +143,7 @@ exit:
     return;
 }
 
-void WakeupTxScheduler::Stop(void)
-{
-    mIsRunning = false;
-    mTimer.Stop();
-}
+void WakeupTxScheduler::Stop(void) { mTimer.Stop(); }
 
 void WakeupTxScheduler::UpdateFrameRequestAhead(void)
 {

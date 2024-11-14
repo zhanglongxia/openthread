@@ -39,7 +39,7 @@ namespace ot {
 
 RegisterLogModule("ChildSupervsn");
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
 
 ChildSupervisor::ChildSupervisor(Instance &aInstance)
     : InstanceLocator(aInstance)
@@ -135,7 +135,7 @@ void ChildSupervisor::HandleNotifierEvents(Events aEvents)
     }
 }
 
-#endif // #if OPENTHREAD_FTD
+#endif // OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
 
 SupervisionListener::SupervisionListener(Instance &aInstance)
     : InstanceLocator(aInstance)

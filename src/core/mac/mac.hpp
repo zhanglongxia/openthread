@@ -204,7 +204,6 @@ public:
      */
     void RequestDirectFrameTransmission(void);
 
-#if OPENTHREAD_FTD
     /**
      * Requests an indirect data frame transmission.
      */
@@ -431,7 +430,8 @@ public:
      */
     bool IsEnergyScanInProgress(void) const { return IsActiveOrPending(kOperationEnergyScan); }
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_MAC_CSL_PEER_ENABLE
+
     /**
      * Indicates whether the MAC layer is performing an indirect transmission (in middle of a tx).
      *
@@ -793,7 +793,6 @@ private:
         kOperationTransmitDataDirect,
         kOperationTransmitPoll,
         kOperationWaitingForData,
-#if OPENTHREAD_FTD
         kOperationTransmitDataIndirect,
 #endif
 #if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
@@ -910,9 +909,7 @@ private:
     uint16_t    mScanDuration;
     ChannelMask mScanChannelMask;
     uint8_t     mMaxFrameRetriesDirect;
-#if OPENTHREAD_FTD
-    uint8_t mMaxFrameRetriesIndirect;
-#endif
+    uint8_t     mMaxFrameRetriesIndirect;
 #if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
     TimeMilli mCslTxFireTime;
 #endif

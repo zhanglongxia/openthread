@@ -30,6 +30,7 @@
 #define WAKEUP_TX_SCHEDULER_HPP_
 
 #include "openthread-core-config.h"
+#include "mac/mac_types.hpp"
 
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
 
@@ -98,6 +99,8 @@ public:
      * Updates the value of `mTxRequestAheadTimeUs`, based on bus speed, bus latency and `Mac::kCslRequestAhead`.
      */
     void UpdateFrameRequestAhead(void);
+
+    const Mac::ExtAddress &GetWedAddress(void) const { return mWedAddress; }
 
 private:
     constexpr static uint8_t  kConnectionRetryInterval = OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_CONNECTION_RETRY_INTERVAL;

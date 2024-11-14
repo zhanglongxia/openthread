@@ -1,0 +1,60 @@
+#!/usr/bin/expect -f
+#
+#                   WED1 -- SSED2
+log_file test.log
+source "tests/scripts/expect/_common.exp"
+source "tests/scripts/expect/_multinode.exp"
+
+set WED1 1
+set WED2 2
+
+send_user ">>> setup WED1\n"
+spawn_node $WED1
+setup_default_network
+run_command "mode -"
+run_command "csl period 1000000"
+run_command "csl timeout 10"
+run_command "ifconfig up"
+run_command "wakeup channel 11"
+run_command "wakeup parameters 1000000 8000"
+run_command "wakeup listen enable"
+set wed1_extaddr [get_extaddr]
+set wed1_lladdr [get_ipaddr linklocal]
+run_command "srp client host name wed1"
+run_command "srp client host address $wed1_lladdr"
+run_command "srp client service add ins1 _matter._tcp 5540"
+
+
+send_user ">>> setup WED2\n"
+spawn_node $WED2
+setup_default_network
+run_command "mode -"
+run_command "csl period 1000000"
+run_command "csl timeout 10"
+run_command "ifconfig up"
+run_command "wakeup channel 11"
+run_command "wakeup parameters 1000000 8000"
+run_command "wakeup listen enable"
+set wed2_extaddr [get_extaddr]
+set wed2_lladdr [get_ipaddr linklocal]
+run_command "srp client host name wed2"
+run_command "srp client host address $wed2_lladdr"
+run_command "srp client service add ins2 _matter._tcp 5540"
+
+
+send_user ">>> WED1 wake up WED2\n"
+switch_node $WED1
+run_command "srp server addrmode anycast"
+run_command "srp server enable"
+run_command "wakeup wake $wed2_extaddr 7500 1090"
+sleep 5
+run_command "srp server state"
+run_command "netstat"
+
+switch_node $WED2
+run_command "srp client start $wed1_lladdr 53"
+sleep 15
+
+switch_node $WED1
+run_command "srp server host" "$wed2_lladdr"
+run_command "ping $wed2_lladdr"

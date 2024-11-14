@@ -128,6 +128,10 @@ void Server::SetEnabled(bool aEnabled)
     if (aEnabled)
     {
         Enable();
+        if (Get<Mle::Mle>().IsDisabled())
+        {
+            Start();
+        }
     }
     else
     {

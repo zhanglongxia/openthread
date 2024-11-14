@@ -72,7 +72,7 @@ protected:
         kActionSave,
         kActionResave,
         kActionDelete,
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_MAC_CSL_PEER_ENABLE
         kActionAdd,
         kActionRemove,
         kActionDeleteAll,
@@ -368,7 +368,7 @@ public:
         uint16_t        mVersion;    ///< Version
     } OT_TOOL_PACKED_END;
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_MAC_CSL_PEER_ENABLE
     /**
      * Represents the child information for settings storage.
      */
@@ -468,7 +468,7 @@ public:
         uint8_t         mMode;       ///< The MLE device mode
         uint16_t        mVersion;    ///< Version
     } OT_TOOL_PACKED_END;
-#endif // OPENTHREAD_FTD
+#endif // OPENTHREAD_FTD || OPENTHREAD_CONFIG_MAC_CSL_PEER_ENABLE
 
 #if OPENTHREAD_CONFIG_IP6_SLAAC_ENABLE
     /**
@@ -943,7 +943,7 @@ public:
      */
     template <typename EntryType> Error Delete(void) { return DeleteEntry(EntryType::kKey); }
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_MAC_CSL_PEER_ENABLE
     /**
      * Adds a Child Info entry to settings.
      *
@@ -1078,7 +1078,7 @@ public:
         uint16_t  mIndex;
         bool      mIsDone;
     };
-#endif // OPENTHREAD_FTD
+#endif // OPENTHREAD_FTD || OPENTHREAD_CONFIG_MAC_CSL_PEER_ENABLE
 
 #if OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE
     /**
@@ -1127,7 +1127,7 @@ public:
 #endif // OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE
 
 private:
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_MAC_CSL_PEER_ENABLE
     class ChildInfoIteratorBuilder : public InstanceLocator
     {
     public:

@@ -38,6 +38,7 @@
 
 #include "common/locator.hpp"
 #include "common/non_copyable.hpp"
+#include "thread/csl_tx_scheduler.hpp"
 #include "thread/neighbor.hpp"
 
 namespace ot {

@@ -33,8 +33,6 @@
 
 #include "mesh_forwarder.hpp"
 
-#if OPENTHREAD_FTD
-
 #include "instance/instance.hpp"
 
 namespace ot {
@@ -45,10 +43,14 @@ void MeshForwarder::SendMessage(OwnedPtr<Message> aMessagePtr)
 {
     Message &message = *aMessagePtr.Release();
 
+    mSendQueue.Enqueue(message);
+
     message.SetOffset(0);
     message.SetDatagramTag(0);
     message.SetTimestampToNow();
-    mSendQueue.Enqueue(message);
+#if OPENTHREAD_MTD
+    message.SetDirectTransmission();
+#else
 
     switch (message.GetType())
     {
@@ -127,6 +129,7 @@ void MeshForwarder::SendMessage(OwnedPtr<Message> aMessagePtr)
     {
         ExitNow();
     }
+#endif
 
 #if (OPENTHREAD_CONFIG_MAX_FRAMES_IN_DIRECT_TX_QUEUE > 0)
     ApplyDirectTxQueueLimit(message);
@@ -134,10 +137,84 @@ void MeshForwarder::SendMessage(OwnedPtr<Message> aMessagePtr)
 
     mScheduleTransmissionTask.Post();
 
+#if OPENTHREAD_FTD
 exit:
+#endif
     return;
 }
 
+Error MeshForwarder::EvictMessage(Message::Priority aPriority)
+{
+    Error    error = kErrorNotFound;
+    Message *evict = nullptr;
+
+#if OPENTHREAD_CONFIG_DELAY_AWARE_QUEUE_MANAGEMENT_ENABLE
+    error = RemoveAgedMessages();
+    VerifyOrExit(error == kErrorNotFound);
+#endif
+
+#if OPENTHREAD_MTD
+    VerifyOrExit((evict = mSendQueue.GetTail()) != nullptr && evict->GetPriority() < static_cast<uint8_t>(aPriority));
+
+    error = kErrorNone;
+#else
+
+    // Search for a lower priority message to evict
+    for (uint8_t priority = 0; priority < aPriority; priority++)
+    {
+        for (Message *message = mSendQueue.GetHeadForPriority(static_cast<Message::Priority>(priority)); message;
+             message          = message->GetNext())
+        {
+            if (message->GetPriority() != priority)
+            {
+                break;
+            }
+
+            if (message->GetDoNotEvict())
+            {
+                continue;
+            }
+
+            evict = message;
+            error = kErrorNone;
+            ExitNow();
+        }
+    }
+
+    for (uint8_t priority = aPriority; priority < Message::kNumPriorities; priority++)
+    {
+        // search for an equal or higher priority indirect message to evict
+        for (Message *message = mSendQueue.GetHeadForPriority(aPriority); message; message = message->GetNext())
+        {
+            if (message->GetPriority() != priority)
+            {
+                break;
+            }
+
+            if (message->GetDoNotEvict())
+            {
+                continue;
+            }
+
+            if (!message->GetIndirectTxChildMask().IsEmpty())
+            {
+                evict = message;
+                ExitNow(error = kErrorNone);
+            }
+        }
+    }
+#endif
+
+exit:
+    if ((error == kErrorNone) && (evict != nullptr))
+    {
+        FinalizeAndRemoveMessage(*evict, kErrorNoBufs, kMessageEvict);
+    }
+
+    return error;
+}
+
+#if OPENTHREAD_FTD
 void MeshForwarder::HandleResolved(const Ip6::Address &aEid, Error aError)
 {
     Ip6::Address ip6Dst;
@@ -195,70 +272,6 @@ void MeshForwarder::HandleResolved(const Ip6::Address &aEid, Error aError)
     {
         mScheduleTransmissionTask.Post();
     }
-}
-
-Error MeshForwarder::EvictMessage(Message::Priority aPriority)
-{
-    Error    error = kErrorNotFound;
-    Message *evict = nullptr;
-
-#if OPENTHREAD_CONFIG_DELAY_AWARE_QUEUE_MANAGEMENT_ENABLE
-    error = RemoveAgedMessages();
-    VerifyOrExit(error == kErrorNotFound);
-#endif
-
-    // Search for a lower priority message to evict
-    for (uint8_t priority = 0; priority < aPriority; priority++)
-    {
-        for (Message *message = mSendQueue.GetHeadForPriority(static_cast<Message::Priority>(priority)); message;
-             message          = message->GetNext())
-        {
-            if (message->GetPriority() != priority)
-            {
-                break;
-            }
-
-            if (message->GetDoNotEvict())
-            {
-                continue;
-            }
-
-            evict = message;
-            error = kErrorNone;
-            ExitNow();
-        }
-    }
-
-    for (uint8_t priority = aPriority; priority < Message::kNumPriorities; priority++)
-    {
-        // search for an equal or higher priority indirect message to evict
-        for (Message *message = mSendQueue.GetHeadForPriority(aPriority); message; message = message->GetNext())
-        {
-            if (message->GetPriority() != priority)
-            {
-                break;
-            }
-
-            if (message->GetDoNotEvict())
-            {
-                continue;
-            }
-
-            if (!message->GetIndirectTxChildMask().IsEmpty())
-            {
-                evict = message;
-                ExitNow(error = kErrorNone);
-            }
-        }
-    }
-
-exit:
-    if ((error == kErrorNone) && (evict != nullptr))
-    {
-        FinalizeAndRemoveMessage(*evict, kErrorNoBufs, kMessageEvict);
-    }
-
-    return error;
 }
 
 void MeshForwarder::RemoveMessagesForChild(Child &aChild, MessageChecker &aMessageChecker)
@@ -942,6 +955,6 @@ exit:
 
 // LCOV_EXCL_STOP
 
+#endif // OPENTHREAD_FTD
 } // namespace ot
 
-#endif // OPENTHREAD_FTD

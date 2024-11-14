@@ -45,12 +45,15 @@
 #include "common/timer.hpp"
 #include "crypto/aes_ccm.hpp"
 #include "mac/mac.hpp"
+#include "mac/mac_types.hpp"
 #include "mac/wakeup_tx_scheduler.hpp"
 #include "meshcop/dataset.hpp"
 #include "meshcop/joiner_router.hpp"
 #include "meshcop/meshcop.hpp"
 #include "net/udp6.hpp"
 #include "thread/child.hpp"
+#include "thread/child_table.hpp"
+#include "thread/csl_tx_scheduler.hpp"
 #include "thread/link_metrics.hpp"
 #include "thread/link_metrics_tlvs.hpp"
 #include "thread/mle_tlvs.hpp"
@@ -60,6 +63,10 @@
 #include "thread/router.hpp"
 
 namespace ot {
+
+class Peer : public Neighbor, public CslTxScheduler::ChildInfo
+{
+};
 
 /**
  * @addtogroup core-mle MLE
@@ -122,6 +129,8 @@ public:
     typedef otDetachGracefullyCallback DetachCallback; ///< Callback to signal end of graceful detach.
 
     typedef otWakeupCallback WakeupCallback; ///< Callback to communicate the result of waking a Wake-up End Device
+
+    Peer *FindPeer(const Neighbor::AddressMatcher &aMatcher);
 
     /**
      * Initializes the MLE object.
@@ -706,6 +715,17 @@ public:
     uint32_t GetStoreFrameCounterAhead(void) { return mStoreFrameCounterAhead; }
 #endif // OPENTHREAD_CONFIG_DYNAMIC_STORE_FRAME_AHEAD_COUNTER_ENABLE
 
+    /**
+     * Attaches to a Wake-up Parent.
+     *
+     * This detaches from the current parent and initiates attachment to the Wake-up Parent.
+     *
+     * @param[in] aCoord          The extended address of the Wake-up Parent.
+     * @param[in] aAttachTime     The time when Parent Requests start being sent to the Wake-up Parent.
+     * @param[in] aAttachWindowMs The connection window for receiving the Parent Response.
+     */
+    void     LinkToWakeupParent(const Mac::ExtAddress &aCoord, uint32_t aDelayMs, uint32_t aWindowMs);
+    uint32_t mWakeupLinkWindowMs = 0;
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
     /**
      * Gets the CSL timeout.
@@ -930,7 +950,6 @@ private:
         kTypeParentRequestToRouters,
         kTypeParentRequestToRoutersReeds,
         kTypeParentResponse,
-#if OPENTHREAD_FTD
         kTypeAddressRelease,
         kTypeAddressReleaseReply,
         kTypeAddressReply,
@@ -943,7 +962,6 @@ private:
         kTypeLinkReject,
         kTypeLinkRequest,
         kTypeParentRequest,
-#endif
 #if OPENTHREAD_CONFIG_MLE_LINK_METRICS_INITIATOR_ENABLE || OPENTHREAD_CONFIG_MLE_LINK_METRICS_SUBJECT_ENABLE
         kTypeLinkMetricsManagementRequest,
         kTypeLinkMetricsManagementResponse,
@@ -953,15 +971,6 @@ private:
         kTypeTimeSync,
 #endif
     };
-
-#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
-    enum WedAttachState : uint8_t{
-        kWedDetached,
-        kWedAttaching,
-        kWedAttached,
-        kWedDetaching,
-    };
-#endif
 
     //------------------------------------------------------------------------------------------------------------------
     // Nested types
@@ -1098,19 +1107,19 @@ private:
 
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-#if OPENTHREAD_FTD
-    struct ParentResponseInfo
-    {
-        Mac::ExtAddress mChildExtAddress; // The child extended address.
-        RxChallenge     mRxChallenge;     // The challenge from the Parent Request.
-    };
-
     struct LinkAcceptInfo
     {
         Mac::ExtAddress mExtAddress;       // The neighbor/router extended address.
         TlvList         mRequestedTlvList; // The requested TLVs in Link Request.
         RxChallenge     mRxChallenge;      // The challenge in Link Request.
         uint8_t         mLinkMargin;       // Link margin of the received Link Request.
+    };
+
+#if OPENTHREAD_FTD
+    struct ParentResponseInfo
+    {
+        Mac::ExtAddress mChildExtAddress; // The child extended address.
+        RxChallenge     mRxChallenge;     // The challenge from the Parent Request.
     };
 
     struct DiscoveryResponseInfo
@@ -1136,6 +1145,7 @@ private:
 
         void ScheduleDataRequest(const Ip6::Address &aDestination, uint16_t aDelay);
         void ScheduleChildUpdateRequestToParent(uint16_t aDelay);
+        void ScheduleLinkRequest(const Mac::ExtAddress &aPeer, uint32_t aDelay);
 #if OPENTHREAD_FTD
         void ScheduleParentResponse(const ParentResponseInfo &aInfo, uint16_t aDelay);
         void ScheduleAdvertisement(const Ip6::Address &aDestination, uint16_t aDelay);
@@ -1359,6 +1369,10 @@ private:
     uint32_t   Reattach(void);
     bool       HasAcceptableParentCandidate(void) const;
     Error      DetermineParentRequestType(ParentRequestType &aType) const;
+    void       HandleLinkRequestMtd(RxInfo &aRxInfo);
+    void       HandleLinkAcceptMtd(RxInfo &aRxInfo, MessageType aMessageType);
+    void       SendLinkRequestMtd(const Ip6::Address &aPeer);
+    Error      SendLinkAcceptMtd(const LinkAcceptInfo &aInfo, bool isNeighborStateValid);
     bool       IsBetterParent(uint16_t                aRloc16,
                               uint8_t                 aTwoWayLinkMargin,
                               const ConnectivityTlv  &aConnectivityTlv,
@@ -1521,10 +1535,11 @@ private:
 
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
     WakeupTxScheduler        mWakeupTxScheduler;
-    WedAttachState           mWedAttachState;
     WedAttachTimer           mWedAttachTimer;
     Callback<WakeupCallback> mWakeupCallback;
 #endif
+
+    ChildTable mChildTable;
 };
 
 } // namespace Mle
