@@ -1,0 +1,6 @@
+#!/us/bin/expect -f
+
+
+spawn adb shell
+
+send ""

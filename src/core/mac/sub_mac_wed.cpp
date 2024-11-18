@@ -44,14 +44,13 @@ RegisterLogModule("SubMac");
 
 void SubMac::WedInit(void)
 {
+    mIsRx                 = false;
     mWakeupListenInterval = 0;
     mWedTimer.Stop();
 }
 
 void SubMac::UpdateWakeupListening(bool aEnable, uint32_t aInterval, uint32_t aDuration, uint8_t aChannel)
 {
-    VerifyOrExit(RadioSupportsReceiveTiming());
-
     mWakeupListenInterval = aInterval;
     mWakeupListenDuration = aDuration;
     mWakeupChannel        = aChannel;
@@ -59,20 +58,30 @@ void SubMac::UpdateWakeupListening(bool aEnable, uint32_t aInterval, uint32_t aD
 
     if (aEnable)
     {
+        mIsRx               = true;
         mWedSampleTime      = TimerMicro::GetNow() + kCslReceiveTimeAhead - mWakeupListenInterval;
         mWedSampleTimeRadio = Get<Radio>().GetNow() + kCslReceiveTimeAhead - mWakeupListenInterval;
 
         HandleWedTimer();
     }
-
-exit:
-    return;
+    else
+    {
+        LogCrit("Sleep() -");
+        IgnoreError(Get<Radio>().Sleep());
+    }
 }
 
 void SubMac::HandleWedTimer(Timer &aTimer) { aTimer.Get<SubMac>().HandleWedTimer(); }
 
-void SubMac::HandleWedTimer(void)
+void SubMac::HandleReceiveAt(void)
 {
+    /**
+     *   ------+-------+------------------+-------+------------------+-------
+     *  Now  SamTime0                   SamTime1
+     *  Now  RadioTime0                 RadioTime1   |
+     *                                             FireAt(SamTime1+Dur+After)
+     *                                 FireAt(RadioTime1, Dur)
+     */
     mWedSampleTime += mWakeupListenInterval;
     mWedSampleTimeRadio += mWakeupListenInterval;
     mWedTimer.FireAt(mWedSampleTime + mWakeupListenDuration + kWedReceiveTimeAfter);
@@ -81,6 +90,54 @@ void SubMac::HandleWedTimer(void)
     {
         IgnoreError(
             Get<Radio>().ReceiveAt(mWakeupChannel, static_cast<uint32_t>(mWedSampleTimeRadio), mWakeupListenDuration));
+    }
+}
+
+void SubMac::HandleReceiveAndSleep(void)
+{
+    /**
+     *   ------+-----------+----------------------+-------+------------------+-------
+     *  Now  SamTimeRx
+     *         | DelayRx   |
+     *                FireAt(SamTimeRx, DelayRx)
+     *
+     *                    Now
+     *                  SamTimeSleep
+     *                     |   DelaySleep         |
+     *                                       FireAt(SamTimeSleep, DelaySleep)
+     */
+    uint32_t interval = mIsRx ? mWakeupListenDuration : (mWakeupListenInterval - mWakeupListenDuration);
+    int32_t  delay    = mIsRx ? kMinReceiveOnAfter : -kMinReceiveOnAhead;
+
+    mWedSampleTime += interval;
+    mWedTimer.FireAt(mWedSampleTime + delay);
+
+    if (mState != kStateDisabled)
+    {
+        if (mIsRx)
+        {
+            LogCrit("Rx(): ch=%u", mWakeupChannel);
+            IgnoreError(Get<Radio>().Receive(mWakeupChannel));
+        }
+        else
+        {
+            LogCrit("Sleep()");
+            IgnoreError(Get<Radio>().Sleep());
+        }
+    }
+
+    mIsRx = !mIsRx;
+}
+
+void SubMac::HandleWedTimer(void)
+{
+    if (RadioSupportsReceiveTiming())
+    {
+        HandleReceiveAt();
+    }
+    else
+    {
+        HandleReceiveAndSleep();
     }
 }
 

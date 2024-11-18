@@ -1123,14 +1123,27 @@ template <> otError Dataset::Process<Cmd("set")>(Arg aArgs[])
     otError                  error = OT_ERROR_NONE;
     otOperationalDatasetTlvs datasetTlvs;
 
-    SuccessOrExit(error = ParseTlvs(aArgs[1], datasetTlvs));
-
     if (aArgs[0] == "active")
     {
+        if (aArgs[1] == "init")
+        {
+            char testDataset[] = "0e080000000000010000000300001635060004001fffe002083ae7ad5bd2c958ef0708fd77c6ccf72ab52"
+                                 "30510cceb51a2f1602439b0343c07d6ca981f030f4f70656e5468726561642d363834660102684f041011"
+                                 "6d23d1b996bd75d25bdc911aa33fb40c0402a0f7f8";
+            Arg  arg;
+
+            arg.SetCString(testDataset);
+            SuccessOrExit(error = ParseTlvs(arg, datasetTlvs));
+        }
+        else
+        {
+            SuccessOrExit(error = ParseTlvs(aArgs[1], datasetTlvs));
+        }
         error = otDatasetSetActiveTlvs(GetInstancePtr(), &datasetTlvs);
     }
     else if (aArgs[0] == "pending")
     {
+        SuccessOrExit(error = ParseTlvs(aArgs[1], datasetTlvs));
         error = otDatasetSetPendingTlvs(GetInstancePtr(), &datasetTlvs);
     }
     else

@@ -1,0 +1,74 @@
+#!/usr/bin/expect -f
+#
+# Starts the jLink server and the jLink RTT.
+#
+# Usage:
+#     ./jlink-rtt.exp [WC|WED]
+#
+# Example:
+#     ./jlink-rtt.exp WC
+#
+
+set WC_SERIAL_NUM  683688378
+set WED_SERIAL_NUM 683152435
+
+set WC_RTT_TELNET_PORT  19021
+set WED_RTT_TELNET_PORT 19022
+
+set SPAWN_SERVER_ID 1
+set SPAWN_RTT_ID 2
+
+proc spawn_jlink_server {serial port} {
+    global spawn_id
+    global spawn_ids
+
+    spawn  JLinkExe -device NRF52840_XXAA -if SWD -speed 10000 -autoconnect 1 -SelectEmuBySN $serial -RTTTelnetPort $port
+    expect "J-Link>"
+
+    send "exec SetRTTSearchRanges 0x20010000 0x10000\n"
+    expect "J-Link>"
+
+    set spawn_ids($::SPAWN_SERVER_ID) $spawn_id
+
+    return $spawn_id
+}
+
+proc spawn_jlink_rtt {port} {
+    global spawn_id
+    global spawn_ids
+
+    set id 2
+
+    spawn JLinkRTTClient -RTTTelnetPort $port
+    expect "Process: JLinkExe"
+
+    set spawn_ids($::SPAWN_RTT_ID) $spawn_id
+
+    return $spawn_id
+}
+
+proc start_rtt {serial port} {
+    send_user "Start jLink Server: serial=$serial port=$port\n"
+    spawn_jlink_server $serial $port
+
+    send_user "Start jLink RTT:\n"
+    spawn_jlink_rtt $port
+}
+
+#------------------------------------------------------------------------
+
+set device [lindex $argv 0]
+
+if { $device == "WC" } {
+    set serial_num $WC_SERIAL_NUM
+    set port       $WC_RTT_TELNET_PORT
+} else {
+    set serial_num $WED_SERIAL_NUM
+    set port       $WED_RTT_TELNET_PORT
+}
+
+send_user "JLinkExe: SerialNumber=$serial_num, RTTTelnetPort=$port\n"
+
+start_rtt $serial_num $port
+
+interact

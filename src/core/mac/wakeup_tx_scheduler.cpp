@@ -86,7 +86,15 @@ Mac::TxFrame *WakeupTxScheduler::PrepareWakeupFrame(Mac::TxFrames &aTxFrames)
 
     VerifyOrExit(mIsRunning);
 
-    target.SetExtended(mWedAddress);
+    if (mWedAddress.IsBroadcast())
+    {
+        target.SetShort(OT_RADIO_BROADCAST_SHORT_ADDR);
+    }
+    else
+    {
+        target.SetExtended(mWedAddress);
+    }
+
     source.SetExtended(Get<Mac::Mac>().GetExtAddress());
     radioTxUs = static_cast<uint32_t>(Get<Radio>().GetNow()) + (mTxTimeUs - TimerMicro::GetNow());
 

@@ -147,6 +147,8 @@ void otCliPlatLogv(otLogLevel aLogLevel, otLogRegion aLogRegion, const char *aFo
  */
 extern void otCliVendorSetUserCommands(void);
 
+otError otCliWedAutoStart(bool aEnabled);
+
 /**
  * @}
  */
