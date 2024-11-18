@@ -86,7 +86,7 @@
  * frames to establish a link with a Wake-up Coordinator device.
  */
 #ifndef OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
-#define OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE 0
+#define OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE 1
 #endif
 
 /**
@@ -104,7 +104,7 @@
  * The default wake-up listen duration in microseconds.
  */
 #ifndef OPENTHREAD_CONFIG_WED_LISTEN_DURATION
-#define OPENTHREAD_CONFIG_WED_LISTEN_DURATION 8000
+#define OPENTHREAD_CONFIG_WED_LISTEN_DURATION 20000 //8000
 #endif
 
 /**

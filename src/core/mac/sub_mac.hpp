@@ -523,6 +523,8 @@ private:
     void        WedInit(void);
     static void HandleWedTimer(Timer &aTimer);
     void        HandleWedTimer(void);
+    void        HandleReceiveAt(void);
+    void        HandleReceiveAndSleep(void);
 #endif
 
     static constexpr uint8_t  kCsmaMinBe         = 3;                  // macMinBE (IEEE 802.15.4-2006).
@@ -675,6 +677,7 @@ private:
 #endif
 
 #if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+    bool       mIsRx;
     uint32_t   mWakeupListenInterval; // The wake-up listen interval, in microseconds.
     uint32_t   mWakeupListenDuration; // The wake-up listen duration, in microseconds.
     uint8_t    mWakeupChannel;        // The wake-up sample channel.

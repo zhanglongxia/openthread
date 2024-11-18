@@ -205,6 +205,12 @@ public:
      */
     InfoString ToString(void) const;
 
+    bool IsBroadcast(void) const
+    {
+        static constexpr uint8_t kExtBroadcast[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+        return memcmp(m8, kExtBroadcast, sizeof(m8)) == 0;
+    }
+
 private:
     static constexpr uint8_t kGroupFlag = (1 << 0);
     static constexpr uint8_t kLocalFlag = (1 << 1);

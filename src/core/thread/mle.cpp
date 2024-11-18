@@ -660,7 +660,7 @@ uint32_t Mle::GetAttachStartDelay(void) const
             static_cast<uint16_t>(delay % 1000));
 
 exit:
-    return delay;
+    return delay > 0 ? 1500 : 0;
 }
 
 bool Mle::IsAttached(void) const { return (IsChild() || IsRouter() || IsLeader()); }

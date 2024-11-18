@@ -286,6 +286,15 @@ exit:
 
 void SubMac::HandleReceiveDone(RxFrame *aFrame, Error aError)
 {
+    if ((aFrame != nullptr) && aFrame->IsWakeupFrame())
+    {
+        LogCrit("Received Wakeup frame ----------");
+    }
+    else
+    {
+        LogInfo("RxDone(Err=%u)", aError);
+    }
+
     if (mPcapCallback.IsSet() && (aFrame != nullptr) && (aError == kErrorNone))
     {
         mPcapCallback.Invoke(aFrame, false);
@@ -498,6 +507,7 @@ void SubMac::BeginTransmit(void)
 
     SetState(kStateTransmit);
 
+    LogInfo("Tx: ch:%u", mTransmitFrame.GetChannel());
     error = Get<Radio>().Transmit(mTransmitFrame);
 
     if (error == kErrorInvalidState && mTransmitFrame.mInfo.mTxInfo.mTxDelay > 0)
@@ -535,6 +545,7 @@ void SubMac::HandleTransmitDone(TxFrame &aFrame, RxFrame *aAckFrame, Error aErro
 
     // Stop ack timeout timer.
 
+    LogInfo("TxDone(Err=%u)", aError);
     mTimer.Stop();
 
     // Record CCA success or failure status.
