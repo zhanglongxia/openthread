@@ -530,4 +530,11 @@ otError otLinkSetWakeupListenParameters(otInstance *aInstance, uint32_t aInterva
 {
     return AsCoreType(aInstance).Get<Mac::Mac>().SetWakeupListenParameters(aInterval, aDuration);
 }
+
+void otLinkSetWakeupFrameReceivedCallback(otInstance                   *aInstance,
+                                          otWakeupFrameReceivedCallback aCallback,
+                                          void                         *aContext)
+{
+    AsCoreType(aInstance).Get<Mac::Mac>().SetWakeupFrameReceivedCallback(aCallback, aContext);
+}
 #endif // OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE

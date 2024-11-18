@@ -93,7 +93,7 @@ extern "C" {
  * stack.
  */
 #ifndef LOG_PARSE_BUFFER_SIZE
-#define LOG_PARSE_BUFFER_SIZE 128
+#define LOG_PARSE_BUFFER_SIZE 2048
 #endif
 
 /**

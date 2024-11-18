@@ -8317,6 +8317,20 @@ template <> otError Interpreter::Process<Cmd("wakeup")>(Arg aArgs[])
     else if (aArgs[0] == "listen")
     {
         error = ProcessEnableDisable(aArgs + 1, otLinkIsWakeupListenEnabled, otLinkSetWakeUpListenEnabled);
+
+        SuccessOrExit(error);
+
+        if (aArgs[1] == "enable")
+        {
+            mPreviousRole = otThreadGetDeviceRole(GetInstancePtr());
+            otLinkSetWakeupFrameReceivedCallback(GetInstancePtr(), HandleWakeupFrameReceived, this);
+            otSetStateChangedCallback(GetInstancePtr(), HandleStateChanged, this);
+        }
+        else if (aArgs[1] == "disable")
+        {
+            otLinkSetWakeupFrameReceivedCallback(GetInstancePtr(), nullptr, nullptr);
+            otSetStateChangedCallback(GetInstancePtr(), nullptr, nullptr);
+        }
     }
 #endif // OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
@@ -8356,6 +8370,48 @@ exit:
     return error;
 }
 #endif // OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE || OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+
+#if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+void Interpreter::HandleWakeupFrameReceived(const otExtAddress *aWcAddress, void *aContext)
+{
+    static_cast<Interpreter *>(aContext)->HandleWakeupFrameReceived(aWcAddress);
+}
+
+void Interpreter::HandleWakeupFrameReceived(const otExtAddress *aWcAddress)
+{
+    OutputFormat("Wakeup Frame Received: ");
+    OutputExtAddressLine(*aWcAddress);
+
+    // Start Thread after received wake up frames.
+    otThreadSetEnabled(GetInstancePtr(), true);
+}
+void Interpreter::HandleStateChanged(otChangedFlags aFlags, void *aContext)
+{
+    static_cast<Interpreter *>(aContext)->HandleStateChanged(aFlags);
+}
+
+void Interpreter::HandleStateChanged(otChangedFlags aFlags)
+{
+    if (aFlags & OT_CHANGED_THREAD_ROLE)
+    {
+        otDeviceRole role = otThreadGetDeviceRole(GetInstancePtr());
+
+        OutputLine("Role: %s -> %s", otThreadDeviceRoleToString(mPreviousRole), otThreadDeviceRoleToString(role));
+
+        // Disable Thread when the WED is deatched
+        if (((mPreviousRole == OT_DEVICE_ROLE_CHILD) || (mPreviousRole == OT_DEVICE_ROLE_ROUTER) ||
+             (mPreviousRole == OT_DEVICE_ROLE_LEADER)) &&
+            (role == OT_DEVICE_ROLE_DETACHED))
+        {
+            // Enable the wakeup listener again.After received a wakeup frame, the wakeup listener is disabled
+            // automatically.
+            otLinkSetWakeUpListenEnabled(GetInstancePtr(), true);
+            otThreadSetEnabled(GetInstancePtr(), false);
+        }
+        mPreviousRole = role;
+    }
+}
+#endif
 
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
 void Interpreter::HandleWakeupResult(otError aError, void *aContext)

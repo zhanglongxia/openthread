@@ -66,6 +66,7 @@ void DataPollSender::StartPolling(void)
 {
     VerifyOrExit(!mEnabled);
 
+    LogCrit("StartPolling");
     OT_ASSERT(!Get<Mle::MleRouter>().IsRxOnWhenIdle());
 
     mEnabled = true;
@@ -77,6 +78,7 @@ exit:
 
 void DataPollSender::StopPolling(void)
 {
+    LogCrit("StopPolling");
     mTimer.Stop();
     mAttachMode           = false;
     mRetxMode             = false;
@@ -435,6 +437,12 @@ void DataPollSender::ResetKeepAliveTimer(void)
     }
 }
 
+void DataPollSender::HandlePollTimer(void)
+{
+    LogCrit("HandlePollTimer(): now:%lu", ToUlong(TimerMilli::GetNow().GetValue()));
+    IgnoreError(SendDataPoll());
+}
+
 void DataPollSender::ScheduleNextPoll(PollPeriodSelector aPollPeriodSelector)
 {
     TimeMilli now;
@@ -476,6 +484,9 @@ void DataPollSender::ScheduleNextPoll(PollPeriodSelector aPollPeriodSelector)
         mTimerStartTime = now;
         mTimer.StartAt(mTimerStartTime, mPollPeriod);
     }
+
+    LogCrit("ScheduleNextPoll() : now:%lu, StartTime:%lu, period:%lu", ToUlong(now.GetValue()),
+            ToUlong(mTimerStartTime.GetValue()), ToUlong(mPollPeriod));
 }
 
 uint32_t DataPollSender::CalculatePollPeriod(void) const
@@ -485,16 +496,19 @@ uint32_t DataPollSender::CalculatePollPeriod(void) const
     if (mAttachMode)
     {
         period = Min(period, kAttachDataPollPeriod);
+        LogCrit("T1, period=%lu", ToUlong(period));
     }
 
     if (mRetxMode)
     {
         period = Min(period, kRetxPollPeriod);
+        LogCrit("T2, period=%lu", ToUlong(period));
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
         if (Get<Mac::Mac>().GetCslPeriodInMsec() > 0)
         {
             period = Min(period, Get<Mac::Mac>().GetCslPeriodInMsec());
+            LogCrit("T3, period=%lu", ToUlong(period));
         }
 #endif
     }
@@ -502,18 +516,22 @@ uint32_t DataPollSender::CalculatePollPeriod(void) const
     if (mRemainingFastPolls != 0)
     {
         period = Min(period, kFastPollPeriod);
+        LogCrit("T4, period=%lu", ToUlong(period));
     }
 
     if (mExternalPollPeriod != 0)
     {
         period = Min(period, mExternalPollPeriod);
+        LogCrit("T5, period=%lu", ToUlong(period));
     }
 
     if (period == 0)
     {
         period = kMinPollPeriod;
+        LogCrit("T6, period=%lu", ToUlong(period));
     }
 
+    LogCrit("T7, period=%lu, routerTimeout=%lu", ToUlong(period), ToUlong(Get<Mle::MleRouter>().GetTimeout()));
     return period;
 }
 
@@ -523,6 +541,7 @@ uint32_t DataPollSender::GetDefaultPollPeriod(void) const
     uint32_t period;
 
     period = Time::SecToMsec(Min(Get<Mle::MleRouter>().GetTimeout(), Time::MsecToSec(TimerMilli::kMaxDelay)));
+    LogCrit("TA1, period=%lu, pollAhead=%lu", ToUlong(period), ToUlong(pollAhead));
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE && OPENTHREAD_CONFIG_MAC_CSL_AUTO_SYNC_ENABLE
     if (Get<Mac::Mac>().IsCslEnabled())
@@ -536,6 +555,8 @@ uint32_t DataPollSender::GetDefaultPollPeriod(void) const
     {
         period -= pollAhead;
     }
+
+    LogCrit("TA2, period=%lu, pollAhead=%lu", ToUlong(period), ToUlong(pollAhead));
 
     return period;
 }

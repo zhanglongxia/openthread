@@ -367,7 +367,7 @@ public:
      */
     const Mle::KeyMaterial &GetTemporaryMacKey(uint32_t aKeySequence);
 
-#if OPENTHREAD_CONFIG_RADIO_LINK_IEEE_802_15_4_ENABLE
+#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE || OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
     /**
      * Returns the current MAC Frame Counter value for 15.4 radio link.
      *
@@ -607,7 +607,7 @@ private:
     Mle::KeyMaterial mMleKey;
     Mle::KeyMaterial mTemporaryMleKey;
 
-#if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE || OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
     Mle::KeyMaterial mTemporaryMacKey;
 #endif
 

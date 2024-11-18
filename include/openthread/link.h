@@ -1200,6 +1200,12 @@ otError otLinkSetWakeupListenParameters(otInstance *aInstance, uint32_t aInterva
  */
 otError otLinkSetRxOnWhenIdle(otInstance *aInstance, bool aRxOnWhenIdle);
 
+typedef void (*otWakeupFrameReceivedCallback)(const otExtAddress *aWcAddress, void *aContext);
+
+void otLinkSetWakeupFrameReceivedCallback(otInstance                   *aInstance,
+                                          otWakeupFrameReceivedCallback aCallback,
+                                          void                         *aContext);
+
 /**
  * @}
  */

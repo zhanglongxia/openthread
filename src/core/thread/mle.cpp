@@ -783,6 +783,7 @@ void Mle::SetTimeout(uint32_t aTimeout)
     VerifyOrExit(mTimeout != aTimeout);
 
     mTimeout = aTimeout;
+    LogCrit("Mle::SetTimeout() aTimeout=%lu, mTimeout=%lu", ToUlong(aTimeout), ToUlong(mTimeout));
 
     Get<DataPollSender>().RecalculatePollPeriod();
 

@@ -121,6 +121,9 @@ class Mac : public InstanceLocator, private NonCopyable
     friend class ot::Instance;
 
 public:
+    typedef otWakeupFrameReceivedCallback
+        WakeupFrameReceivedCallback; ///< Callback to signal that the wake up frame is received
+
     /**
      * Initializes the MAC object.
      *
@@ -764,6 +767,11 @@ public:
      * @retval FALSE  If listening for wake-up frames is not enabled.
      */
     bool IsWakeupListenEnabled(void) const { return mWakeupListenEnabled; }
+
+    void SetWakeupFrameReceivedCallback(WakeupFrameReceivedCallback aCallback, void *aContext)
+    {
+        mWakeupFrameReceivedCallback.Set(aCallback, aContext);
+    }
 #endif // OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
 
 private:
@@ -910,6 +918,8 @@ private:
 #if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
     uint32_t mWakeupListenInterval;
     uint32_t mWakeupListenDuration;
+
+    Callback<WakeupFrameReceivedCallback> mWakeupFrameReceivedCallback;
 #endif
     union
     {

@@ -930,8 +930,22 @@ void Mac::ProcessTransmitSecurity(TxFrame &aFrame)
         if (aFrame.IsWakeupFrame())
         {
             // Just set the key source here, further security processing will happen in SubMac
+            uint32_t           sequence;
+            const KeyMaterial *macKey;
+
+            //  Just set the key source here, further security processing will happen in SubMac
             BigEndian::WriteUint32(keyManager.GetCurrentKeySequence(), keySource);
             aFrame.SetKeySource(keySource);
+
+            extAddress = &GetExtAddress();
+            sequence   = *reinterpret_cast<uint32_t *>(keySource);
+            aFrame.SetKeyId(static_cast<uint8_t>((sequence & 0x7f) + 1));
+
+            macKey = (sequence == keyManager.GetCurrentKeySequence()) ? mLinks.GetCurrentMacKey(aFrame)
+                                                                      : &keyManager.GetTemporaryMacKey(sequence);
+            aFrame.SetAesKey(*macKey);
+            aFrame.ProcessTransmitAesCcm(*extAddress);
+
             ExitNow();
         }
 #endif
@@ -2654,6 +2668,12 @@ Error Mac::HandleWakeupFrame(const RxFrame &aFrame)
 
     // TODO: start MLE attach process with the WC
     OT_UNUSED_VARIABLE(attachDelayMs);
+
+    {
+        Address address;
+        SuccessOrExit(error = aFrame.GetSrcAddr(address));
+        mWakeupFrameReceivedCallback.Invoke(&address.GetExtended());
+    }
 
 exit:
     return error;
