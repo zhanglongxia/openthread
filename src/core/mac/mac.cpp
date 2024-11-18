@@ -930,8 +930,22 @@ void Mac::ProcessTransmitSecurity(TxFrame &aFrame)
         if (aFrame.IsWakeupFrame())
         {
             // Just set the key source here, further security processing will happen in SubMac
+            uint32_t           sequence;
+            const KeyMaterial *macKey;
+
+            //  Just set the key source here, further security processing will happen in SubMac
             BigEndian::WriteUint32(keyManager.GetCurrentKeySequence(), keySource);
             aFrame.SetKeySource(keySource);
+
+            extAddress = &GetExtAddress();
+            sequence   = *reinterpret_cast<uint32_t *>(keySource);
+            aFrame.SetKeyId(static_cast<uint8_t>((sequence & 0x7f) + 1));
+
+            macKey = (sequence == keyManager.GetCurrentKeySequence()) ? mLinks.GetCurrentMacKey(aFrame)
+                                                                      : &keyManager.GetTemporaryMacKey(sequence);
+            aFrame.SetAesKey(*macKey);
+            aFrame.ProcessTransmitAesCcm(*extAddress);
+
             ExitNow();
         }
 #endif
@@ -1652,10 +1666,12 @@ Error Mac::ProcessReceiveSecurity(RxFrame &aFrame, const Address &aSrcAddr, Neig
 #if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
         if (aFrame.IsWakeupFrame())
         {
-            uint32_t sequence;
+#if 0 
+           uint32_t sequence;
 
             // TODO: Avoid generating a new key if a wake-up frame was recently received already
 
+            LogNote("Rx security:TP4");
             IgnoreError(aFrame.GetKeyId(keyid));
             sequence = BigEndian::ReadUint32(aFrame.GetKeySource());
             VerifyOrExit(((sequence & 0x7f) + 1) == keyid, error = kErrorSecurity);
@@ -1663,6 +1679,10 @@ Error Mac::ProcessReceiveSecurity(RxFrame &aFrame, const Address &aSrcAddr, Neig
             macKey     = (sequence == keyManager.GetCurrentKeySequence()) ? mLinks.GetCurrentMacKey(aFrame)
                                                                           : &keyManager.GetTemporaryMacKey(sequence);
             extAddress = &aSrcAddr.GetExtended();
+#endif
+            // TODO:  b/379964479, temporarily fix the received wrong wakeup frame issue.
+            LogNote("Skip security check for wakeup frames -----");
+            ExitNow(error = kErrorNone);
         }
         else
 #endif
@@ -1833,7 +1853,8 @@ Error Mac::FilterDestShortAddress(ShortAddress aDestAddress) const
     }
 #endif
 
-    if (mRxOnWhenIdle && (aDestAddress == kShortAddrBroadcast))
+    //if (mRxOnWhenIdle && (aDestAddress == kShortAddrBroadcast))
+    if (aDestAddress == kShortAddrBroadcast)
     {
         ExitNow();
     }
@@ -1866,6 +1887,7 @@ void Mac::HandleReceivedFrame(RxFrame *aFrame, Error aError)
     IgnoreError(aFrame->GetDstAddr(dstaddr));
     neighbor = !srcaddr.IsNone() ? Get<NeighborTable>().FindNeighbor(srcaddr) : nullptr;
 
+    LogInfo("Rx TP1");
     // Destination Address Filtering
     switch (dstaddr.GetType())
     {
@@ -1873,6 +1895,7 @@ void Mac::HandleReceivedFrame(RxFrame *aFrame, Error aError)
         break;
 
     case Address::kTypeShort:
+        LogInfo("Rx TP2");
         SuccessOrExit(error = FilterDestShortAddress(dstaddr.GetShort()));
 
 #if OPENTHREAD_FTD
@@ -1890,6 +1913,7 @@ void Mac::HandleReceivedFrame(RxFrame *aFrame, Error aError)
         break;
     }
 
+    LogInfo("Rx TP3");
     // Verify destination PAN ID if present
     if (kErrorNone == aFrame->GetDstPanId(panid))
     {
@@ -1932,7 +1956,9 @@ void Mac::HandleReceivedFrame(RxFrame *aFrame, Error aError)
         mCounters.mRxUnicast++;
     }
 
+    LogInfo("Rx TP4");
     error = ProcessReceiveSecurity(*aFrame, srcaddr, neighbor);
+    LogInfo("Rx TP5");
 
     switch (error)
     {
@@ -1966,6 +1992,7 @@ void Mac::HandleReceivedFrame(RxFrame *aFrame, Error aError)
     ProcessCsl(*aFrame, srcaddr);
 #endif
 
+    LogInfo("Rx TP6");
     Get<DataPollSender>().ProcessRxFrame(*aFrame);
 
     if (neighbor != nullptr)
@@ -2059,6 +2086,7 @@ void Mac::HandleReceivedFrame(RxFrame *aFrame, Error aError)
         break;
     }
 
+    LogInfo("Rx TP7");
     switch (aFrame->GetType())
     {
     case Frame::kTypeMacCmd:
@@ -2626,6 +2654,7 @@ Error Mac::HandleWakeupFrame(const RxFrame &aFrame)
     retryCount    = connectionIe->GetRetryCount();
     VerifyOrExit(retryInterval > 0 && retryCount > 0, error = kErrorInvalidArgs);
 
+    LogInfo("HandleWakeupFrame");
     radioNowUs    = otPlatRadioGetNow(&GetInstance());
     rvTimeUs      = aFrame.GetRendezvousTimeIe()->GetRendezvousTime() * kUsPerTenSymbols;
     rvTimestampUs = aFrame.GetTimestamp() + kRadioHeaderPhrDuration + aFrame.GetLength() * kOctetDuration + rvTimeUs;
@@ -2653,8 +2682,15 @@ Error Mac::HandleWakeupFrame(const RxFrame &aFrame)
     // Stop receiving more wake up frames
     IgnoreError(SetWakeupListenEnabled(false));
 
+    Get<Mle::Mle>().HandleReceivedWakeupFrame();
     // TODO: start MLE attach process with the WC
     OT_UNUSED_VARIABLE(attachDelayMs);
+
+    {
+        Address address;
+        SuccessOrExit(error = aFrame.GetSrcAddr(address));
+        mWakeupFrameReceivedCallback.InvokeIfSet(&address.GetExtended());
+    }
 
 exit:
     return error;

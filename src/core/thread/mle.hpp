@@ -750,6 +750,13 @@ public:
                  void                  *aCallbackContext);
 #endif // OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
 
+   void HandleReceivedWakeupFrame(void);
+
+   void SetLedCallback(otSetLedCallback aCallback, void *aContext)
+   {
+       mSetLedCallback.Set(aCallback, aContext);
+   }
+
 private:
     //------------------------------------------------------------------------------------------------------------------
     // Constants
@@ -1515,6 +1522,8 @@ private:
     WedAttachTimer           mWedAttachTimer;
     Callback<WakeupCallback> mWakeupCallback;
 #endif
+
+    Callback<otSetLedCallback> mSetLedCallback;
 };
 
 } // namespace Mle

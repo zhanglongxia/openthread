@@ -539,3 +539,9 @@ void otConvertDurationInSecondsToString(uint32_t aDuration, char *aBuffer, uint1
     Uptime::UptimeToString(Uptime::SecToMsec(aDuration), writer, /* aIncludeMsec */ false);
 }
 #endif
+
+void otThreadSetLedCallback(otInstance *aInstance, otSetLedCallback aCallback, void *aContext)
+{
+    AsCoreType(aInstance).Get<Mle::Mle>().SetLedCallback(aCallback, aContext);
+}
+

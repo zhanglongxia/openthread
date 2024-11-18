@@ -238,7 +238,7 @@
  * The maximum number of state-changed callback handlers (set using `otSetStateChangedCallback()`).
  */
 #ifndef OPENTHREAD_CONFIG_MAX_STATECHANGE_HANDLERS
-#define OPENTHREAD_CONFIG_MAX_STATECHANGE_HANDLERS 1
+#define OPENTHREAD_CONFIG_MAX_STATECHANGE_HANDLERS 3
 #endif
 
 /**

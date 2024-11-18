@@ -1155,6 +1155,10 @@ otError otThreadWakeup(otInstance         *aInstance,
                        otWakeupCallback    aCallback,
                        void               *aCallbackContext);
 
+typedef void (*otSetLedCallback)(uint32_t aPinName, int aLedState, void *aContext);
+void otThreadSetLedCallback(otInstance *aInstance, otSetLedCallback aCallback, void *aContext);
+
+
 /**
  * @}
  */

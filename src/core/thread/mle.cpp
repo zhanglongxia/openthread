@@ -328,6 +328,20 @@ void Mle::SetRole(DeviceRole aRole)
     }
 
 exit:
+
+    if (aRole == kRoleDisabled)
+    {
+        mSetLedCallback.InvokeIfSet(3, 0);
+    }
+    else if (aRole == kRoleDetached)
+    {
+        mSetLedCallback.InvokeIfSet(3, 2);
+    }
+    else
+    {
+        mSetLedCallback.InvokeIfSet(3, 1);
+    }
+
     return;
 }
 
@@ -659,8 +673,11 @@ uint32_t Mle::GetAttachStartDelay(void) const
     LogNote("Attach attempt %u unsuccessful, will try again in %lu.%03u seconds", mAttachCounter, ToUlong(delay / 1000),
             static_cast<uint16_t>(delay % 1000));
 
+    LogNote("mRole:%s, mAttachMode:%s, mReattachState=%s, mAttachState: %s", RoleToString(mRole), AttachModeToString(mAttachMode),
+             ReattachStateToString(mReattachState), AttachStateToString(mAttachState));
+
 exit:
-    return delay;
+    return delay; // delay > 0 ? 1500 : 0;
 }
 
 bool Mle::IsAttached(void) const { return (IsChild() || IsRouter() || IsLeader()); }
@@ -1413,6 +1430,22 @@ bool Mle::HasAcceptableParentCandidate(void) const
 
 exit:
     return hasAcceptableParent;
+}
+
+void Mle::HandleReceivedWakeupFrame(void)
+{
+    static const uint16_t kDelayMs = 1000;
+
+    VerifyOrExit(mAttachTimer.IsRunning());
+    VerifyOrExit(mAttachTimer.GetFireTime() > mAttachTimer.GetNow() + kDelayMs);
+    VerifyOrExit((mAttachState == kAttachStateStart) || (mAttachState == kAttachStateParentRequest) ||
+                 (mAttachState == kAttachStateAnnounce));
+
+    mAttachTimer.Stop();
+    mAttachTimer.Start(kDelayMs);
+
+exit:
+    return;
 }
 
 void Mle::HandleAttachTimer(void)
@@ -4294,7 +4327,7 @@ const char *Mle::AttachStateToString(AttachState aState)
 const char *Mle::ReattachStateToString(ReattachState aState)
 {
     static const char *const kReattachStateStrings[] = {
-        "",                                 // (0) kReattachStop
+        "reattachstop",                                 // (0) kReattachStop
         "reattaching",                      // (1) kReattachStart
         "reattaching with Active Dataset",  // (2) kReattachActive
         "reattaching with Pending Dataset", // (3) kReattachPending
