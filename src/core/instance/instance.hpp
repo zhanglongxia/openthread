@@ -64,6 +64,7 @@
 #include "instance/extension.hpp"
 #include "mac/link_raw.hpp"
 #include "radio/radio.hpp"
+#include "radio/radio_manager.hpp"
 #include "utils/otns.hpp"
 #include "utils/power_calibration.hpp"
 #include "utils/static_counter.hpp"
@@ -468,6 +469,8 @@ private:
     // from their constructor.
     Radio mRadio;
 
+    RadioManager mRadioManager;
+
 #if OPENTHREAD_CONFIG_UPTIME_ENABLE
     Uptime mUptime;
 #endif
@@ -746,6 +749,8 @@ DefineCoreType(otBufferInfo, Instance::BufferInfo);
 template <> inline Instance &Instance::Get(void) { return *this; }
 
 template <> inline Radio &Instance::Get(void) { return mRadio; }
+
+template <> inline RadioManager &Instance::Get(void) { return mRadioManager; }
 
 template <> inline Radio::Callbacks &Instance::Get(void) { return mRadio.mCallbacks; }
 

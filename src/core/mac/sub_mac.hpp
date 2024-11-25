@@ -46,6 +46,7 @@
 #include "common/timer.hpp"
 #include "mac/mac_frame.hpp"
 #include "radio/radio.hpp"
+#include "radio/radio_manager.hpp"
 
 namespace ot {
 
@@ -104,6 +105,7 @@ class LinkRaw;
 class SubMac : public InstanceLocator, private NonCopyable
 {
     friend class Radio::Callbacks;
+    friend class RadioManager;
     friend class LinkRaw;
 
 public:
@@ -506,6 +508,9 @@ public:
     void UpdateWakeupListening(bool aEnable, uint32_t aInterval, uint32_t aDuration, uint8_t aChannel);
 #endif
 
+    void HandleTransmitDone(TxFrame &aFrame, RxFrame *aAckFrame, Error aError);
+    void HandleEnergyScanDone(int8_t aMaxRssi);
+
 private:
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
     void        CslInit(void);
@@ -555,9 +560,6 @@ private:
 #endif
 #if !OPENTHREAD_MTD && OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
         kStateCslTransmit, // CSL transmission.
-#endif
-#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-        kStateCslSample, // CSL receive.
 #endif
     };
 
@@ -621,9 +623,7 @@ private:
 
     void HandleReceiveDone(RxFrame *aFrame, Error aError);
     void HandleTransmitStarted(TxFrame &aFrame);
-    void HandleTransmitDone(TxFrame &aFrame, RxFrame *aAckFrame, Error aError);
     void SignalFrameCounterUsedOnTxDone(const TxFrame &aFrame);
-    void HandleEnergyScanDone(int8_t aMaxRssi);
     void HandleTimer(void);
 
     void               SetState(State aState);

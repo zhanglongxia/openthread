@@ -52,10 +52,10 @@ void Radio::Callbacks::HandleTransmitDone(Mac::TxFrame &aFrame, Mac::RxFrame *aA
 #if OPENTHREAD_CONFIG_RADIO_STATS_ENABLE && (OPENTHREAD_FTD || OPENTHREAD_MTD)
     Get<RadioStatistics>().RecordTxDone(aError, aFrame.GetLength());
 #endif
-    Get<Mac::SubMac>().HandleTransmitDone(aFrame, aAckFrame, aError);
+    Get<RadioManager>().HandleTransmitDone(aFrame, aAckFrame, aError);
 }
 
-void Radio::Callbacks::HandleEnergyScanDone(int8_t aMaxRssi) { Get<Mac::SubMac>().HandleEnergyScanDone(aMaxRssi); }
+void Radio::Callbacks::HandleEnergyScanDone(int8_t aMaxRssi) { Get<RadioManager>().HandleEnergyScanDone(aMaxRssi); }
 
 void Radio::Callbacks::HandleBusLatencyChanged(void)
 {
