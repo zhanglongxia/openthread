@@ -77,6 +77,9 @@ Instance::Instance(void)
     , mTimerMicroScheduler(*this)
 #endif
     , mRadio(*this)
+#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE || OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+    , mRadioScheduler(*this)
+#endif
 #if OPENTHREAD_CONFIG_UPTIME_ENABLE
     , mUptime(*this)
 #endif

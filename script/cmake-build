@@ -224,6 +224,8 @@ Could not fild the Android NDK CMake toolchain file
                 "-DOT_DNS_DSO=ON"
                 "-DOT_DNS_CLIENT_OVER_TCP=ON"
                 "-DOT_UDP_FORWARD=ON"
+                "-DOT_LOG_OUTPUT=PLATFORM_DEFINED"
+                "-DOT_LOG_LEVEL=INFO"
             )
             options+=("${OT_POSIX_SIM_COMMON_OPTIONS[@]}" "${local_options[@]}")
             ;;

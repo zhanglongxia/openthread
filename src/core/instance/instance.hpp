@@ -64,6 +64,7 @@
 #include "instance/extension.hpp"
 #include "mac/link_raw.hpp"
 #include "radio/radio.hpp"
+#include "radio/radio_scheduler.hpp"
 #include "utils/otns.hpp"
 #include "utils/power_calibration.hpp"
 #include "utils/static_counter.hpp"
@@ -468,6 +469,10 @@ private:
     // from their constructor.
     Radio mRadio;
 
+#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE || OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+    RadioScheduler mRadioScheduler;
+#endif
+
 #if OPENTHREAD_CONFIG_UPTIME_ENABLE
     Uptime mUptime;
 #endif
@@ -748,6 +753,12 @@ template <> inline Instance &Instance::Get(void) { return *this; }
 template <> inline Radio &Instance::Get(void) { return mRadio; }
 
 template <> inline Radio::Callbacks &Instance::Get(void) { return mRadio.mCallbacks; }
+
+#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE || OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+template <> inline RadioScheduler &Instance::Get(void) { return mRadioScheduler; }
+
+template <> inline RadioScheduler::Callbacks &Instance::Get(void) { return mRadioScheduler.mCallbacks; }
+#endif
 
 #if OPENTHREAD_CONFIG_RADIO_STATS_ENABLE && (OPENTHREAD_FTD || OPENTHREAD_MTD)
 template <> inline RadioStatistics &Instance::Get(void) { return mRadio.mRadioStatistics; }
