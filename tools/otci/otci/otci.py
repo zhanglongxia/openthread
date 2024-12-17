@@ -2550,9 +2550,37 @@ class OTCI(object):
         """Stop transmitting continuous carrier wave."""
         self.execute_command('diag cw stop')
 
-    def diag_frame(self, frame: str):
+    def diag_frame(self,
+                   frame: str,
+                   max_csma_backoffs: int = 0,
+                   csma_ca_enabled: bool = False,
+                   rx_channel_after_tx_done: int = 0,
+                   tx_delay: int = 0,
+                   tx_power: int = -127,
+                   max_frame_retries: int = 0,
+                   is_security_processed: bool = False,
+                   is_header_updated: bool = False):
         """Set the frame (hex encoded) to be used by `diag send` and `diag repeat`."""
-        self.execute_command(f'diag frame {frame}')
+        command = f'diag frame -b {max_csma_backoffs} -d {tx_delay} -r {max_frame_retries} '
+
+        if csma_ca_enabled:
+            command = command + '-c '
+
+        if rx_channel_after_tx_done != 0:
+            command = command + f'-C {rx_channel_after_tx_done} '
+
+        if tx_power != -127:
+            command = command + f'-p {tx_power} '
+
+        if is_security_processed:
+            command = command + '-s '
+
+        if is_header_updated:
+            command = command + '-u '
+
+        command = command + f'-p {frame}'
+
+        self.execute_command(command)
 
     def diag_stream_start(self):
         """Start transmitting a stream of characters."""
