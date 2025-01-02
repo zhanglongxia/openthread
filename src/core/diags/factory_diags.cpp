@@ -205,28 +205,25 @@ Diags::Diags(Instance &aInstance)
     , mOutputContext(nullptr)
 {
     mStats.Clear();
+
+    memset(&mTxFrame, 0, sizeof(mTxFrame));
+    mTxFrame.mPsdu = mTxFramePsdu;
 }
 
-void Diags::ResetTxPacket(void)
+void Diags::ResetTxPacket(otRadioFrame &aFrame) const
 {
-    mIsHeaderUpdated                               = false;
-    mTxPacket->mInfo.mTxInfo.mTxDelayBaseTime      = 0;
-    mTxPacket->mInfo.mTxInfo.mTxDelay              = 0;
-    mTxPacket->mInfo.mTxInfo.mMaxCsmaBackoffs      = 0;
-    mTxPacket->mInfo.mTxInfo.mMaxFrameRetries      = 0;
-    mTxPacket->mInfo.mTxInfo.mRxChannelAfterTxDone = mChannel;
-    mTxPacket->mInfo.mTxInfo.mTxPower              = OT_RADIO_POWER_INVALID;
-    mTxPacket->mInfo.mTxInfo.mIsHeaderUpdated      = false;
-    mTxPacket->mInfo.mTxInfo.mIsARetx              = false;
-    mTxPacket->mInfo.mTxInfo.mCsmaCaEnabled        = false;
-    mTxPacket->mInfo.mTxInfo.mCslPresent           = false;
-    mTxPacket->mInfo.mTxInfo.mIsSecurityProcessed  = false;
+    uint8_t *psdu = aFrame.mPsdu;
+
+    memset(&aFrame, 0, sizeof(aFrame));
+    aFrame.mPsdu                               = psdu;
+    aFrame.mInfo.mTxInfo.mRxChannelAfterTxDone = mChannel;
+    aFrame.mInfo.mTxInfo.mTxPower              = OT_RADIO_POWER_INVALID;
 }
 
 Error Diags::ProcessFrame(uint8_t aArgsLength, char *aArgs[])
 {
     Error    error                = kErrorNone;
-    uint16_t size                 = OT_RADIO_FRAME_MAX_SIZE;
+    uint16_t length               = OT_RADIO_FRAME_MAX_SIZE;
     bool     securityProcessed    = false;
     bool     csmaCaEnabled        = false;
     bool     isHeaderUpdated      = false;
@@ -305,22 +302,21 @@ Error Diags::ProcessFrame(uint8_t aArgsLength, char *aArgs[])
 
     VerifyOrExit(aArgsLength == 1, error = kErrorInvalidArgs);
 
-    SuccessOrExit(error = Utils::CmdLineParser::ParseAsHexString(aArgs[0], size, mTxPacket->mPsdu));
-    VerifyOrExit(size <= OT_RADIO_FRAME_MAX_SIZE, error = kErrorInvalidArgs);
-    VerifyOrExit(size >= OT_RADIO_FRAME_MIN_SIZE, error = kErrorInvalidArgs);
+    SuccessOrExit(error = Utils::CmdLineParser::ParseAsHexString(aArgs[0], length, mTxFrame.mPsdu));
+    VerifyOrExit(IsFrameLengthValid(length), error = kErrorInvalidArgs);
 
-    ResetTxPacket();
-    mTxPacket->mInfo.mTxInfo.mCsmaCaEnabled        = csmaCaEnabled;
-    mTxPacket->mInfo.mTxInfo.mIsSecurityProcessed  = securityProcessed;
-    mTxPacket->mInfo.mTxInfo.mTxPower              = txPower;
-    mTxPacket->mInfo.mTxInfo.mTxDelayBaseTime      = txDelayBaseTime;
-    mTxPacket->mInfo.mTxInfo.mTxDelay              = txDelay;
-    mTxPacket->mInfo.mTxInfo.mMaxFrameRetries      = maxFrameRetries;
-    mTxPacket->mInfo.mTxInfo.mMaxCsmaBackoffs      = maxCsmaBackoffs;
-    mTxPacket->mInfo.mTxInfo.mRxChannelAfterTxDone = rxChannelAfterTxDone;
-    mTxPacket->mLength                             = size;
-    mIsHeaderUpdated                               = isHeaderUpdated;
-    mIsTxPacketSet                                 = true;
+    ResetTxPacket(mTxFrame);
+    mTxFrame.mInfo.mTxInfo.mCsmaCaEnabled        = csmaCaEnabled;
+    mTxFrame.mInfo.mTxInfo.mIsSecurityProcessed  = securityProcessed;
+    mTxFrame.mInfo.mTxInfo.mTxPower              = txPower;
+    mTxFrame.mInfo.mTxInfo.mTxDelayBaseTime      = txDelayBaseTime;
+    mTxFrame.mInfo.mTxInfo.mTxDelay              = txDelay;
+    mTxFrame.mInfo.mTxInfo.mMaxFrameRetries      = maxFrameRetries;
+    mTxFrame.mInfo.mTxInfo.mMaxCsmaBackoffs      = maxCsmaBackoffs;
+    mTxFrame.mInfo.mTxInfo.mRxChannelAfterTxDone = rxChannelAfterTxDone;
+    mTxFrame.mInfo.mTxInfo.mIsHeaderUpdated      = isHeaderUpdated;
+    mTxFrame.mLength                             = length;
+    mIsTxPacketSet                               = true;
 
 exit:
     return error;
@@ -406,15 +402,14 @@ Error Diags::ProcessRepeat(uint8_t aArgsLength, char *aArgs[])
         }
         else if (mIsTxPacketSet)
         {
-            txLength = mTxPacket->mLength;
+            txLength = mTxFrame.mLength;
         }
         else
         {
             ExitNow(error = kErrorInvalidArgs);
         }
 
-        VerifyOrExit((txLength >= OT_RADIO_FRAME_MIN_SIZE) && (txLength <= OT_RADIO_FRAME_MAX_SIZE),
-                     error = kErrorInvalidArgs);
+        VerifyOrExit(IsFrameLengthValid(txLength), error = kErrorInvalidArgs);
         mTxLen = txLength;
 
         mRepeatActive = true;
@@ -446,15 +441,14 @@ Error Diags::ProcessSend(uint8_t aArgsLength, char *aArgs[])
     }
     else if (mIsTxPacketSet)
     {
-        txLength = mTxPacket->mLength;
+        txLength = mTxFrame.mLength;
     }
     else
     {
         ExitNow(error = kErrorInvalidArgs);
     }
 
-    VerifyOrExit(txLength <= OT_RADIO_FRAME_MAX_SIZE, error = kErrorInvalidArgs);
-    VerifyOrExit(txLength >= OT_RADIO_FRAME_MIN_SIZE, error = kErrorInvalidArgs);
+    VerifyOrExit(IsFrameLengthValid(txLength), error = kErrorInvalidArgs);
     mTxLen = txLength;
 
     Output("sending %#x packet(s), length %#x\r\n", static_cast<int>(mTxPackets), static_cast<int>(mTxLen));
@@ -539,17 +533,17 @@ Error Diags::ProcessStop(uint8_t aArgsLength, char *aArgs[])
 
 void Diags::TransmitPacket(void)
 {
-    mTxPacket->mChannel = mChannel;
-
     if (mIsTxPacketSet)
     {
-        // The `mInfo.mTxInfo.mIsHeaderUpdated` field may be updated by the radio driver after the frame is sent,
-        // set the `mInfo.mTxInfo.mIsHeaderUpdated` field before transmitting the frame.
-        mTxPacket->mInfo.mTxInfo.mIsHeaderUpdated = mIsHeaderUpdated;
+        uint8_t *psdu = mTxPacket->mPsdu;
+
+        *mTxPacket       = mTxFrame;
+        mTxPacket->mPsdu = psdu;
+        memcpy(mTxPacket->mPsdu, mTxFrame.mPsdu, mTxFrame.mLength);
     }
     else
     {
-        ResetTxPacket();
+        ResetTxPacket(*mTxPacket);
         mTxPacket->mLength = mTxLen;
 
         for (uint8_t i = 0; i < mTxLen; i++)
@@ -1073,6 +1067,11 @@ void Diags::AppendErrorResult(Error aError)
 bool Diags::IsChannelValid(uint8_t aChannel)
 {
     return (aChannel >= Radio::kChannelMin && aChannel <= Radio::kChannelMax);
+}
+
+bool Diags::IsFrameLengthValid(uint8_t aLength)
+{
+    return (aLength >= OT_RADIO_FRAME_MIN_SIZE && aLength <= OT_RADIO_FRAME_MAX_SIZE);
 }
 
 Error Diags::ParseCmd(char *aString, uint8_t &aArgsLength, char *aArgs[])

@@ -234,9 +234,10 @@ private:
     void TransmitPacket(void);
     void Output(const char *aFormat, ...);
     void AppendErrorResult(Error aError);
-    void ResetTxPacket(void);
+    void ResetTxPacket(otRadioFrame &aFrame) const;
 
     static bool IsChannelValid(uint8_t aChannel);
+    static bool IsFrameLengthValid(uint8_t aLength);
 
     static const struct Command sCommands[];
 
@@ -244,12 +245,13 @@ private:
     Stats mStats;
 
     otRadioFrame *mTxPacket;
+    otRadioFrame  mTxFrame;
+    uint8_t       mTxFramePsdu[OT_RADIO_FRAME_MAX_SIZE];
     uint32_t      mTxPeriod;
     uint32_t      mTxPackets;
     uint8_t       mChannel;
     int8_t        mTxPower;
     uint8_t       mTxLen;
-    bool          mIsHeaderUpdated : 1;
     bool          mIsTxPacketSet : 1;
     bool          mRepeatActive : 1;
     bool          mDiagSendOn : 1;
