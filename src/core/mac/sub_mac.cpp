@@ -304,6 +304,13 @@ exit:
 
 void SubMac::HandleReceiveDone(RxFrame *aFrame, Error aError)
 {
+#if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+    if ((aFrame != nullptr) && aFrame->IsWakeupFrame())
+    {
+        LogCrit("Received Wakeup frame ----------");
+    }
+#endif
+
     if (mPcapCallback.IsSet() && (aFrame != nullptr) && (aError == kErrorNone))
     {
         mPcapCallback.Invoke(aFrame, false);

@@ -1,0 +1,37 @@
+#!/usr/bin/expect -f
+#
+#                   WED1 -- SSED2
+log_file test.log
+source "tests/scripts/expect/_common.exp"
+source "tests/scripts/expect/_multinode.exp"
+
+set WED1 1
+set WED2 2
+
+send_user ">>> setup WED1\n"
+spawn_node $WED1
+setup_default_network
+run_command "mode -"
+run_command "csl period 1000000"
+run_command "csl timeout 10"
+run_command "ifconfig up"
+run_command "wakeup channel 11"
+run_command "wakeup parameters 1000000 8000"
+run_command "wakeup listen enable"
+set wed1_extaddr [get_extaddr]
+set wed1_lladdr [get_ipaddr linklocal]
+
+
+send_user ">>> setup WED2\n"
+spawn_node $WED2
+setup_default_network
+run_command "ifconfig up"
+run_command "wakeup channel 11"
+run_command "wakeup parameters 1000000 8000"
+set wed2_extaddr [get_extaddr]
+set wed2_lladdr [get_ipaddr linklocal]
+
+
+send_user ">>> WED1 wake up WED2\n"
+switch_node $WED1
+run_command "wakeup wake $wed2_extaddr 7500 1090"

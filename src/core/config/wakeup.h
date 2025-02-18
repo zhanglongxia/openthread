@@ -127,6 +127,15 @@
 #endif
 
 /**
+ * @def OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+ *
+ * Define to 1 to enable the peer to peer feature.
+ */
+#ifndef OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+#define OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE 0
+#endif
+
+/**
  * @}
  */
 
