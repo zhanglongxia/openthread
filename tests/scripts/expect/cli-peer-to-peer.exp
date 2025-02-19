@@ -1,37 +1,65 @@
 #!/usr/bin/expect -f
 #
-#                   WED1 -- SSED2
+#                   WC -- WED
+#
 log_file test.log
 source "tests/scripts/expect/_common.exp"
 source "tests/scripts/expect/_multinode.exp"
 
-set WED1 1
-set WED2 2
+set WC  1
+set WED 2
+set WAKEUP_ID "dead0000beef0000cafe"
 
-send_user ">>> setup WED1\n"
-spawn_node $WED1
+send_user ">>> setup WED\n"
+spawn_node $WED
+
 setup_default_network
-run_command "mode -"
-run_command "csl period 1000000"
-run_command "csl timeout 10"
-run_command "ifconfig up"
-run_command "wakeup channel 11"
-run_command "wakeup parameters 1000000 8000"
-run_command "wakeup listen enable"
-set wed1_extaddr [get_extaddr]
-set wed1_lladdr [get_ipaddr linklocal]
+
+send "mode -\n"
+expect_line "Done"
+
+#send "csl period 1000000\n"
+#expect_line "Done"
+
+#send "csl timeout 10\n"
+#expect_line "Done"
+
+send "extaddr deadbeefcafe0001\n"
+expect_line "Done"
+
+send "pollperiod 2500\n"
+expect "Done"
+
+send "ifconfig up\n"
+expect_line "Done"
+
+send "wakeup channel 11\n"
+expect_line "Done"
+
+send "wakeup parameters 1000000 8000\n"
+expect_line "Done"
+
+send "wakeup wakeupid add $WAKEUP_ID\n"
+expect_line "Done"
+
+send "wakeup listen enable\n"
+expect_line "Done"
 
 
-send_user ">>> setup WED2\n"
-spawn_node $WED2
+
+send_user ">>> setup WC\n"
+spawn_node $WC
 setup_default_network
-run_command "ifconfig up"
-run_command "wakeup channel 11"
-run_command "wakeup parameters 1000000 8000"
-set wed2_extaddr [get_extaddr]
-set wed2_lladdr [get_ipaddr linklocal]
+send "ifconfig up\n"
+expect_line "Done"
 
+send "wakeup channel 11\n"
+expect_line "Done"
 
-send_user ">>> WED1 wake up WED2\n"
-switch_node $WED1
-run_command "wakeup wake $wed2_extaddr 7500 1090"
+send_user ">>> WC wakes up WED\n"
+send "wakeup wake $WAKEUP_ID 7500 1090\n"
+
+switch_node $WED
+expect_line "Wakeup Frame Received: deadbeefcafe0001"
+
+interact

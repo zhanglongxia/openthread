@@ -937,12 +937,150 @@ private:
 };
 
 /**
+ * Represents a wake-up identifier.
+ */
+OT_TOOL_PACKED_BEGIN
+class WakeupId : public otWakeupId
+{
+public:
+    static constexpr uint16_t kInfoStringSize = 33; ///< Max chars for the info string (`ToString()`).
+
+    /**
+     * Defines the fixed-length `String` object returned from `ToString()`.
+     */
+    typedef String<kInfoStringSize> InfoString;
+
+    /**
+     * Type specifies the copy byte order when Wake-up Identifier is being copied to/from a buffer.
+     */
+    enum CopyByteOrder : uint8_t
+    {
+        kNormalByteOrder,  ///< Copy identifier bytes in normal order (as provided in array buffer).
+        kReverseByteOrder, ///< Copy identifier bytes in reverse byte order.
+    };
+
+    bool IsValid(void) const { return (mLength >= OT_MIN_WAKEUP_ID_SIZE && mLength <= OT_MAX_WAKEUP_ID_SIZE); }
+
+    /**
+     * Sets the  Wake-up Identifier from a given byte array.
+     *
+     * @param[in] aBuffer    Pointer to an array containing the Wake-up Identifier.
+     * @param[in] aLength    Length of the @p aBuffer to be copied to the Wake-up Identifier.
+     * @param[in] aByteOrder The byte order to use when copying the Wake-up Identifier.
+     */
+    Error Set(const uint8_t *aBuffer, uint8_t aLength, CopyByteOrder aByteOrder = kNormalByteOrder)
+    {
+        Error error;
+        SuccessOrExit(error = Copy(m8, aBuffer, aLength, aByteOrder));
+        mLength = aLength;
+    exit:
+        return error;
+    }
+
+    /**
+     * Copies the Wake-up Identifier into a given buffer.
+     *
+     * @param[out] aBuffer     A pointer to a buffer to copy the Wake-up Identifier into.
+     * @param[in]  aByteOrder  The byte order to copy the Wake-up Identifier.
+     */
+    void CopyTo(uint8_t *aBuffer, CopyByteOrder aByteOrder = kNormalByteOrder) const
+    {
+        Copy(aBuffer, m8, mLength, aByteOrder);
+    }
+
+    /**
+     * Overloads operator `==` to evaluate whether or not two `WakeupId` instances are equal.
+     *
+     * @param[in]  aOther  The other `WakeupId` instance to compare with.
+     *
+     * @retval TRUE   If the two `WakeupId` instances are equal.
+     * @retval FALSE  If the two `WakeupId` instances are not equal.
+     */
+    bool operator==(const WakeupId &aOther) const
+    {
+        return IsValid() && aOther.IsValid() && (mLength == aOther.mLength) && (memcmp(m8, aOther.m8, mLength) == 0);
+    }
+
+    /**
+     * Converts an address to a string.
+     *
+     * @returns An `InfoString` containing the string representation of the Wake-up Identifier.
+     */
+    InfoString ToString(void) const
+    {
+        InfoString string;
+
+        string.AppendHexBytes(m8, mLength);
+
+        return string;
+    }
+
+    /**
+     * Indicates whether or not the Wake-up Identifier is a WED address.
+     *
+     * @returns TRUE if the Wake-up Identifier is a WED address, FALSE otherwise.
+     */
+    bool IsExtAddress(void) const { return mLength == OT_EXT_ADDRESS_SIZE; }
+
+    /**
+     * Converts the Wake-up Identifier to an IEEE 802.15.4 Extended Address.
+     *
+     * @param[out]  aExtAddress  A reference to an Extended Address where the converted address is placed.
+     */
+    void ConvertToExtAddress(Mac::ExtAddress &aExtAddress) const { aExtAddress.Set(m8); }
+
+    /**
+     * Sets the Wake-up Identifier from a given Extended Address.
+     *
+     * @param[in] aBuffer    Pointer to an array containing the Extended Address. `OT_EXT_ADDRESS_SIZE` bytes from
+     *                       buffer are copied to form the Wake-up Identifier.
+     * @param[in] aByteOrder The byte order to use when copying the address.
+     */
+    void SetExtAddress(const uint8_t *aAddress) { Set(aAddress, OT_EXT_ADDRESS_SIZE); }
+
+    /**
+     * Gets the Wake-up Identifier length.
+     *
+     * @returns The Wake-up Identifier length.
+     */
+    uint8_t GetLength(void) const { return mLength; }
+
+private:
+    static Error Copy(uint8_t *aDst, const uint8_t *aSrc, uint8_t aLength, CopyByteOrder aByteOrder)
+    {
+        Error error = kErrorNone;
+
+        VerifyOrExit(aLength >= OT_MIN_WAKEUP_ID_SIZE && aLength <= OT_MAX_WAKEUP_ID_SIZE, error = kErrorInvalidArgs);
+
+        switch (aByteOrder)
+        {
+        case kNormalByteOrder:
+            memcpy(aDst, aSrc, aLength);
+            break;
+
+        case kReverseByteOrder:
+            aSrc += aLength - 1;
+            for (uint8_t len = aLength; len > 0; len--)
+            {
+                *aDst++ = *aSrc--;
+            }
+            break;
+        }
+
+    exit:
+        return error;
+    }
+
+} OT_TOOL_PACKED_END;
+
+/**
  * @}
  */
 
 } // namespace Mac
 
 DefineCoreType(otExtAddress, Mac::ExtAddress);
+DefineCoreType(otWakeupId, Mac::WakeupId);
 DefineCoreType(otMacKey, Mac::Key);
 
 } // namespace ot

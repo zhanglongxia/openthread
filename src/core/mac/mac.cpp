@@ -2636,6 +2636,31 @@ exit:
 #endif
 
 #if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+Error Mac::AddWakeupId(WakeupId &aWakeupId)
+{
+    Error error = kErrorNone;
+
+    VerifyOrExit(!mWakeupIdTable.IsFull(), error = kErrorNoBufs);
+    error = mWakeupIdTable.PushBack(aWakeupId);
+exit:
+    return error;
+}
+
+Error Mac::RemoveWakeupId(WakeupId &aWakeupId)
+{
+    Error     error = kErrorNone;
+    WakeupId *wakeupId;
+
+    wakeupId = mWakeupIdTable.Find(aWakeupId);
+    VerifyOrExit(wakeupId != nullptr, error = kErrorNotFound);
+    mWakeupIdTable.Remove(*wakeupId);
+
+exit:
+    return error;
+}
+
+void Mac::ClearWakeupIds(void) { mWakeupIdTable.Clear(); }
+
 void Mac::GetWakeupListenParameters(uint32_t &aInterval, uint32_t &aDuration) const
 {
     aInterval = mWakeupListenInterval;
@@ -2702,9 +2727,23 @@ Error Mac::HandleWakeupFrame(const RxFrame &aFrame)
     uint64_t            radioNowUs;
     uint8_t             retryInterval;
     uint8_t             retryCount;
+    Address             dstAddr;
 
     VerifyOrExit(mWakeupListenEnabled && aFrame.IsWakeupFrame());
-    connectionIe  = aFrame.GetConnectionIe();
+    IgnoreError(aFrame.GetDstAddr(dstAddr));
+
+    LogInfo("HandleWakeupFrame() ---------------------------");
+
+    connectionIe = aFrame.GetConnectionIe();
+
+    if (dstAddr.IsBroadcast())
+    {
+        WakeupId wakeupId;
+
+        SuccessOrExit(error = connectionIe->GetWakeupId(wakeupId));
+        VerifyOrExit(mWakeupIdTable.Contains(wakeupId));
+    }
+
     retryInterval = connectionIe->GetRetryInterval();
     retryCount    = connectionIe->GetRetryCount();
     VerifyOrExit(retryInterval > 0 && retryCount > 0, error = kErrorInvalidArgs);
@@ -2738,6 +2777,12 @@ Error Mac::HandleWakeupFrame(const RxFrame &aFrame)
 
     // TODO: start MLE attach process with the WC
     OT_UNUSED_VARIABLE(attachDelayMs);
+
+    {
+        Address srcAddress;
+        SuccessOrExit(error = aFrame.GetSrcAddr(srcAddress));
+        mWakeupFrameReceivedCallback.InvokeIfSet(&srcAddress.GetExtended());
+    }
 
 exit:
     return error;

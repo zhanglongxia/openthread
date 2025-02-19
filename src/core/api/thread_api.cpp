@@ -524,14 +524,14 @@ uint32_t otThreadGetStoreFrameCounterAhead(otInstance *aInstance)
 #endif
 
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
-otError otThreadWakeup(otInstance         *aInstance,
-                       const otExtAddress *aWedAddress,
-                       uint16_t            aWakeupIntervalUs,
-                       uint16_t            aWakeupDurationMs,
-                       otWakeupCallback    aCallback,
-                       void               *aCallbackContext)
+otError otThreadWakeup(otInstance       *aInstance,
+                       const otWakeupId *aWakeupId,
+                       uint16_t          aWakeupIntervalUs,
+                       uint16_t          aWakeupDurationMs,
+                       otWakeupCallback  aCallback,
+                       void             *aCallbackContext)
 {
-    return AsCoreType(aInstance).Get<Mle::Mle>().Wakeup(AsCoreType(aWedAddress), aWakeupIntervalUs, aWakeupDurationMs,
+    return AsCoreType(aInstance).Get<Mle::Mle>().Wakeup(AsCoreType(aWakeupId), aWakeupIntervalUs, aWakeupDurationMs,
                                                         aCallback, aCallbackContext);
 }
 #endif

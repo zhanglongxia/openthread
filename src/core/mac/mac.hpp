@@ -756,6 +756,40 @@ public:
      * @retval FALSE  If listening for wake-up frames is not enabled.
      */
     bool IsWakeupListenEnabled(void) const { return mWakeupListenEnabled; }
+
+    /**
+     * Add a wake-up identifier to wake-up identifier table.
+     *
+     * @param[in]  aWakeupId    The wake-up identifier to be added stored in little-endian byte order.
+     *
+     * @retval kErrorNone    Successfully added wake-up identifier to the wake-up identifier table.
+     * @retval kErrorNoBuf   No available entry in the wake-up identifier table.
+     */
+    Error AddWakeupId(WakeupId &aWakeupId);
+
+    /**
+     * Remove a wake-up identifier from the wake-up identifier table.
+     *
+     * @param[in]  aWakeupId    The wake-up identifier to be removed stored in little-endian byte order.
+     *
+     * @retval kErrorNone       Successfully removed the wake-up identifier from the wake-up identifier table.
+     * @retval kErrorNotFound   The wake-up identifier was not in wake-up identifier table.
+     */
+    Error RemoveWakeupId(WakeupId &aWakeupId);
+
+    /**
+     * Clear all wake-up identifiers from the wake-up identifier table.
+     *
+     */
+    void ClearWakeupIds(void);
+
+    // For debugging
+    typedef otWakeupFrameReceivedCallback
+         WakeupFrameReceivedCallback; ///< Callback to signal that the wake up frame is received
+    void SetWakeupFrameReceivedCallback(WakeupFrameReceivedCallback aCallback, void *aContext)
+    {
+        mWakeupFrameReceivedCallback.Set(aCallback, aContext);
+    }
 #endif // OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
 
     /**
@@ -770,6 +804,7 @@ public:
 
 private:
     static constexpr uint16_t kMaxCcaSampleCount = OPENTHREAD_CONFIG_CCA_FAILURE_RATE_AVERAGING_WINDOW;
+    static constexpr uint16_t kWakeupIdTableSize = OPENTHREAD_CONFIG_WAKEUP_ID_TABLE_SZIE;
 
     enum Operation : uint8_t
     {
@@ -918,6 +953,9 @@ private:
 #if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
     uint32_t mWakeupListenInterval;
     uint32_t mWakeupListenDuration;
+
+    Array<WakeupId, kWakeupIdTableSize>   mWakeupIdTable;
+    Callback<WakeupFrameReceivedCallback> mWakeupFrameReceivedCallback;
 #endif
     union
     {

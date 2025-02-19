@@ -530,4 +530,24 @@ otError otLinkSetWakeupListenParameters(otInstance *aInstance, uint32_t aInterva
 {
     return AsCoreType(aInstance).Get<Mac::Mac>().SetWakeupListenParameters(aInterval, aDuration);
 }
+
+otError otLinkAddWakeupId(otInstance *aInstance, otWakeupId *aWakeupId)
+{
+    return AsCoreType(aInstance).Get<Mac::Mac>().AddWakeupId(AsCoreType(aWakeupId));
+}
+
+otError otLinkRemoveWakeupId(otInstance *aInstance, otWakeupId *aWakeupId)
+{
+    return AsCoreType(aInstance).Get<Mac::Mac>().RemoveWakeupId(AsCoreType(aWakeupId));
+}
+
+void otLinkClearWakeupIds(otInstance *aInstance) { AsCoreType(aInstance).Get<Mac::Mac>().ClearWakeupIds(); }
+
+void otLinkSetWakeupFrameReceivedCallback(otInstance                   *aInstance,
+                                          otWakeupFrameReceivedCallback aCallback,
+                                          void                         *aContext)
+{
+    AsCoreType(aInstance).Get<Mac::Mac>().SetWakeupFrameReceivedCallback(aCallback, aContext);
+}
+
 #endif // OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE

@@ -743,7 +743,7 @@ public:
     /**
      * Attempts to wake a Wake-up End Device.
      *
-     * @param[in] aWedAddress The extended address of the Wake-up End Device.
+     * @param[in] aWakeupId   The wake-up identifier of the Wake-up End Device.
      * @param[in] aIntervalUs An interval between consecutive wake-up frames (in microseconds).
      * @param[in] aDurationMs Duration of the wake-up sequence (in milliseconds).
      * @param[in] aCallback   A pointer to function that is called when the wake-up succeeds or fails.
@@ -753,11 +753,11 @@ public:
      * @retval kErrorInvalidState Another wake-up request is still in progress.
      * @retval kErrorInvalidArgs  The wake-up interval or duration are invalid.
      */
-    Error Wakeup(const Mac::ExtAddress &aWedAddress,
-                 uint16_t               aIntervalUs,
-                 uint16_t               aDurationMs,
-                 WakeupCallback         aCallback,
-                 void                  *aCallbackContext);
+    Error Wakeup(const Mac::WakeupId &aWakeupId,
+                 uint16_t             aIntervalUs,
+                 uint16_t             aDurationMs,
+                 WakeupCallback       aCallback,
+                 void                *aCallbackContext);
 #endif // OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
 
 private:

@@ -309,7 +309,11 @@ void SubMac::HandleReceiveDone(RxFrame *aFrame, Error aError)
     {
         LogCrit("Received Wakeup frame ----------");
     }
+    else
 #endif
+    {
+        LogCrit("Received frame ----------");
+    }
 
     if (mPcapCallback.IsSet() && (aFrame != nullptr) && (aError == kErrorNone))
     {

@@ -1155,7 +1155,7 @@ uint32_t otThreadGetStoreFrameCounterAhead(otInstance *aInstance);
  *          Consequently, the prototype and semantics of this function are subject to change.
  *
  * @param[in] aInstance         A pointer to an OpenThread instance.
- * @param[in] aWedAddress       The extended address of the Wake-up End Device.
+ * @param[in] aWakeupId         The wake-up identifier of the Wake-up End Device.
  * @param[in] aWakeupIntervalUs An interval between consecutive wake-up frames (in microseconds).
  * @param[in] aWakeupDurationMs Duration of the wake-up sequence (in milliseconds).
  * @param[in] aCallback         A pointer to function that is called when the wake-up succeeds or fails.
@@ -1165,12 +1165,12 @@ uint32_t otThreadGetStoreFrameCounterAhead(otInstance *aInstance);
  * @retval OT_ERROR_INVALID_STATE Another attachment request is still in progress.
  * @retval OT_ERROR_INVALID_ARGS  The wake-up interval or duration are invalid.
  */
-otError otThreadWakeup(otInstance         *aInstance,
-                       const otExtAddress *aWedAddress,
-                       uint16_t            aWakeupIntervalUs,
-                       uint16_t            aWakeupDurationMs,
-                       otWakeupCallback    aCallback,
-                       void               *aCallbackContext);
+otError otThreadWakeup(otInstance       *aInstance,
+                       const otWakeupId *aWakeupId,
+                       uint16_t          aWakeupIntervalUs,
+                       uint16_t          aWakeupDurationMs,
+                       otWakeupCallback  aCallback,
+                       void             *aCallbackContext);
 
 /**
  * @}

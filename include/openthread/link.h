@@ -81,6 +81,26 @@ typedef struct otMacFilterEntry
     int8_t       mRssIn;      ///< Received signal strength
 } otMacFilterEntry;
 
+#define OT_MIN_WAKEUP_ID_SIZE 1  ///< Min size of an wake-up identifier
+#define OT_MAX_WAKEUP_ID_SIZE 16 ///< Max size of an wake-up identifier
+
+/**
+ * @struct otWakeupId
+ *
+ * Represents the wake-up identifier.
+ */
+OT_TOOL_PACKED_BEGIN
+struct otWakeupId
+{
+    uint8_t m8[OT_MAX_WAKEUP_ID_SIZE]; ///< Wake-up identifer bytes
+    uint8_t mLength : 4;               ///< Length of the wake-up identifer
+} OT_TOOL_PACKED_END;
+
+/**
+ * Represents the wake-up identifier.
+ */
+typedef struct otWakeupId otWakeupId;
+
 /**
  * Represents the MAC layer counters.
  */
@@ -1188,6 +1208,41 @@ void otLinkGetWakeupListenParameters(otInstance *aInstance, uint32_t *aInterval,
  * @retval OT_ERROR_INVALID_ARGS   Invalid wake-up listen parameters.
  */
 otError otLinkSetWakeupListenParameters(otInstance *aInstance, uint32_t aInterval, uint32_t aDuration);
+
+/**
+ * Add a wake-up identifier to wake-up identifier table.
+ *
+ * @param[in]  aInstance    The OpenThread instance structure.
+ * @param[in]  aWakeupId    The wake-up identifier to be added stored in little-endian byte order.
+ *
+ * @retval OT_ERROR_NONE      Successfully added wake-up identifier to the wake-up identifier table.
+ * @retval OT_ERROR_NO_BUFS   No available entry in the wake-up identifier table.
+ */
+otError otLinkAddWakeupId(otInstance *aInstance, otWakeupId *aWakeupId);
+
+/**
+ * Remove a wake-up identifier from the wake-up identifier table.
+ *
+ * @param[in]  aInstance    The OpenThread instance structure.
+ * @param[in]  aWakeupId    The wake-up identifier to be removed stored in little-endian byte order.
+ *
+ * @retval OT_ERROR_NONE        Successfully removed the wake-up identifier from the wake-up identifier table.
+ * @retval OT_ERROR_NOT_FOUND   The wake-up identifier was not in wake-up identifier table.
+ */
+otError otLinkRemoveWakeupId(otInstance *aInstance, otWakeupId *aWakeupId);
+
+/**
+ * Clear all wake-up identifiers from the wake-up identifier table.
+ *
+ * @param[in]  aInstance   The OpenThread instance structure.
+ */
+void otLinkClearWakeupIds(otInstance *aInstance);
+
+// For debugging
+typedef void (*otWakeupFrameReceivedCallback)(const otExtAddress *aWcAddress, void *aContext);
+void otLinkSetWakeupFrameReceivedCallback(otInstance                   *aInstance,
+                                          otWakeupFrameReceivedCallback aCallback,
+                                          void                         *aContext);
 
 /**
  * Sets the rx-on-when-idle state.

@@ -7980,6 +7980,72 @@ template <> otError Interpreter::Process<Cmd("wakeup")>(Arg aArgs[])
         error = ProcessGetSet(aArgs + 1, otLinkGetWakeupChannel, otLinkSetWakeupChannel);
     }
 #if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+    else if (aArgs[0] == "wakeupid")
+    {
+        /**
+         * @cli wakeup wakeupid add
+         * @code
+         * wakeup wakeupid add dead0000beef0000cafe
+         * Done
+         * @endcode
+         * @cparam wakeup wakeupid add @ca{wakeupid}
+         * @par
+         * Adds a wake-up identifier to the Wake-up Identifier table.
+         * @sa otLinkAddWakeupId
+         */
+        if (aArgs[1] == "add")
+        {
+            uint16_t   length = OT_MAX_WAKEUP_ID_SIZE;
+            otWakeupId wakeupId;
+
+            VerifyOrExit(!aArgs[2].IsEmpty(), error = OT_ERROR_INVALID_ARGS);
+            SuccessOrExit(error = aArgs[2].ParseAsHexString(length, wakeupId.m8));
+            wakeupId.mLength = length;
+
+            error = otLinkAddWakeupId(GetInstancePtr(), &wakeupId);
+        }
+        /**
+         * @cli wakeup wakeupid rm
+         * @code
+         * wakeup wakeupid rm dead0000beef0000cafe
+         * Done
+         * @endcode
+         * @cparam wakeup wakeupid remove @ca{wakeupid}
+         * @par
+         * Removes the wake-up identifier from the Wake-up Identifier table.
+         * @sa otLinkRemoveWakeupId
+         */
+        else if (aArgs[1] == "rm")
+        {
+            uint16_t   length = OT_MAX_WAKEUP_ID_SIZE;
+            otWakeupId wakeupId;
+
+            VerifyOrExit(!aArgs[2].IsEmpty(), error = OT_ERROR_INVALID_ARGS);
+            SuccessOrExit(error = aArgs[2].ParseAsHexString(length, wakeupId.m8));
+            wakeupId.mLength = length;
+
+            error = otLinkRemoveWakeupId(GetInstancePtr(), &wakeupId);
+        }
+        /**
+         * @cli wakeup wakeupid clear
+         * @code
+         * wakeup wakeupid clear
+         * Done
+         * @endcode
+         * @cparam wakeup wakeupid clear
+         * @par
+         * Clears all wakeup identifers in the Wake-up Identifier table.
+         * @sa otLinkClearWakeupIds
+         */
+        else if (aArgs[1] == "clear")
+        {
+            otLinkClearWakeupIds(GetInstancePtr());
+        }
+        else
+        {
+            ExitNow(error = OT_ERROR_INVALID_ARGS);
+        }
+    }
     /**
      * @cli wakeup parameters (get,set)
      * @code
@@ -8041,6 +8107,10 @@ template <> otError Interpreter::Process<Cmd("wakeup")>(Arg aArgs[])
     else if (aArgs[0] == "listen")
     {
         error = ProcessEnableDisable(aArgs + 1, otLinkIsWakeupListenEnabled, otLinkSetWakeUpListenEnabled);
+        if (error == OT_ERROR_NONE)
+        {
+            otLinkSetWakeupFrameReceivedCallback(GetInstancePtr(), HandleWakeupFrameReceived, this);
+        }
     }
 #endif // OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
@@ -8057,15 +8127,17 @@ template <> otError Interpreter::Process<Cmd("wakeup")>(Arg aArgs[])
      */
     else if (aArgs[0] == "wake")
     {
-        otExtAddress extAddress;
-        uint16_t     wakeupIntervalUs;
-        uint16_t     wakeupDurationMs;
+        uint16_t   length = OT_MAX_WAKEUP_ID_SIZE;
+        otWakeupId wakeupId;
+        uint16_t   wakeupIntervalUs;
+        uint16_t   wakeupDurationMs;
 
-        SuccessOrExit(error = aArgs[1].ParseAsHexString(extAddress.m8));
+        SuccessOrExit(error = aArgs[1].ParseAsHexString(length, wakeupId.m8));
         SuccessOrExit(error = aArgs[2].ParseAsUint16(wakeupIntervalUs));
         SuccessOrExit(error = aArgs[3].ParseAsUint16(wakeupDurationMs));
 
-        SuccessOrExit(error = otThreadWakeup(GetInstancePtr(), &extAddress, wakeupIntervalUs, wakeupDurationMs,
+        wakeupId.mLength = length;
+        SuccessOrExit(error = otThreadWakeup(GetInstancePtr(), &wakeupId, wakeupIntervalUs, wakeupDurationMs,
                                              HandleWakeupResult, this));
         error = OT_ERROR_PENDING;
     }
@@ -8087,6 +8159,19 @@ void Interpreter::HandleWakeupResult(otError aError, void *aContext)
 }
 
 void Interpreter::HandleWakeupResult(otError aError) { OutputResult(aError); }
+#endif
+
+#if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+void Interpreter::HandleWakeupFrameReceived(const otExtAddress *aWcAddress, void *aContext)
+{
+    static_cast<Interpreter *>(aContext)->HandleWakeupFrameReceived(aWcAddress);
+}
+
+void Interpreter::HandleWakeupFrameReceived(const otExtAddress *aWcAddress)
+{
+    OutputFormat("Wakeup Frame Received: ");
+    OutputExtAddressLine(*aWcAddress);
+}
 #endif
 
 #endif // OPENTHREAD_FTD || OPENTHREAD_MTD
