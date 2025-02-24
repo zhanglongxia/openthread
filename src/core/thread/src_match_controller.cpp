@@ -33,7 +33,7 @@
 
 #include "src_match_controller.hpp"
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 
 #include "instance/instance.hpp"
 
@@ -87,6 +87,7 @@ void SourceMatchController::SetSrcMatchAsShort(Child &aChild, bool aUseShortAddr
 {
     VerifyOrExit(aChild.IsIndirectSourceMatchShort() != aUseShortAddress);
 
+    LogInfo("SetSrcMatchAsShort(): aUseShortAddress=%u", aUseShortAddress);
     if (aChild.GetIndirectMessageCount() > 0)
     {
         ClearEntry(aChild);
@@ -127,6 +128,7 @@ void SourceMatchController::AddEntry(Child &aChild)
     }
     else
     {
+        LogInfo("AddEntries()");
         VerifyOrExit(AddAddress(aChild) == kErrorNone, Enable(false));
         aChild.SetIndirectSourceMatchPending(false);
     }
@@ -197,6 +199,7 @@ Error SourceMatchController::AddPendingEntries(void)
 {
     Error error = kErrorNone;
 
+    LogInfo("AddPendingEntries()");
     for (Child &child : Get<ChildTable>().Iterate(Child::kInStateValidOrRestoring))
     {
         if (child.IsIndirectSourceMatchPending())
@@ -212,4 +215,4 @@ exit:
 
 } // namespace ot
 
-#endif // OPENTHREAD_FTD
+#endif // OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE

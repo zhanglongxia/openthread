@@ -37,7 +37,9 @@
 
 namespace ot {
 
-#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
+RegisterLogModule("IndirectSender");
+
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE || OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
 
 const Mac::Address &IndirectSender::NeighborInfo::GetMacAddress(Mac::Address &aMacAddress) const
 {
@@ -56,7 +58,7 @@ const Mac::Address &IndirectSender::NeighborInfo::GetMacAddress(Mac::Address &aM
 IndirectSender::IndirectSender(Instance &aInstance)
     : InstanceLocator(aInstance)
     , mEnabled(false)
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     , mSourceMatchController(aInstance)
     , mDataPollHandler(aInstance)
 #endif
@@ -70,7 +72,7 @@ void IndirectSender::Stop(void)
 {
     VerifyOrExit(mEnabled);
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     for (Child &child : Get<ChildTable>().Iterate(Child::kInStateAnyExceptInvalid))
     {
         child.SetIndirectMessage(nullptr);
@@ -88,7 +90,7 @@ exit:
     mEnabled = false;
 }
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 
 void IndirectSender::AddMessageForSleepyChild(Message &aMessage, Child &aChild)
 {
@@ -179,6 +181,7 @@ void IndirectSender::SetChildUseShortAddress(Child &aChild, bool aUseShortAddres
 {
     VerifyOrExit(aChild.IsIndirectSourceMatchShort() != aUseShortAddress);
 
+    LogInfo("SetChildUseShortAddress(): aUseShortAddress=%u", aUseShortAddress);
     mSourceMatchController.SetSrcMatchAsShort(aChild, aUseShortAddress);
 
 exit:
@@ -187,7 +190,7 @@ exit:
 
 void IndirectSender::HandleChildModeChange(Child &aChild, Mle::DeviceMode aOldMode)
 {
-    if (!aChild.IsRxOnWhenIdle() && (aChild.IsStateValid()))
+    if (!aChild.IsRxOnWhenIdle() && (aChild.IsStateValid() && aChild.IsChild()))
     {
         SetChildUseShortAddress(aChild, true);
     }
@@ -492,7 +495,9 @@ void IndirectSender::HandleSentFrameToChild(const Mac::TxFrame &aFrame,
         // Request" which will cause the parent to switch to using long
         // address mode for source address matching.
 
-        mSourceMatchController.SetSrcMatchAsShort(aChild, true);
+        LogInfo("HandleSentFrameToChild(): aChild.IsChild()=%u", aChild.IsChild());
+        mSourceMatchController.SetSrcMatchAsShort(aChild, aChild.IsChild());
+        // mSourceMatchController.SetSrcMatchAsShort(aChild, true);
 
 #if !OPENTHREAD_CONFIG_DROP_MESSAGE_ON_FRAGMENT_TX_FAILURE
 
@@ -571,7 +576,7 @@ bool IndirectSender::AcceptSupervisionMessage(const Message &aMessage)
     return aMessage.GetType() == Message::kTypeSupervision;
 }
 
-#endif // OPENTHREAD_FTD
+#endif // OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 
 #if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
 
@@ -581,7 +586,7 @@ Error IndirectSender::PrepareFrameForCslNeighbor(Mac::TxFrame &aFrame,
 {
     Error error = kErrorNotFound;
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     // `CslNeighbor` can only be a `Child` for now, but can be changed later.
     error = PrepareFrameForChild(aFrame, aContext, static_cast<Child &>(aCslNeighbor));
 #else
@@ -598,7 +603,7 @@ void IndirectSender::HandleSentFrameToCslNeighbor(const Mac::TxFrame &aFrame,
                                                   Error               aError,
                                                   CslNeighbor        &aCslNeighbor)
 {
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     HandleSentFrameToChild(aFrame, aContext, aError, static_cast<Child &>(aCslNeighbor));
 #else
     OT_UNUSED_VARIABLE(aFrame);
@@ -610,6 +615,6 @@ void IndirectSender::HandleSentFrameToCslNeighbor(const Mac::TxFrame &aFrame,
 
 #endif // OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
 
-#endif // OPENTHREAD_FTD || OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
+#endif // OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE || OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
 
 } // namespace ot

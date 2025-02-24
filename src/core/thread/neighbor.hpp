@@ -108,6 +108,7 @@ public:
         kInStateAnyExceptInvalid,          ///< Accept neighbor in any state except `kStateInvalid`.
         kInStateAnyExceptValidOrRestoring, ///< Accept neighbor in any state except `IsStateValidOrRestoring()`.
         kInStateAny,                       ///< Accept neighbor in any state.
+        kInStateLinkRequest,               ///< Sent an MLE Link Request message
     };
 
     /**
@@ -171,6 +172,30 @@ public:
          * @retval FALSE  Neighbor @p aNeighbor does not match the address or state filter.
          */
         bool Matches(const Neighbor &aNeighbor) const;
+
+        static constexpr uint16_t kInfoStringSize = 100; ///< Max chars for the info string (`ToString()`).
+        /**
+         * Defines the fixed-length `String` object returned from `ToString()`.
+         */
+        typedef String<kInfoStringSize> InfoString;
+
+        InfoString ToString(void) const
+        {
+            InfoString string;
+
+            string.Append("state:%u ", mStateFilter);
+
+            if (mShortAddress != Mac::kShortAddrInvalid)
+            {
+                string.Append(",shortaddr:%u ", mShortAddress);
+            }
+
+            if (mExtAddress != nullptr)
+            {
+                string.Append(",extaddr:%s ", mExtAddress->ToString().AsCString());
+            }
+            return string;
+        }
 
     private:
         AddressMatcher(StateFilter aStateFilter, Mac::ShortAddress aShortAddress, const Mac::ExtAddress *aExtAddress)

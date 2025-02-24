@@ -200,7 +200,7 @@ bool Mac::IsInTransmitState(void) const
     switch (mOperation)
     {
     case kOperationTransmitDataDirect:
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     case kOperationTransmitDataIndirect:
 #endif
 #if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
@@ -389,6 +389,7 @@ void Mac::SetRxOnWhenIdle(bool aRxOnWhenIdle)
     VerifyOrExit(mRxOnWhenIdle != aRxOnWhenIdle);
 
     mRxOnWhenIdle = aRxOnWhenIdle;
+    LogDebg("SetRxOnWhenIdle(): mRxOnWhenIdle=%u~~~~~~~~~~~~~", mRxOnWhenIdle);
 
     // If the new value for `mRxOnWhenIdle` is `true` (i.e., radio should
     // remain in Rx while idle) we stop any ongoing or pending `WaitingForData`
@@ -505,7 +506,7 @@ exit:
     return;
 }
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 void Mac::RequestIndirectFrameTransmission(void)
 {
     VerifyOrExit(IsEnabled());
@@ -568,6 +569,7 @@ void Mac::UpdateIdleMode(void)
 
     VerifyOrExit(mOperation == kOperationIdle);
 
+    LogCrit("UpdateIdleMode() mRxOnWhenIdle=%u, shouldSleep=%u", mRxOnWhenIdle, shouldSleep);
     if (!mRxOnWhenIdle)
     {
 #if OPENTHREAD_CONFIG_MAC_STAY_AWAKE_BETWEEN_FRAGMENTS
@@ -680,7 +682,7 @@ void Mac::PerformNextOperation(void)
     {
         mOperation = kOperationTransmitBeacon;
     }
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     else if (IsPending(kOperationTransmitDataIndirect))
     {
         mOperation = kOperationTransmitDataIndirect;
@@ -726,7 +728,7 @@ void Mac::PerformNextOperation(void)
 
     case kOperationTransmitBeacon:
     case kOperationTransmitDataDirect:
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     case kOperationTransmitDataIndirect:
 #endif
 #if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
@@ -1023,7 +1025,7 @@ void Mac::BeginTransmit(void)
         frame->SetSequence(mDataSequence++);
         break;
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     case kOperationTransmitDataIndirect:
         txFrames.SetChannel(mRadioChannel);
         txFrames.SetMaxCsmaBackoffs(kMaxCsmaBackoffsIndirect);
@@ -1486,7 +1488,7 @@ void Mac::HandleTransmitDone(TxFrame &aFrame, RxFrame *aAckFrame, Error aError)
         break;
 #endif
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     case kOperationTransmitDataIndirect:
         mCounters.mTxData++;
 
@@ -2306,7 +2308,7 @@ const char *Mac::OperationToString(Operation aOperation)
         "TransmitDataDirect", // (4) kOperationTransmitDataDirect
         "TransmitPoll",       // (5) kOperationTransmitPoll
         "WaitingForData",     // (6) kOperationWaitingForData
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
         "TransmitDataIndirect", // (7) kOperationTransmitDataIndirect
 #endif
 #if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
@@ -2328,7 +2330,7 @@ const char *Mac::OperationToString(Operation aOperation)
         ValidateNextEnum(kOperationTransmitDataDirect);
         ValidateNextEnum(kOperationTransmitPoll);
         ValidateNextEnum(kOperationWaitingForData);
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
         ValidateNextEnum(kOperationTransmitDataIndirect);
 #endif
 #if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
@@ -2719,22 +2721,25 @@ void Mac::UpdateWakeupListening(void)
 
 Error Mac::HandleWakeupFrame(const RxFrame &aFrame)
 {
+    // constexpr uint32_t kWakeupIntervalUs = kDefaultWedListenInterval * kUsPerTenSymbols;
+
     Error               error = kErrorNone;
     const ConnectionIe *connectionIe;
-    uint32_t            rvTimeUs;
-    uint64_t            rvTimestampUs;
-    uint32_t            attachDelayMs;
-    uint64_t            radioNowUs;
-    uint8_t             retryInterval;
-    uint8_t             retryCount;
-    Address             dstAddr;
+    // uint32_t            rvTimeUs;
+    // uint64_t            rvTimestampUs;
+    // uint32_t            attachDelayMs;
+    // uint64_t            radioNowUs;
+    // uint8_t             retryInterval;
+    // uint8_t             retryCount;
+    Address    dstAddr;
+    Address    srcAddress;
+    WakeupInfo info;
 
     VerifyOrExit(mWakeupListenEnabled && aFrame.IsWakeupFrame());
-    IgnoreError(aFrame.GetDstAddr(dstAddr));
 
     LogInfo("HandleWakeupFrame() ---------------------------");
-
-    connectionIe = aFrame.GetConnectionIe();
+    VerifyOrExit((connectionIe = aFrame.GetConnectionIe()) != nullptr);
+    SuccessOrExit(error = aFrame.GetDstAddr(dstAddr));
 
     if (dstAddr.IsBroadcast())
     {
@@ -2744,10 +2749,10 @@ Error Mac::HandleWakeupFrame(const RxFrame &aFrame)
         VerifyOrExit(mWakeupIdTable.Contains(wakeupId));
     }
 
-    retryInterval = connectionIe->GetRetryInterval();
-    retryCount    = connectionIe->GetRetryCount();
-    VerifyOrExit(retryInterval > 0 && retryCount > 0, error = kErrorInvalidArgs);
+    info.mRetryInterval = connectionIe->GetRetryInterval();
+    info.mRetryCount    = connectionIe->GetRetryCount();
 
+#if AA
     radioNowUs    = otPlatRadioGetNow(&GetInstance());
     rvTimeUs      = aFrame.GetRendezvousTimeIe()->GetRendezvousTime() * kUsPerTenSymbols;
     rvTimestampUs = aFrame.GetTimestamp() + kRadioHeaderPhrDuration + aFrame.GetLength() * kOctetDuration + rvTimeUs;
@@ -2766,23 +2771,24 @@ Error Mac::HandleWakeupFrame(const RxFrame &aFrame)
     {
         uint32_t frameCounter;
 
-        IgnoreError(aFrame.GetFrameCounter(frameCounter));
+        IgnoreError(aFrame.GetFrameCounter(info.mFrameCounter));
         LogInfo("Received wake-up frame, fc:%lu, rendezvous:%luus, retries:%u/%u", ToUlong(frameCounter),
                 ToUlong(rvTimeUs), retryCount, retryInterval);
     }
 #endif
+#endif
+
+    SuccessOrExit(error = aFrame.GetFrameCounter(info.mFrameCounter));
+    SuccessOrExit(error = aFrame.GetSrcAddr(srcAddress));
+    VerifyOrExit(srcAddress.IsExtended());
 
     // Stop receiving more wake up frames
     IgnoreError(SetWakeupListenEnabled(false));
+    info.mWcAddress = srcAddress.GetExtended();
 
-    // TODO: start MLE attach process with the WC
-    OT_UNUSED_VARIABLE(attachDelayMs);
-
-    {
-        Address srcAddress;
-        SuccessOrExit(error = aFrame.GetSrcAddr(srcAddress));
-        mWakeupFrameReceivedCallback.InvokeIfSet(&srcAddress.GetExtended());
-    }
+    LogInfo("Received wake-up frame: %s", info.ToString().AsCString());
+    mWakeupFrameReceivedCallback.InvokeIfSet(&srcAddress.GetExtended());
+    Get<Mle::Mle>().HandleWakeupFrame(info);
 
 exit:
     return error;

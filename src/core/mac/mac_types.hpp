@@ -1073,6 +1073,32 @@ private:
 
 } OT_TOOL_PACKED_END;
 
+#if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+/**
+ * Represents MAC wake-up frame information.
+ */
+struct WakeupInfo
+{
+    static constexpr uint16_t kInfoStringSize = 100; ///< Max chars for the info string (`ToString()`).
+    /**
+     * Defines the fixed-length `String` object returned from `ToString()`.
+     */
+    typedef String<kInfoStringSize> InfoString;
+
+    InfoString ToString(void) const;
+
+    ExtAddress mWcAddress;
+    uint32_t   mFrameCounter;
+    uint8_t    mWakeupTarget : 2;
+    uint8_t    mRetryInterval : 2;
+    uint8_t    mRetryCount : 2;
+    uint8_t    mIsGroupWakeup : 1;
+    uint8_t    mIsAttached : 1;
+    uint8_t    mIsRouter : 1;
+    uint8_t    mIsNetworkDataCapable : 1;
+};
+#endif // OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+
 /**
  * @}
  */

@@ -92,6 +92,9 @@ Mle::Mle(Instance &aInstance)
     , mWedAttachState(kWedDetached)
     , mWedAttachTimer(aInstance)
 #endif
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    , mChildTable(aInstance)
+#endif
 {
     mParent.Init(aInstance);
     mParentCandidate.Init(aInstance);
@@ -2398,7 +2401,7 @@ void Mle::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageIn
         ExitNow();
     }
 
-    VerifyOrExit(!IsDisabled(), error = kErrorInvalidState);
+    //    VerifyOrExit(!IsDisabled(), error = kErrorInvalidState);
     VerifyOrExit(securitySuite == k154Security, error = kErrorParse);
 
     SuccessOrExit(error = aMessage.Read(aMessage.GetOffset(), header));
@@ -2515,6 +2518,7 @@ void Mle::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageIn
     rxInfo.mFrameCounter = frameCounter;
     rxInfo.mNeighbor     = neighbor;
 
+    LogInfo("switch(command) command=%u", command);
     switch (command)
     {
     case kCommandAdvertisement:
@@ -2545,19 +2549,22 @@ void Mle::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageIn
         HandleChildUpdateResponse(rxInfo);
         break;
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     case kCommandLinkRequest:
-        Get<MleRouter>().HandleLinkRequest(rxInfo);
+        LogInfo("kCommandLinkRequest");
+        HandlePeerLinkRequest(rxInfo);
         break;
 
     case kCommandLinkAccept:
-        Get<MleRouter>().HandleLinkAccept(rxInfo);
+        HandlePeerLinkAccept(rxInfo);
         break;
 
     case kCommandLinkAcceptAndRequest:
-        Get<MleRouter>().HandleLinkAcceptAndRequest(rxInfo);
+        HandlePeerLinkAcceptAndRequest(rxInfo);
         break;
+#endif
 
+#if OPENTHREAD_FTD
     case kCommandDataRequest:
         Get<MleRouter>().HandleDataRequest(rxInfo);
         break;
@@ -2631,6 +2638,63 @@ exit:
         LogProcessError(kTypeGenericUdp, error);
     }
 }
+
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+void Mle::HandlePeerLinkRequest(RxInfo &aRxInfo)
+{
+    LogInfo("HandlePeerLinkRequest()");
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    if (aRxInfo.mMessage.ContainsTlv(Tlv::kMode))
+    {
+        LogInfo("HandlePeerLinkRequest() P2p");
+        HandleP2pLinkRequest(aRxInfo);
+    }
+    else
+#endif
+    {
+#if OPENTHREAD_FTD
+        LogInfo("HandlePeerLinkRequest() Router");
+        Get<MleRouter>().HandleLinkRequest(aRxInfo);
+#endif
+    }
+}
+
+void Mle::HandlePeerLinkAcceptAndRequest(RxInfo &aRxInfo)
+{
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    if (aRxInfo.mMessage.ContainsTlv(Tlv::kMode))
+    {
+        HandleP2pLinkAcceptAndRequest(aRxInfo);
+    }
+    else
+#endif
+    {
+#if OPENTHREAD_FTD
+        Get<MleRouter>().HandleLinkAcceptAndRequest(aRxInfo);
+#endif
+    }
+}
+
+void Mle::HandlePeerLinkAccept(RxInfo &aRxInfo)
+{
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    Mac::ExtAddress extAddress;
+
+    aRxInfo.mMessageInfo.GetPeerAddr().GetIid().ConvertToExtAddress(extAddress);
+
+    if (Get<ChildTable>().FindChild(extAddress, Child::kInStateLinkRequest) != nullptr)
+    {
+        HandleP2pLinkAccept(aRxInfo);
+    }
+    else
+#endif
+    {
+#if OPENTHREAD_FTD
+        Get<MleRouter>().HandleLinkAccept(aRxInfo);
+#endif
+    }
+}
+#endif // OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 
 void Mle::ProcessKeySequence(RxInfo &aRxInfo)
 {
@@ -4177,18 +4241,20 @@ const char *Mle::MessageTypeToString(MessageType aType)
         "Parent Request",        // (14) kTypeParentRequestToRoutersReeds
         "Parent Response",       // (15) kTypeParentResponse
 #if OPENTHREAD_FTD
-        "Address Release",         // (16) kTypeAddressRelease
-        "Address Release Reply",   // (17) kTypeAddressReleaseReply
-        "Address Reply",           // (18) kTypeAddressReply
-        "Address Solicit",         // (19) kTypeAddressSolicit
-        "Child Update Request",    // (20) kTypeChildUpdateRequestOfChild
-        "Child Update Response",   // (21) kTypeChildUpdateResponseOfChild
-        "Child Update Response",   // (22) kTypeChildUpdateResponseOfUnknownChild
-        "Link Accept",             // (23) kTypeLinkAccept
-        "Link Accept and Request", // (24) kTypeLinkAcceptAndRequest
-        "Link Reject",             // (25) kTypeLinkReject
-        "Link Request",            // (26) kTypeLinkRequest
-        "Parent Request",          // (27) kTypeParentRequest
+        "Address Release",       // (16) kTypeAddressRelease
+        "Address Release Reply", // (17) kTypeAddressReleaseReply
+        "Address Reply",         // (18) kTypeAddressReply
+        "Address Solicit",       // (19) kTypeAddressSolicit
+        "Child Update Request",  // (20) kTypeChildUpdateRequestOfChild
+        "Child Update Response", // (21) kTypeChildUpdateResponseOfChild
+        "Child Update Response", // (22) kTypeChildUpdateResponseOfUnknownChild
+        "Link Reject",           // (23) kTypeLinkReject
+        "Parent Request",        // (24) kTypeParentRequest
+#endif
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+        "Link Request",            // (25) kTypeLinkRequest
+        "Link Accept and Request", // (26) kTypeLinkAcceptAndRequest
+        "Link Accept",             // (27) kTypeLinkAccept
 #endif
 #if OPENTHREAD_CONFIG_MLE_LINK_METRICS_INITIATOR_ENABLE || OPENTHREAD_CONFIG_MLE_LINK_METRICS_SUBJECT_ENABLE
         "Link Metrics Management Request",  // (28) kTypeLinkMetricsManagementRequest
@@ -4227,11 +4293,13 @@ const char *Mle::MessageTypeToString(MessageType aType)
         ValidateNextEnum(kTypeChildUpdateRequestOfChild);
         ValidateNextEnum(kTypeChildUpdateResponseOfChild);
         ValidateNextEnum(kTypeChildUpdateResponseOfUnknownChild);
-        ValidateNextEnum(kTypeLinkAccept);
-        ValidateNextEnum(kTypeLinkAcceptAndRequest);
         ValidateNextEnum(kTypeLinkReject);
-        ValidateNextEnum(kTypeLinkRequest);
         ValidateNextEnum(kTypeParentRequest);
+#endif
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+        ValidateNextEnum(kTypeLinkRequest);
+        ValidateNextEnum(kTypeLinkAcceptAndRequest);
+        ValidateNextEnum(kTypeLinkAccept);
 #endif
 #if OPENTHREAD_CONFIG_MLE_LINK_METRICS_INITIATOR_ENABLE || OPENTHREAD_CONFIG_MLE_LINK_METRICS_SUBJECT_ENABLE
         ValidateNextEnum(kTypeLinkMetricsManagementRequest);
@@ -4451,6 +4519,16 @@ exit:
     return error;
 }
 #endif // OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
+
+#if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+void Mle::HandleWakeupFrame(const Mac::WakeupInfo &aWakeupInfo)
+{
+    OT_UNUSED_VARIABLE(aWakeupInfo);
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    SendP2pLinkRequest(aWakeupInfo);
+#endif
+}
+#endif
 
 Error Mle::DetachGracefully(DetachCallback aCallback, void *aContext)
 {

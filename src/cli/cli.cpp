@@ -8109,7 +8109,7 @@ template <> otError Interpreter::Process<Cmd("wakeup")>(Arg aArgs[])
         error = ProcessEnableDisable(aArgs + 1, otLinkIsWakeupListenEnabled, otLinkSetWakeUpListenEnabled);
         if (error == OT_ERROR_NONE)
         {
-            otLinkSetWakeupFrameReceivedCallback(GetInstancePtr(), HandleWakeupFrameReceived, this);
+            // otLinkSetWakeupFrameReceivedCallback(GetInstancePtr(), HandleWakeupFrameReceived, this);
         }
     }
 #endif // OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE

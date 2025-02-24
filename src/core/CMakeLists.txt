@@ -224,6 +224,7 @@ set(COMMON_SOURCES
     thread/mesh_forwarder_ftd.cpp
     thread/mesh_forwarder_mtd.cpp
     thread/mle.cpp
+    thread/mle_peer.cpp
     thread/mle_router.cpp
     thread/mle_tlvs.cpp
     thread/mle_types.cpp

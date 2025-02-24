@@ -51,6 +51,7 @@
 #include "meshcop/meshcop.hpp"
 #include "net/udp6.hpp"
 #include "thread/child.hpp"
+#include "thread/child_table.hpp"
 #include "thread/link_metrics.hpp"
 #include "thread/link_metrics_tlvs.hpp"
 #include "thread/mle_tlvs.hpp"
@@ -760,6 +761,15 @@ public:
                  void                *aCallbackContext);
 #endif // OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
 
+#if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+    /**
+     * Handles the wake-up frame information.
+     *
+     * @param[in] aWakeupInfo   A reference to the wake-up info.
+     */
+    void HandleWakeupFrame(const Mac::WakeupInfo &aWakeupInfo);
+#endif
+
 private:
     //------------------------------------------------------------------------------------------------------------------
     // Constants
@@ -951,11 +961,13 @@ private:
         kTypeChildUpdateRequestOfChild,
         kTypeChildUpdateResponseOfChild,
         kTypeChildUpdateResponseOfUnknownChild,
-        kTypeLinkAccept,
-        kTypeLinkAcceptAndRequest,
         kTypeLinkReject,
-        kTypeLinkRequest,
         kTypeParentRequest,
+#endif
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+        kTypeLinkRequest,
+        kTypeLinkAcceptAndRequest,
+        kTypeLinkAccept,
 #endif
 #if OPENTHREAD_CONFIG_MLE_LINK_METRICS_INITIATOR_ENABLE || OPENTHREAD_CONFIG_MLE_LINK_METRICS_SUBJECT_ENABLE
         kTypeLinkMetricsManagementRequest,
@@ -1118,14 +1130,6 @@ private:
         RxChallenge     mRxChallenge;     // The challenge from the Parent Request.
     };
 
-    struct LinkAcceptInfo
-    {
-        Mac::ExtAddress mExtAddress;       // The neighbor/router extended address.
-        TlvList         mRequestedTlvList; // The requested TLVs in Link Request.
-        RxChallenge     mRxChallenge;      // The challenge in Link Request.
-        uint8_t         mLinkMargin;       // Link margin of the received Link Request.
-    };
-
     struct DiscoveryResponseInfo
     {
         Mac::PanId mPanId;
@@ -1135,6 +1139,18 @@ private:
     };
 
 #endif // OPENTHREAD_FTD
+
+    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    struct LinkAcceptInfo
+    {
+        Mac::ExtAddress mExtAddress;       // The neighbor/router extended address.
+        TlvList         mRequestedTlvList; // The requested TLVs in Link Request.
+        RxChallenge     mRxChallenge;      // The challenge in Link Request.
+        uint8_t         mLinkMargin;       // Link margin of the received Link Request.
+    };
+#endif
 
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -1437,6 +1453,22 @@ private:
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
     void HandleWedAttachTimer(void);
 #endif
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    void  SendP2pLinkRequest(const Mac::WakeupInfo &aWakeupInfo);
+    Error SendP2pLinkAccept(const LinkAcceptInfo &aInfo);
+    Error SendP2pLinkAcceptAndRequest(const LinkAcceptInfo &aInfo);
+    Error SendP2pLinkAcceptVariant(const LinkAcceptInfo &aInfo, bool aIsLinkAcceptorRequest);
+    void  HandleP2pLinkRequest(RxInfo &aRxInfo);
+    void  HandleP2pLinkAcceptAndRequest(RxInfo &aRxInfo);
+    void  HandleP2pLinkAccept(RxInfo &aRxInfo);
+    void  HandleP2pLinkAcceptVariant(RxInfo &aRxInfo, MessageType aMessageType);
+#endif
+
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    void HandlePeerLinkRequest(RxInfo &aRxInfo);
+    void HandlePeerLinkAcceptAndRequest(RxInfo &aRxInfo);
+    void HandlePeerLinkAccept(RxInfo &aRxInfo);
+#endif
 
 #if OT_SHOULD_LOG_AT(OT_LOG_LEVEL_NOTE)
     static const char *AttachModeToString(AttachMode aMode);
@@ -1538,6 +1570,9 @@ private:
     WedAttachState           mWedAttachState;
     WedAttachTimer           mWedAttachTimer;
     Callback<WakeupCallback> mWakeupCallback;
+#endif
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    ChildTable mChildTable;
 #endif
 };
 

@@ -204,7 +204,7 @@ public:
      */
     void RequestDirectFrameTransmission(void);
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     /**
      * Requests an indirect data frame transmission.
      */
@@ -356,7 +356,7 @@ public:
      */
     void SetMaxFrameRetriesDirect(uint8_t aMaxFrameRetriesDirect) { mMaxFrameRetriesDirect = aMaxFrameRetriesDirect; }
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     /**
      * Returns the maximum number of frame retries during indirect transmission.
      *
@@ -431,7 +431,7 @@ public:
      */
     bool IsEnergyScanInProgress(void) const { return IsActiveOrPending(kOperationEnergyScan); }
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     /**
      * Indicates whether the MAC layer is performing an indirect transmission (in middle of a tx).
      *
@@ -815,7 +815,7 @@ private:
         kOperationTransmitDataDirect,
         kOperationTransmitPoll,
         kOperationWaitingForData,
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
         kOperationTransmitDataIndirect,
 #endif
 #if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
@@ -936,7 +936,7 @@ private:
     uint16_t    mScanDuration;
     ChannelMask mScanChannelMask;
     uint8_t     mMaxFrameRetriesDirect;
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     uint8_t mMaxFrameRetriesIndirect;
 #endif
 #if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE

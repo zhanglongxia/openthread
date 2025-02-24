@@ -91,6 +91,13 @@ Neighbor *NeighborTable::FindNeighbor(const Neighbor::AddressMatcher &aMatcher)
         neighbor = FindParent(aMatcher);
     }
 
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    if (neighbor == nullptr)
+    {
+        neighbor = Get<ChildTable>().FindChild(aMatcher);
+    }
+#endif
+
     return neighbor;
 }
 

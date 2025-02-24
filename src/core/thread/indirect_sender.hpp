@@ -57,10 +57,10 @@ namespace ot {
  * @{
  */
 
-#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE || OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
 
 class CslNeighbor;
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 class Child;
 #endif
 
@@ -70,7 +70,7 @@ class Child;
 class IndirectSender : public InstanceLocator, public IndirectSenderBase, private NonCopyable
 {
     friend class Instance;
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     friend class DataPollHandler;
 #endif
 #if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
@@ -86,7 +86,7 @@ public:
     class NeighborInfo
     {
         friend class IndirectSender;
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
         friend class DataPollHandler;
         friend class SourceMatchController;
 #endif
@@ -166,7 +166,7 @@ public:
      */
     void Stop(void);
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     /**
      * Adds a message for indirect transmission to a sleepy child.
      *
@@ -255,7 +255,7 @@ public:
      */
     void HandleChildModeChange(Child &aChild, Mle::DeviceMode aOldMode);
 
-#endif // OPENTHREAD_FTD
+#endif // OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 
 private:
 #if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
@@ -267,7 +267,7 @@ private:
                                        CslNeighbor        &aCslNeighbor);
 #endif
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     // Callbacks from `DataPollHandler`
     Error PrepareFrameForChild(Mac::TxFrame &aFrame, FrameContext &aContext, Child &aChild);
     void  HandleSentFrameToChild(const Mac::TxFrame &aFrame, const FrameContext &aContext, Error aError, Child &aChild);
@@ -281,10 +281,10 @@ private:
 
     static bool AcceptAnyMessage(const Message &aMessage);
     static bool AcceptSupervisionMessage(const Message &aMessage);
-#endif // OPENTHREAD_FTD
+#endif // OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 
     bool mEnabled;
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     SourceMatchController mSourceMatchController;
     DataPollHandler       mDataPollHandler;
 #endif
@@ -293,7 +293,7 @@ private:
 #endif
 };
 
-#endif // #if OPENTHREAD_FTD || OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
+#endif // #if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE || OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
 
 /**
  * @}

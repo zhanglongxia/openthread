@@ -385,5 +385,39 @@ bool KeyMaterial::operator==(const KeyMaterial &aOther) const
 #endif
 }
 
+WakeupInfo::InfoString WakeupInfo::ToString(void) const
+{
+    InfoString string;
+
+    string.Append("wcaddr: ");
+    string.AppendHexBytes(mWcAddress.m8, sizeof(ExtAddress));
+    string.Append(",fcnt: %u ", mFrameCounter);
+    string.Append(",target: %u ", mWakeupTarget);
+    string.Append(",RI: %u, RC: %u ", mRetryInterval, mRetryCount);
+    string.Append(",flags: ");
+
+    if (mIsGroupWakeup)
+    {
+        string.Append("G");
+    }
+
+    if (mIsAttached)
+    {
+        string.Append("A");
+    }
+
+    if (mIsRouter)
+    {
+        string.Append("R");
+    }
+
+    if (mIsNetworkDataCapable)
+    {
+        string.Append("N");
+    }
+
+    return string;
+}
+
 } // namespace Mac
 } // namespace ot

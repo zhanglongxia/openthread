@@ -260,6 +260,7 @@ Error SubMac::RadioSleep(void)
 
     VerifyOrExit(ShouldHandleTransitionToSleep());
 
+    LogDebg("sleep()");
     error = Get<Radio>().Sleep();
 
 exit:
@@ -287,6 +288,7 @@ Error SubMac::Receive(uint8_t aChannel)
     else
 #endif
     {
+        LogDebg("Receive(%u)", aChannel);
         error = Get<Radio>().Receive(aChannel);
     }
 

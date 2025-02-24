@@ -36,7 +36,7 @@
 
 #include "openthread-core-config.h"
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 
 #include "common/const_cast.hpp"
 #include "common/iterator_utils.hpp"
@@ -134,7 +134,7 @@ public:
      *
      * @returns A pointer to a new `Child` entry, or `nullptr` if all `Child` entries are in use.
      */
-    Child *GetNewChild(void);
+    Child *GetNewChild(Child::NeighborType aType = Child::kNeighborTypeChild);
 
     /**
      * Searches the child table for a `Child` with a given RLOC16 also matching a given state filter.

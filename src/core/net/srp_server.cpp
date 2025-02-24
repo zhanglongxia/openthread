@@ -134,6 +134,13 @@ void Server::SetEnabled(bool aEnabled)
     if (aEnabled)
     {
         Enable();
+
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+        if (Get<Mle::Mle>().IsDisabled())
+        {
+            Start();
+        }
+#endif
     }
     else
     {
@@ -1732,6 +1739,7 @@ Error Server::ProcessMessage(Message                &aMessage,
     metadata.mLeaseConfig = aLeaseConfig;
     metadata.mMessageInfo = aMessageInfo;
 
+    LogInfo("ProcessMessage() =======");
     SuccessOrExit(error = aMessage.Read(metadata.mOffset, metadata.mDnsHeader));
     metadata.mOffset += sizeof(Dns::UpdateHeader);
 

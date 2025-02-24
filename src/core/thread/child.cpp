@@ -37,7 +37,7 @@
 
 namespace ot {
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 
 //---------------------------------------------------------------------------------------------------------------------
 // Child::Info

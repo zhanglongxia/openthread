@@ -297,6 +297,7 @@ void Publisher::Entry::UpdateState(uint8_t aNumEntries, uint8_t aNumPreferredEnt
             mUpdateTime = TimerMilli::GetNow() + Random::NonCrypto::GetUint32InRange(1, kMaxDelayToAdd);
             SetState(kAdding);
             Get<Publisher>().GetTimer().FireAtIfEarlier(mUpdateTime);
+            LogInfo("Entry::UpdateState(kToAdd) mUpdateTime=%u", mUpdateTime.GetValue());
             LogUpdateTime();
         }
         break;
@@ -333,6 +334,7 @@ void Publisher::Entry::UpdateState(uint8_t aNumEntries, uint8_t aNumPreferredEnt
 
             SetState(kRemoving);
             Get<Publisher>().GetTimer().FireAtIfEarlier(mUpdateTime);
+            LogInfo("Entry::UpdateState(kAdded) mUpdateTime=%u", mUpdateTime.GetValue());
             LogUpdateTime();
         }
         break;
@@ -641,9 +643,12 @@ void Publisher::DnsSrpServiceEntry::Process(void)
 
     // Do not make any changes if device is not attached, and wait
     // for role change event.
-    VerifyOrExit(Get<Mle::Mle>().IsAttached());
+    LogInfo("DnsSrpServiceEntry::Process() TP1");
+    // VerifyOrExit(Get<Mle::Mle>().IsAttached());
 
+    LogInfo("DnsSrpServiceEntry::Process() TP2");
     VerifyOrExit(GetState() != kNoEntry);
+    LogInfo("DnsSrpServiceEntry::Process() TP3");
 
     switch (GetType())
     {

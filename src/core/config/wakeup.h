@@ -145,6 +145,15 @@
 #endif
 
 /**
+ * @def OPENTHREAD_CONFIG_PEER_TABLE_SZIE
+ *
+ * Specifies the capacity of peer to peer table.
+ */
+#ifndef OPENTHREAD_CONFIG_PEER_TABLE_SZIE
+#define OPENTHREAD_CONFIG_PEER_TABLE_SZIE 3
+#endif
+
+/**
  * @}
  */
 
