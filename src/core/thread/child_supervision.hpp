@@ -82,7 +82,7 @@ class ThreadNetif;
  * child table.
  */
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 
 /**
  * Implements a child supervisor.

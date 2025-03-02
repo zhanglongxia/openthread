@@ -89,8 +89,13 @@ Mle::Mle(Instance &aInstance)
     , mMessageTransmissionTimer(aInstance)
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
     , mWakeupTxScheduler(aInstance)
-    , mWedAttachState(kWedDetached)
-    , mWedAttachTimer(aInstance)
+#endif
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    , mP2pState(kP2pIdle)
+    , mP2pTimer(aInstance)
+#endif
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE && !OPENTHREAD_FTD
+    , mChildTable(aInstance)
 #endif
 {
     mParent.Init(aInstance);
@@ -2398,7 +2403,7 @@ void Mle::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageIn
         ExitNow();
     }
 
-    VerifyOrExit(!IsDisabled(), error = kErrorInvalidState);
+    //    VerifyOrExit(!IsDisabled(), error = kErrorInvalidState);
     VerifyOrExit(securitySuite == k154Security, error = kErrorParse);
 
     SuccessOrExit(error = aMessage.Read(aMessage.GetOffset(), header));
@@ -2515,6 +2520,7 @@ void Mle::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageIn
     rxInfo.mFrameCounter = frameCounter;
     rxInfo.mNeighbor     = neighbor;
 
+    LogInfo("switch(command) command=%u", command);
     switch (command)
     {
     case kCommandAdvertisement:
@@ -2545,19 +2551,31 @@ void Mle::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageIn
         HandleChildUpdateResponse(rxInfo);
         break;
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     case kCommandLinkRequest:
-        Get<MleRouter>().HandleLinkRequest(rxInfo);
+        HandlePeerLinkRequest(rxInfo);
         break;
 
     case kCommandLinkAccept:
-        Get<MleRouter>().HandleLinkAccept(rxInfo);
+        HandlePeerLinkAccept(rxInfo);
         break;
 
     case kCommandLinkAcceptAndRequest:
-        Get<MleRouter>().HandleLinkAcceptAndRequest(rxInfo);
+        HandlePeerLinkAcceptAndRequest(rxInfo);
         break;
 
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    case kCommandLinkTearDown:
+        HandleLinkTearDown(rxInfo);
+        break;
+
+    case kCommandLinkDataUpdate:
+        HandleLinkDataUpdate(rxInfo);
+        break;
+#endif
+#endif
+
+#if OPENTHREAD_FTD
     case kCommandDataRequest:
         Get<MleRouter>().HandleDataRequest(rxInfo);
         break;
@@ -2631,6 +2649,63 @@ exit:
         LogProcessError(kTypeGenericUdp, error);
     }
 }
+
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+void Mle::HandlePeerLinkRequest(RxInfo &aRxInfo)
+{
+    LogInfo("HandlePeerLinkRequest()");
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    if (aRxInfo.mMessage.ContainsTlv(Tlv::kMode))
+    {
+        LogInfo("HandlePeerLinkRequest() P2p");
+        HandleP2pLinkRequest(aRxInfo);
+    }
+    else
+#endif
+    {
+#if OPENTHREAD_FTD
+        LogInfo("HandlePeerLinkRequest() Router");
+        Get<MleRouter>().HandleLinkRequest(aRxInfo);
+#endif
+    }
+}
+
+void Mle::HandlePeerLinkAcceptAndRequest(RxInfo &aRxInfo)
+{
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    if (aRxInfo.mMessage.ContainsTlv(Tlv::kMode))
+    {
+        HandleP2pLinkAcceptAndRequest(aRxInfo);
+    }
+    else
+#endif
+    {
+#if OPENTHREAD_FTD
+        Get<MleRouter>().HandleLinkAcceptAndRequest(aRxInfo);
+#endif
+    }
+}
+
+void Mle::HandlePeerLinkAccept(RxInfo &aRxInfo)
+{
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    Mac::ExtAddress extAddress;
+
+    aRxInfo.mMessageInfo.GetPeerAddr().GetIid().ConvertToExtAddress(extAddress);
+
+    if (Get<ChildTable>().FindChild(extAddress, Child::kInStateLinkRequest) != nullptr)
+    {
+        HandleP2pLinkAccept(aRxInfo);
+    }
+    else
+#endif
+    {
+#if OPENTHREAD_FTD
+        Get<MleRouter>().HandleLinkAccept(aRxInfo);
+#endif
+    }
+}
+#endif // OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 
 void Mle::ProcessKeySequence(RxInfo &aRxInfo)
 {
@@ -4109,7 +4184,7 @@ void Mle::Log(MessageAction aAction, MessageType aType, const Ip6::Address &aAdd
         rlocString.Append(",0x%04x", aRloc);
     }
 
-    LogInfo("%s %s%s (%s%s)", MessageActionToString(aAction), MessageTypeToString(aType),
+    LogInfo("%s %s%s (%s%s) ------------> ", MessageActionToString(aAction), MessageTypeToString(aType),
             MessageTypeActionToSuffixString(aType, aAction), aAddress.ToString().AsCString(), rlocString.AsCString());
 }
 #endif
@@ -4177,18 +4252,20 @@ const char *Mle::MessageTypeToString(MessageType aType)
         "Parent Request",        // (14) kTypeParentRequestToRoutersReeds
         "Parent Response",       // (15) kTypeParentResponse
 #if OPENTHREAD_FTD
-        "Address Release",         // (16) kTypeAddressRelease
-        "Address Release Reply",   // (17) kTypeAddressReleaseReply
-        "Address Reply",           // (18) kTypeAddressReply
-        "Address Solicit",         // (19) kTypeAddressSolicit
-        "Child Update Request",    // (20) kTypeChildUpdateRequestOfChild
-        "Child Update Response",   // (21) kTypeChildUpdateResponseOfChild
-        "Child Update Response",   // (22) kTypeChildUpdateResponseOfUnknownChild
-        "Link Accept",             // (23) kTypeLinkAccept
-        "Link Accept and Request", // (24) kTypeLinkAcceptAndRequest
-        "Link Reject",             // (25) kTypeLinkReject
-        "Link Request",            // (26) kTypeLinkRequest
-        "Parent Request",          // (27) kTypeParentRequest
+        "Address Release",       // (16) kTypeAddressRelease
+        "Address Release Reply", // (17) kTypeAddressReleaseReply
+        "Address Reply",         // (18) kTypeAddressReply
+        "Address Solicit",       // (19) kTypeAddressSolicit
+        "Child Update Request",  // (20) kTypeChildUpdateRequestOfChild
+        "Child Update Response", // (21) kTypeChildUpdateResponseOfChild
+        "Child Update Response", // (22) kTypeChildUpdateResponseOfUnknownChild
+        "Link Reject",           // (23) kTypeLinkReject
+        "Parent Request",        // (24) kTypeParentRequest
+#endif
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+        "Link Request",            // (25) kTypeLinkRequest
+        "Link Accept and Request", // (26) kTypeLinkAcceptAndRequest
+        "Link Accept",             // (27) kTypeLinkAccept
 #endif
 #if OPENTHREAD_CONFIG_MLE_LINK_METRICS_INITIATOR_ENABLE || OPENTHREAD_CONFIG_MLE_LINK_METRICS_SUBJECT_ENABLE
         "Link Metrics Management Request",  // (28) kTypeLinkMetricsManagementRequest
@@ -4227,11 +4304,13 @@ const char *Mle::MessageTypeToString(MessageType aType)
         ValidateNextEnum(kTypeChildUpdateRequestOfChild);
         ValidateNextEnum(kTypeChildUpdateResponseOfChild);
         ValidateNextEnum(kTypeChildUpdateResponseOfUnknownChild);
-        ValidateNextEnum(kTypeLinkAccept);
-        ValidateNextEnum(kTypeLinkAcceptAndRequest);
         ValidateNextEnum(kTypeLinkReject);
-        ValidateNextEnum(kTypeLinkRequest);
         ValidateNextEnum(kTypeParentRequest);
+#endif
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+        ValidateNextEnum(kTypeLinkRequest);
+        ValidateNextEnum(kTypeLinkAcceptAndRequest);
+        ValidateNextEnum(kTypeLinkAccept);
 #endif
 #if OPENTHREAD_CONFIG_MLE_LINK_METRICS_INITIATOR_ENABLE || OPENTHREAD_CONFIG_MLE_LINK_METRICS_SUBJECT_ENABLE
         ValidateNextEnum(kTypeLinkMetricsManagementRequest);
@@ -4404,52 +4483,18 @@ uint64_t Mle::CalcParentCslMetric(const Mac::CslAccuracy &aCslAccuracy) const
 }
 #endif
 
+#if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+void Mle::HandleWakeupFrame(const Mac::WakeupInfo &aWakeupInfo)
+{
+    OT_UNUSED_VARIABLE(aWakeupInfo);
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    SendP2pLinkRequest(aWakeupInfo.mWcAddress);
+#endif
+}
+#endif
+
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
-void Mle::HandleWedAttachTimer(void)
-{
-    switch (mWedAttachState)
-    {
-    case kWedAttaching:
-        // Connection timeout
-        if (!IsRxOnWhenIdle())
-        {
-            Get<MeshForwarder>().SetRxOnWhenIdle(false);
-        }
-
-        LogInfo("Connection window closed");
-
-        mWedAttachState = kWedDetached;
-        mWakeupCallback.InvokeAndClearIfSet(kErrorFailed);
-        break;
-    default:
-        break;
-    }
-}
-
-Error Mle::Wakeup(const Mac::ExtAddress &aWedAddress,
-                  uint16_t               aIntervalUs,
-                  uint16_t               aDurationMs,
-                  WakeupCallback         aCallback,
-                  void                  *aCallbackContext)
-{
-    Error error;
-
-    VerifyOrExit((aIntervalUs > 0) && (aDurationMs > 0), error = kErrorInvalidArgs);
-    VerifyOrExit(aIntervalUs < aDurationMs * Time::kOneMsecInUsec, error = kErrorInvalidArgs);
-    VerifyOrExit(mWedAttachState == kWedDetached, error = kErrorInvalidState);
-
-    SuccessOrExit(error = mWakeupTxScheduler.WakeUp(aWedAddress, aIntervalUs, aDurationMs));
-
-    mWedAttachState = kWedAttaching;
-    mWakeupCallback.Set(aCallback, aCallbackContext);
-    Get<MeshForwarder>().SetRxOnWhenIdle(true);
-    mWedAttachTimer.FireAt(mWakeupTxScheduler.GetTxEndTime() + mWakeupTxScheduler.GetConnectionWindowUs());
-
-    LogInfo("Connection window open");
-
-exit:
-    return error;
-}
+Error Mle::Wakeup(const Mac::ExtAddress &, uint16_t, uint16_t, WakeupCallback, void *) { return kErrorNotImplemented; }
 #endif // OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
 
 Error Mle::DetachGracefully(DetachCallback aCallback, void *aContext)
@@ -5192,6 +5237,32 @@ Error Mle::TxMessage::AppendCslClockAccuracyTlv(void)
     cslClockAccuracyTlv.SetCslUncertainty(Get<Radio>().GetCslUncertainty());
 
     return Append(cslClockAccuracyTlv);
+}
+#endif
+
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+Error Mle::TxMessage::AppendLinkDataTlv(bool aIsLocalSrpServer, uint16_t aSrpServerPort)
+{
+    LinkDataTlv linkDataTlv;
+
+    linkDataTlv.Init();
+    linkDataTlv.SetLocalSrpServer(aIsLocalSrpServer);
+    linkDataTlv.SetSrpServerPort(aSrpServerPort);
+
+    return Append(linkDataTlv);
+}
+
+Error Mle::RxMessage::ReadLinkDataTlv(bool &aIsLocalSrpServer, uint16_t &aSrpServerPort) const
+{
+    Error       error;
+    LinkDataTlv linkDataTlv;
+
+    SuccessOrExit(error = Tlv::FindTlv(*this, linkDataTlv));
+    aIsLocalSrpServer = linkDataTlv.IsLocalSrpServer();
+    aSrpServerPort    = linkDataTlv.GetSrpServerPort();
+
+exit:
+    return error;
 }
 #endif
 

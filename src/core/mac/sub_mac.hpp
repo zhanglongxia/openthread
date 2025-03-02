@@ -41,6 +41,7 @@
 #include <openthread/platform/crypto.h>
 
 #include "common/callback.hpp"
+#include "common/heap_array.hpp"
 #include "common/locator.hpp"
 #include "common/non_copyable.hpp"
 #include "common/timer.hpp"
@@ -496,6 +497,10 @@ public:
      * @param[in]  aChannel   The wake-up channel.
      */
     void UpdateWakeupListening(bool aEnable, uint32_t aInterval, uint32_t aDuration, uint8_t aChannel);
+
+    Error AddWakeupId(const WakeupId &aWakeupId);
+    Error RemoveWakeupId(const WakeupId &aWakeupId);
+    void  ClearWakeupIds(void);
 #endif
 
 private:
@@ -520,6 +525,9 @@ private:
     void        WedInit(void);
     static void HandleWedTimer(Timer &aTimer);
     void        HandleWedTimer(void);
+    void        HandleWedReceiveAt(void);
+    void        HandleWedReceiveOrSleep(void);
+    bool        ShouldHandleWakeupFrame(const RxFrame &aFrame);
 #endif
 
     static constexpr uint8_t  kCsmaMinBe         = 3;                  // macMinBE (IEEE 802.15.4-2006).
@@ -553,8 +561,9 @@ private:
 #if !OPENTHREAD_MTD && OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
         kStateCslTransmit, // CSL transmission.
 #endif
-#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-        kStateCslSample, // CSL receive.
+#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE || OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+        kStateRadioSample, // Mac layer has requested the SubMac to enter sleep state, but the SubMac is in the periodic
+                           // sample state.
 #endif
     };
 
@@ -572,6 +581,7 @@ private:
     // Margin to be applied after the end of a wake-up listen duration to schedule the next listen interval.
     // The value is in usec.
     static constexpr uint32_t kWedReceiveTimeAfter = OPENTHREAD_CONFIG_WED_RECEIVE_TIME_AFTER;
+    static constexpr uint16_t kWakeupIdTableSize   = OPENTHREAD_CONFIG_WAKEUP_ID_TABLE_SZIE;
 #endif
 
 #if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
@@ -628,6 +638,12 @@ private:
     void               SetState(State aState);
     static const char *StateToString(State aState);
 
+#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE || OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+    bool IsRadioSampleEnabled(void) const;
+    void UpdateRadioSampleState(void);
+    void RadioSample(void);
+#endif
+
     using SubMacTimer =
 #if OPENTHREAD_CONFIG_PLATFORM_USEC_TIMER_ENABLE
         TimerMicroIn<SubMac, &SubMac::HandleTimer>;
@@ -655,6 +671,7 @@ private:
     KeyMaterial                  mCurrKey;
     KeyMaterial                  mNextKey;
     uint32_t                     mFrameCounter;
+    uint8_t                      mPanChannel;
     uint8_t                      mKeyId;
 #if OPENTHREAD_CONFIG_MAC_ADD_DELAY_ON_NO_ACK_ERROR_BEFORE_RETRY
     uint8_t mRetxDelayBackOffExponent;
@@ -662,11 +679,11 @@ private:
     SubMacTimer mTimer;
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-    uint16_t mCslPeriod;             // The CSL sample period, in units of 10 symbols (160 microseconds).
-    uint8_t  mCslChannel : 7;        // The CSL sample channel.
-    bool     mIsCslSampling : 1;     // Indicates that the radio is receiving in CSL state for platforms not supporting
-                                     // delayed reception.
-    uint16_t    mCslPeerShort;       // The CSL peer short address.
+    uint16_t mCslPeriod;         // The CSL sample period, in units of 10 symbols (160 microseconds).
+    uint8_t  mCslChannel : 7;    // The CSL sample channel.
+    bool     mIsCslSampling : 1; // Indicates that the radio is requested to enter receive state using the CSL channel
+                                 // for platforms not supporting `Radio::ReceiveAt()`.
+    uint16_t    mCslPeerShort;   // The CSL peer short address.
     uint32_t    mCslSampleTimeRadio; // The CSL sample time of the current period based on radio time (lower 32-bit).
     TimeMicro   mCslSampleTimeLocal; // The CSL sample time of the current period based on local time.
     TimeMicro   mCslLastSync;        // The timestamp of the last successful CSL synchronization.
@@ -675,12 +692,16 @@ private:
 #endif
 
 #if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+    bool mIsWedSampling : 1; // Indicates that the radio is requested to enter receive state using the wake-up channel
+                             // for platforms not supporting `Radio::ReceiveAt()`.
+    bool       mIsWedEnabled : 1;     // Indicates if the WED is enabled.
     uint32_t   mWakeupListenInterval; // The wake-up listen interval, in microseconds.
     uint32_t   mWakeupListenDuration; // The wake-up listen duration, in microseconds.
     uint8_t    mWakeupChannel;        // The wake-up sample channel.
     TimeMicro  mWedSampleTime;        // The WED sample time of the current interval in local time.
     uint64_t   mWedSampleTimeRadio;   // The WED sample time of the current interval in radio time.
     TimerMicro mWedTimer;
+    Array<WakeupId, kWakeupIdTableSize> mWakeupIdTable;
 #endif
 };
 

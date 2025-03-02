@@ -370,6 +370,9 @@ Client::Client(Instance &aInstance)
 #if OPENTHREAD_CONFIG_SRP_CLIENT_AUTO_START_API_ENABLE
     , mGuardTimer(aInstance)
 #endif
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    , mSrpServers{{aInstance, *this}, {aInstance, *this}, {aInstance, *this}}
+#endif
 {
     // The `Client` implementation uses different constant array of
     // `ItemState` to define transitions between states in `Pause()`,
@@ -412,6 +415,7 @@ Error Client::Start(const Ip6::SockAddr &aServerSockAddr, Requester aRequester)
         ExitNow();
     }
 
+    LogInfo("Client::Start ---------------------------------->");
     LogInfo("%starting, server %s", (aRequester == kRequesterUser) ? "S" : "Auto-s",
             aServerSockAddr.ToString().AsCString());
 
@@ -894,6 +898,7 @@ void Client::SetState(State aState)
     VerifyOrExit(aState != mState);
 
     LogInfo("State %s -> %s", StateToString(mState), StateToString(aState));
+
     mState = aState;
 
     switch (mState)
@@ -996,7 +1001,7 @@ void Client::SendUpdate(void)
     info.mMessage.Reset(mSocket.NewMessage());
     VerifyOrExit(info.mMessage != nullptr, error = kErrorNoBufs);
 
-    SuccessOrExit(error = PrepareUpdateMessage(info));
+    SuccessOrExit(error = PrepareUpdateMessage(info, mNextMessageId));
 
     length = info.mMessage->GetLength() + sizeof(Ip6::Udp::Header) + sizeof(Ip6::Header);
 
@@ -1005,7 +1010,7 @@ void Client::SendUpdate(void)
         LogInfo("Msg len %lu is larger than MTU, enabling single service mode", ToUlong(length));
         mSingleServiceMode = true;
         IgnoreError(info.mMessage->SetLength(0));
-        SuccessOrExit(error = PrepareUpdateMessage(info));
+        SuccessOrExit(error = PrepareUpdateMessage(info, mNextMessageId));
     }
 
     SuccessOrExit(error = mSocket.SendTo(*info.mMessage, Ip6::MessageInfo()));
@@ -1098,7 +1103,7 @@ exit:
     }
 }
 
-Error Client::PrepareUpdateMessage(MsgInfo &aInfo)
+Error Client::PrepareUpdateMessage(MsgInfo &aInfo, uint16_t aNextMessageId)
 {
     constexpr uint16_t kHeaderOffset = 0;
 
@@ -1115,7 +1120,7 @@ Error Client::PrepareUpdateMessage(MsgInfo &aInfo)
 
     SuccessOrExit(error = ReadOrGenerateKey(aInfo.mKeyInfo));
 
-    header.SetMessageId(mNextMessageId);
+    header.SetMessageId(aNextMessageId);
 
     // SRP Update (DNS Update) message must have exactly one record in
     // Zone section, no records in Prerequisite Section, can have
@@ -2016,9 +2021,11 @@ void Client::UpdateState(void)
     NextFireTime nextRenewTime;
     bool         shouldUpdate = false;
 
+    LogDebg("UpdateState() TP1");
     VerifyOrExit((GetState() != kStateStopped) && (GetState() != kStatePaused));
     VerifyOrExit(mHostInfo.GetName() != nullptr);
 
+    LogDebg("UpdateState() TP2 HostInfoState=%u", mHostInfo.GetState());
     // Go through the host info and all the services to check if there
     // are any new changes (i.e., anything new to add or remove). This
     // is used to determine whether to send an SRP update message or
@@ -2102,6 +2109,7 @@ void Client::UpdateState(void)
         }
     }
 
+    LogDebg("UpdateState() TP3 HostInfoState=%u", mHostInfo.GetState());
     if (shouldUpdate)
     {
         SetState(kStateToUpdate);
@@ -2110,6 +2118,7 @@ void Client::UpdateState(void)
 
     if (GetState() == kStateUpdated)
     {
+        LogDebg("UpdateState() TP4 HostInfoState=%u", mHostInfo.GetState());
         mTimer.FireAt(nextRenewTime);
     }
 
@@ -2550,6 +2559,177 @@ exit:
 #endif // OPENTHREAD_CONFIG_SRP_CLIENT_SWITCH_SERVER_ON_FAILURE
 
 #endif // OPENTHREAD_CONFIG_SRP_CLIENT_AUTO_START_API_ENABLE
+
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+void Client::HandleP2pUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageInfo)
+{
+    OT_UNUSED_VARIABLE(aMessage);
+    OT_UNUSED_VARIABLE(aMessageInfo);
+
+    // ProcessResponse(aMessage);
+}
+
+Error Client::P2pSrpClientStart(Mac::ExtAddress &aExtAddress, uint16_t aSrpServerPort)
+{
+    Error         error  = kErrorNone;
+    ServerEntry  *server = nullptr;
+    Ip6::SockAddr serverSockAddr;
+    Ip6::Address  destination;
+
+    for (uint8_t i = 0; i < OPENTHREAD_CONFIG_PEER_TABLE_SZIE; i++)
+    {
+        if (mSrpServers[i].mIsValid)
+        {
+            continue;
+        }
+
+        server = &mSrpServers[i];
+        break;
+    }
+
+    VerifyOrExit(server != nullptr, error = kErrorNoBufs);
+
+    destination.Clear();
+    destination.SetToLinkLocalAddress(aExtAddress);
+
+    serverSockAddr.SetAddress(destination);
+    serverSockAddr.SetPort(aSrpServerPort);
+
+    SuccessOrExit(error = server->mSocket.Open(Ip6::kNetifThreadInternal));
+    error = server->mSocket.Connect(serverSockAddr);
+    if (error != kErrorNone)
+    {
+        LogInfo("Failed to connect to server %s: %s", serverSockAddr.GetAddress().ToString().AsCString(),
+                ErrorToString(error));
+        IgnoreError(server->mSocket.Close());
+        ExitNow();
+    }
+
+    server->mIsValid    = true;
+    server->mExtAddress = aExtAddress;
+
+    LogInfo("Client::Start ---------------------------------->");
+
+    SendUpdate(*server);
+
+exit:
+    return error;
+}
+
+Error Client::P2pSrpClientStop(Mac::ExtAddress &aExtAddress)
+{
+    Error        error  = kErrorNone;
+    ServerEntry *server = nullptr;
+
+    for (uint8_t i = 0; i < OPENTHREAD_CONFIG_PEER_TABLE_SZIE; i++)
+    {
+        if (!mSrpServers[i].mIsValid)
+        {
+            continue;
+        }
+
+        if (mSrpServers[i].mExtAddress == aExtAddress)
+        {
+            server = &mSrpServers[i];
+            break;
+        }
+    }
+
+    VerifyOrExit(server != nullptr, error = kErrorNotFound);
+
+    server->mSocket.Close();
+    server->mIsValid = false;
+
+exit:
+    return error;
+}
+
+void Client::HandleP2pTimer(void) {}
+
+void Client::SendUpdate(ServerEntry &aServer)
+{
+    static const ItemState kNewStateOnMessageTx[]{
+        /* (0) kToAdd      -> */ kAdding,
+        /* (1) kAdding     -> */ kAdding,
+        /* (2) kToRefresh  -> */ kRefreshing,
+        /* (3) kRefreshing -> */ kRefreshing,
+        /* (4) kToRemove   -> */ kRemoving,
+        /* (5) kRemoving   -> */ kRemoving,
+        /* (6) kRegistered -> */ kRegistered,
+        /* (7) kRemoved    -> */ kRemoved,
+    };
+
+    Error    error = kErrorNone;
+    MsgInfo  info;
+    uint32_t length;
+    bool     anyChanged;
+
+    info.mMessage.Reset(aServer.mSocket.NewMessage());
+    VerifyOrExit(info.mMessage != nullptr, error = kErrorNoBufs);
+
+    SuccessOrExit(error = PrepareUpdateMessage(info, aServer.mNextMessageId));
+
+    length = info.mMessage->GetLength() + sizeof(Ip6::Udp::Header) + sizeof(Ip6::Header);
+
+    if (length >= Ip6::kMaxDatagramLength)
+    {
+        LogInfo("Msg len %lu is larger than MTU, enabling single service mode", ToUlong(length));
+        aServer.mSingleServiceMode = true;
+        IgnoreError(info.mMessage->SetLength(0));
+        SuccessOrExit(error = PrepareUpdateMessage(info, aServer.mNextMessageId));
+    }
+
+    SuccessOrExit(error = aServer.mSocket.SendTo(*info.mMessage, Ip6::MessageInfo()));
+
+    // Ownership of the message is transferred to the socket upon a
+    // successful `SendTo()` call.
+
+    info.mMessage.Release();
+
+    LogInfo("Send update, msg-id:0x%x", aServer.mNextMessageId);
+
+    // State changes:
+    //   kToAdd     -> kAdding
+    //   kToRefresh -> kRefreshing
+    //   kToRemove  -> kRemoving
+
+    anyChanged = ChangeHostAndServiceStates(kNewStateOnMessageTx, kForServicesAppendedInMessage);
+
+    // `mNextMessageId` tracks the message ID used in the prepared
+    // update message. It is incremented after a successful
+    // `mSocket.SendTo()` call. If unsuccessful, the same ID can be
+    // reused for the next update.
+    //
+    // Acceptable response message IDs fall within the range starting
+    // at `mResponseMessageId ` and ending before `mNextMessageId`.
+    //
+    // `anyChanged` tracks if any host or service states have changed.
+    // If not, the prepared message is identical to the last one with
+    // the same hosts/services, allowing us to accept earlier message
+    // IDs. If changes occur, `mResponseMessageId ` is updated to
+    // ensure only responses to the latest message are accepted.
+
+    if (anyChanged)
+    {
+        aServer.mResponseMessageId = aServer.mNextMessageId;
+    }
+
+    aServer.mNextMessageId++;
+
+    // Remember the update message tx time to use later to determine the
+    // lease renew time.
+
+    if (!Get<Mle::Mle>().IsRxOnWhenIdle())
+    {
+        // If device is sleepy send fast polls while waiting for
+        // the response from server.
+        // Get<DataPollSender>().SendFastPolls(kFastPollsAfterUpdateTx);
+    }
+
+exit:
+    return;
+}
+#endif
 
 const char *Client::ItemStateToString(ItemState aState)
 {

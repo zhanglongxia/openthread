@@ -36,6 +36,8 @@
 
 #include "openthread-core-config.h"
 
+#include <openthread/p2p.h>
+
 #include "common/callback.hpp"
 #include "common/encoding.hpp"
 #include "common/locator.hpp"
@@ -49,8 +51,10 @@
 #include "meshcop/dataset.hpp"
 #include "meshcop/joiner_router.hpp"
 #include "meshcop/meshcop.hpp"
+#include "net/srp_client.hpp"
 #include "net/udp6.hpp"
 #include "thread/child.hpp"
+#include "thread/child_table.hpp"
 #include "thread/link_metrics.hpp"
 #include "thread/link_metrics_tlvs.hpp"
 #include "thread/mle_tlvs.hpp"
@@ -122,6 +126,8 @@ public:
     typedef otDetachGracefullyCallback DetachCallback; ///< Callback to signal end of graceful detach.
 
     typedef otWakeupCallback WakeupCallback; ///< Callback to communicate the result of waking a Wake-up End Device
+    typedef otP2pConnectedCallback P2pConnectedCallback;
+    typedef otP2pEventCallback     P2pEventCallback;
 
     /**
      * Initializes the MLE object.
@@ -758,7 +764,31 @@ public:
                  uint16_t               aDurationMs,
                  WakeupCallback         aCallback,
                  void                  *aCallbackContext);
+
 #endif // OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
+    Error P2pWakeupAndConnect(const Mac::WakeupAddress &aWakeupAddress,
+                              uint16_t                  aIntervalUs,
+                              uint16_t                  aDurationMs,
+                              otP2pConnectedCallback    aCallback,
+                              void                     *aContext);
+#endif
+    void  P2pSetEventCallback(otP2pEventCallback aCallback, void *aContext);
+    Error P2pDisconnect(const Mac::ExtAddress &aExtAddress);
+#if OPENTHREAD_CONFIG_SRP_SERVER_ENABLE
+    void HandleServerStateChange(void);
+#endif
+#endif
+
+#if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+    /**
+     * Handles the wake-up frame information.
+     *
+     * @param[in] aWakeupInfo   A reference to the wake-up info.
+     */
+    void HandleWakeupFrame(const Mac::WakeupInfo &aWakeupInfo);
+#endif
 
 private:
     //------------------------------------------------------------------------------------------------------------------
@@ -792,6 +822,11 @@ private:
     static constexpr uint8_t kMaxTxCount                = 3; // Max tx count for MLE message
     static constexpr uint8_t kMaxCriticalTxCount        = 6; // Max tx count for critical MLE message
     static constexpr uint8_t kMaxChildKeepAliveAttempts = 4; // Max keep alive attempts before reattach
+
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    // Max keep alive time of P2P link before removing the peer from the neighbor table, in units of milliseconds.
+    static constexpr uint16_t kMaxP2pKeepAliveBeforeRemovePeer = 2000;
+#endif
 
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     // Attach backoff feature (CONFIG_ENABLE_ATTACH_BACKOFF) - Intervals are in milliseconds.
@@ -951,11 +986,13 @@ private:
         kTypeChildUpdateRequestOfChild,
         kTypeChildUpdateResponseOfChild,
         kTypeChildUpdateResponseOfUnknownChild,
-        kTypeLinkAccept,
-        kTypeLinkAcceptAndRequest,
         kTypeLinkReject,
-        kTypeLinkRequest,
         kTypeParentRequest,
+#endif
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+        kTypeLinkRequest,
+        kTypeLinkAcceptAndRequest,
+        kTypeLinkAccept,
 #endif
 #if OPENTHREAD_CONFIG_MLE_LINK_METRICS_INITIATOR_ENABLE || OPENTHREAD_CONFIG_MLE_LINK_METRICS_SUBJECT_ENABLE
         kTypeLinkMetricsManagementRequest,
@@ -967,12 +1004,12 @@ private:
 #endif
     };
 
-#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
-    enum WedAttachState : uint8_t{
-        kWedDetached,
-        kWedAttaching,
-        kWedAttached,
-        kWedDetaching,
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    enum P2pState : uint8_t{
+        kP2pIdle,
+        kP2pAttaching,
+        kP2pAttached,
+        kP2pDetaching,
     };
 #endif
 
@@ -1029,6 +1066,9 @@ private:
 #if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
         Error AppendCslClockAccuracyTlv(void);
 #endif
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+        Error AppendLinkDataTlv(bool aIsLocalSrpServer, uint16_t aSrpServerPort);
+#endif
 #if OPENTHREAD_FTD
         Error AppendRouteTlv(Neighbor *aNeighbor = nullptr);
         Error AppendActiveDatasetTlv(void);
@@ -1069,6 +1109,11 @@ private:
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
         Error ReadCslClockAccuracyTlv(Mac::CslAccuracy &aCslAccuracy) const;
 #endif
+
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+        Error ReadLinkDataTlv(bool &aIsLocalSrpServer, uint16_t &aSrpServerPort) const;
+#endif
+
 #if OPENTHREAD_FTD
         Error ReadRouteTlv(RouteTlv &aRouteTlv) const;
 #endif
@@ -1118,14 +1163,6 @@ private:
         RxChallenge     mRxChallenge;     // The challenge from the Parent Request.
     };
 
-    struct LinkAcceptInfo
-    {
-        Mac::ExtAddress mExtAddress;       // The neighbor/router extended address.
-        TlvList         mRequestedTlvList; // The requested TLVs in Link Request.
-        RxChallenge     mRxChallenge;      // The challenge in Link Request.
-        uint8_t         mLinkMargin;       // Link margin of the received Link Request.
-    };
-
     struct DiscoveryResponseInfo
     {
         Mac::PanId mPanId;
@@ -1135,6 +1172,18 @@ private:
     };
 
 #endif // OPENTHREAD_FTD
+
+    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    struct LinkAcceptInfo
+    {
+        Mac::ExtAddress mExtAddress;       // The neighbor/router extended address.
+        TlvList         mRequestedTlvList; // The requested TLVs in Link Request.
+        RxChallenge     mRxChallenge;      // The challenge in Link Request.
+        uint8_t         mLinkMargin;       // Link margin of the received Link Request.
+    };
+#endif
 
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -1434,8 +1483,30 @@ private:
     static void Log(MessageAction, MessageType, const Ip6::Address &, uint16_t) {}
 #endif
 
-#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
-    void HandleWedAttachTimer(void);
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    void  HandleP2pTimer(void);
+    void  SendP2pLinkRequest(const Mac::ExtAddress &aExtAddress);
+    Error SendP2pLinkAccept(const LinkAcceptInfo &aInfo);
+    Error SendP2pLinkAcceptAndRequest(const LinkAcceptInfo &aInfo);
+    Error SendP2pLinkAcceptVariant(const LinkAcceptInfo &aInfo, bool aIsLinkAcceptorRequest);
+    void  HandleP2pLinkRequest(RxInfo &aRxInfo);
+    void  HandleP2pLinkAcceptAndRequest(RxInfo &aRxInfo);
+    void  HandleP2pLinkAccept(RxInfo &aRxInfo);
+    void  HandleP2pLinkAcceptVariant(RxInfo &aRxInfo, MessageType aMessageType);
+    void  HandleLinkTearDown(RxInfo &aRxInfo);
+
+#if OPENTHREAD_CONFIG_SRP_SERVER_ENABLE
+    void SrpServerUpdate(void);
+    void LinkDataUpdate(bool aSrpServerEnabled, uint16_t aSrpServerPort);
+    void SendLinkDataUpdate(Child &aChild, bool aSrpServerEnabled, uint16_t aSrpServerPort);
+#endif
+    void HandleLinkDataUpdate(RxInfo &aRxInfo);
+#endif
+
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    void HandlePeerLinkRequest(RxInfo &aRxInfo);
+    void HandlePeerLinkAcceptAndRequest(RxInfo &aRxInfo);
+    void HandlePeerLinkAccept(RxInfo &aRxInfo);
 #endif
 
 #if OT_SHOULD_LOG_AT(OT_LOG_LEVEL_NOTE)
@@ -1462,8 +1533,8 @@ private:
     using AttachTimer = TimerMilliIn<Mle, &Mle::HandleAttachTimer>;
     using MsgTxTimer  = TimerMilliIn<Mle, &Mle::HandleMessageTransmissionTimer>;
     using MleSocket   = Ip6::Udp::SocketIn<Mle, &Mle::HandleUdpReceive>;
-#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
-    using WedAttachTimer = TimerMicroIn<Mle, &Mle::HandleWedAttachTimer>;
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    using P2pTimer = TimerMicroIn<Mle, &Mle::HandleP2pTimer>;
 #endif
 
     static const otMeshLocalPrefix kMeshLocalPrefixInit;
@@ -1533,11 +1604,19 @@ private:
     Ip6::Netif::MulticastAddress mLinkLocalAllThreadNodes;
     Ip6::Netif::MulticastAddress mRealmLocalAllThreadNodes;
 
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
-    WakeupTxScheduler        mWakeupTxScheduler;
-    WedAttachState           mWedAttachState;
-    WedAttachTimer           mWedAttachTimer;
-    Callback<WakeupCallback> mWakeupCallback;
+    WakeupTxScheduler mWakeupTxScheduler;
+#endif
+    Callback<P2pConnectedCallback> mP2pConnectedCallback;
+    P2pState                       mP2pState;
+    Child                         *mP2pPeer;
+    P2pTimer                       mP2pTimer;
+    Callback<P2pEventCallback>     mP2pEventCallback;
+
+#if !OPENTHREAD_FTD
+    ChildTable mChildTable; // The child table is used as the peer table.
+#endif
 #endif
 };
 

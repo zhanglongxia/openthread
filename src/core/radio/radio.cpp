@@ -119,6 +119,7 @@ Error Radio::Transmit(Mac::TxFrame &aFrame)
     Get<Utils::Otns>().EmitTransmit(aFrame);
 #endif
 
+    otLogInfoPlat("TX: %u", aFrame.mChannel);
     return otPlatRadioTransmit(GetInstancePtr(), &aFrame);
 }
 #endif // OPENTHREAD_CONFIG_RADIO_LINK_IEEE_802_15_4_ENABLE

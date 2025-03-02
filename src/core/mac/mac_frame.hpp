@@ -1066,6 +1066,12 @@ public:
         bool mAppendCslIe : 1; ///< Whether to append CSL IE.
 #endif
         bool mEmptyPayload : 1; ///< Whether payload is empty (to decide about appending Termination2 IE).
+#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
+        bool    mAppendRendezvousTimeIe : 1;
+        bool    mAppendConnectionIe : 1;
+        bool    mIsWakeupFrame : 1;
+        uint8_t mWakeupIdLength : 4;
+#endif
 #endif
     };
 
@@ -1314,14 +1320,14 @@ public:
     /**
      * Generate IEE 802.15.4 Wake-up frame.
      *
-     * @param[in]    aPanId     A destination PAN identifier
-     * @param[in]    aDest      A destination address (short or extended)
-     * @param[in]    aSource    A source address (short or extended)
+     * @param[in]    aPanId     A destination PAN identifier.
+     * @param[in]    aWakeUpId  A Wake-up Identifier.
+     * @param[in]    aSource    A source address (short or extended).
      *
      * @retval  kErrorNone        Successfully generated Wake-up frame.
      * @retval  kErrorInvalidArgs @p aDest or @p aSource have incorrect type.
      */
-    Error GenerateWakeupFrame(PanId aPanId, const Address &aDest, const Address &aSource);
+    Error GenerateWakeupFrame(PanId aPanId, const WakeupAddress &aWakeupAddress, const Address &aSource);
 #endif
 
 #if OPENTHREAD_CONFIG_THREAD_VERSION >= OT_THREAD_VERSION_1_2

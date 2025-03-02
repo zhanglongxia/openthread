@@ -92,10 +92,22 @@ void MeshForwarder::SendMessage(OwnedPtr<Message> aMessagePtr)
         else // Destination is unicast
         {
             Neighbor *neighbor = Get<NeighborTable>().FindNeighbor(destination);
+            if (neighbor != nullptr)
+            {
+                LogInfo("SendMessage(): IsRxOnWhenIdle=%u, IsDirectTransmission=%u, InChildTable=%u, ExtAddress:%s, ",
+                        neighbor->IsRxOnWhenIdle(), message.IsDirectTransmission(),
+                        Get<ChildTable>().Contains(*neighbor), neighbor->GetExtAddress().ToString().AsCString());
+                LogInfo("SendMessage(): DeviceMode:%s", neighbor->GetDeviceMode().ToString().AsCString());
+            }
+            else
+            {
+                LogInfo("SendMessage(): SetDirectTransmission");
+            }
 
             if ((neighbor != nullptr) && !neighbor->IsRxOnWhenIdle() && !message.IsDirectTransmission() &&
                 Get<ChildTable>().Contains(*neighbor))
             {
+                LogInfo("SendMessage(): AddMessageForSleepyChild");
                 mIndirectSender.AddMessageForSleepyChild(message, *static_cast<Child *>(neighbor));
             }
             else

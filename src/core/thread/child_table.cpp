@@ -33,12 +33,13 @@
 
 #include "child_table.hpp"
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 
 #include "instance/instance.hpp"
 
 namespace ot {
 
+RegisterLogModule("ChildTable");
 ChildTable::Iterator::Iterator(Instance &aInstance, Child::StateFilter aFilter)
     : InstanceLocator(aInstance)
     , ItemPtrIterator(nullptr)
@@ -101,12 +102,14 @@ exit:
     return child;
 }
 
-Child *ChildTable::GetNewChild(void)
+Child *ChildTable::GetNewChild(Child::NeighborType aType)
 {
     Child *child = FindChild(Child::AddressMatcher(Child::kInStateInvalid));
 
     VerifyOrExit(child != nullptr);
     child->Clear();
+    child->SetNeighborType(aType);
+    LogInfo("GetNewChild() %s", aType == Child::kNeighborTypeChild ? "Child" : "Peer");
 
 exit:
     return child;
@@ -118,6 +121,12 @@ const Child *ChildTable::FindChild(const Child::AddressMatcher &aMatcher) const
 
     for (uint16_t num = mMaxChildrenAllowed; num != 0; num--, child++)
     {
+        if (child->IsStateValid())
+        {
+            LogInfo("ChildTable: index: %u, ExtAddress:%s, type:%s", mMaxChildrenAllowed - num,
+                    child->GetExtAddress().ToString().AsCString(),
+                    child->GetNeighborType() == Child::kNeighborTypeChild ? "Child" : "Peer");
+        }
         if (child->Matches(aMatcher))
         {
             ExitNow();

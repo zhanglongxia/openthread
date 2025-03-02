@@ -385,5 +385,75 @@ bool KeyMaterial::operator==(const KeyMaterial &aOther) const
 #endif
 }
 
+bool WakeupAddress::IsValid(void) const
+{
+    bool ret = true;
+
+    if (IsWakeupId())
+    {
+        const WakeupId *wakeupId = static_cast<const WakeupId *>(&mShared.mWakeupId);
+        ret                      = wakeupId->IsValid();
+    }
+
+    return ret;
+}
+
+WakeupAddress::InfoString WakeupAddress::ToString(void) const
+{
+    InfoString string;
+
+    string.Append("id: %u, ", IsWakeupId());
+    string.Append("grp: %u ", IsGroupId());
+    string.Append("m8: ");
+
+    if (IsWakeupId())
+    {
+        string.Append("%s ", GetWakeupId().ToString().AsCString());
+    }
+    else
+    {
+        string.Append("%s ", GetExtAddress().ToString().AsCString());
+    }
+
+    return string;
+}
+
+#if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+WakeupInfo::InfoString WakeupInfo::ToString(void) const
+{
+    InfoString string;
+
+    string.Append("wcaddr: ");
+    string.AppendHexBytes(mWcAddress.m8, sizeof(ExtAddress));
+    string.Append(",delayms: %lu ", ToUlong(mAttachDelayMs));
+    string.Append(",fcnt: %lu ", ToUlong(mFrameCounter));
+    string.Append(",target: %u ", mWakeupTarget);
+    string.Append(",RI: %u, RC: %u ", mRetryInterval, mRetryCount);
+    string.Append(",flags: ");
+
+    if (mIsGroupWakeup)
+    {
+        string.Append("G");
+    }
+
+    if (mIsAttached)
+    {
+        string.Append("A");
+    }
+
+    if (mIsRouter)
+    {
+        string.Append("R");
+    }
+
+    if (mIsNetworkDataCapable)
+    {
+        string.Append("N");
+    }
+
+    return string;
+}
+#endif
+
 } // namespace Mac
 } // namespace ot

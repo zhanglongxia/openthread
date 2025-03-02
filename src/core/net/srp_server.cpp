@@ -134,6 +134,13 @@ void Server::SetEnabled(bool aEnabled)
     if (aEnabled)
     {
         Enable();
+
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+        if (Get<Mle::Mle>().IsDisabled())
+        {
+            Start();
+        }
+#endif
     }
     else
     {
@@ -177,9 +184,14 @@ void Server::Enable(void)
 
     case kAddressModeUnicastForceAdd:
         SelectPort();
-        SuccessOrExit(Get<NetworkData::Service::Manager>().AddDnsSrpUnicastServiceWithAddrInServerData(
-            Get<Mle::Mle>().GetMeshLocalEid(), mPort, kSrpVersion));
-        Get<NetworkData::Notifier>().HandleServerDataUpdated();
+#if OPENTHREAD_CONFIG_SRP_SERVER_FAST_START_MODE_ENABLE
+        if (Get<Mle::Mle>().IsAttached())
+#endif
+        {
+            SuccessOrExit(Get<NetworkData::Service::Manager>().AddDnsSrpUnicastServiceWithAddrInServerData(
+                Get<Mle::Mle>().GetMeshLocalEid(), mPort, kSrpVersion));
+            Get<NetworkData::Notifier>().HandleServerDataUpdated();
+        }
         Start();
         break;
     }
@@ -274,23 +286,49 @@ void Server::HandleNotifierEvents(Events aEvents)
 
     if (mState == kStateDisabled)
     {
-        VerifyOrExit(aEvents.ContainsAny(kEventThreadRoleChanged | kEventThreadNetdataChanged));
-        VerifyOrExit(Get<Mle::Mle>().IsAttached());
-
-        if (!NetDataContainsOtherSrpServers())
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+        if (aEvents.Contains(kEventThreadChildAdded))
         {
-            LogInfo("FastStartMode - No SRP server in NetData");
-            Enable();
+            if (Get<ChildTable>().ContainsValidPeer())
+            {
+                LogInfo("FastStartMode - Start SRP server in for P2P links");
+                Enable();
+            }
+        }
+        else
+#endif
+        {
+            VerifyOrExit(aEvents.ContainsAny(kEventThreadRoleChanged | kEventThreadNetdataChanged));
+            VerifyOrExit(Get<Mle::Mle>().IsAttached());
+
+            if (!NetDataContainsOtherSrpServers())
+            {
+                LogInfo("FastStartMode - No SRP server in NetData");
+                Enable();
+            }
         }
     }
     else
     {
-        VerifyOrExit(aEvents.Contains(kEventThreadNetdataChanged));
-
-        if (NetDataContainsOtherSrpServers())
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+        if (aEvents.Contains(kEventThreadChildRemoved))
         {
-            LogInfo("FastStartMode - New SRP server entry in NetData");
-            Disable();
+            if (!Get<ChildTable>().ContainsValidPeer())
+            {
+                LogInfo("FastStartMode - Stop SRP server for no peer-to-peer links");
+                Disable();
+            }
+        }
+        else
+#endif
+        {
+            VerifyOrExit(aEvents.Contains(kEventThreadNetdataChanged));
+
+            if (NetDataContainsOtherSrpServers())
+            {
+                LogInfo("FastStartMode - New SRP server entry in NetData");
+                Disable();
+            }
         }
     }
 
@@ -778,10 +816,18 @@ void Server::Start(void)
 
     mState = kStateRunning;
     SuccessOrExit(error = PrepareSocket());
-    LogInfo("Start listening on port %u", mPort);
+    // LogInfo("Start listening on port %u", mPort);
+    LogInfo("Start listening on port %u ---------------------------->", mPort);
 
 #if OPENTHREAD_CONFIG_SRP_SERVER_ADVERTISING_PROXY_ENABLE
+
     Get<AdvertisingProxy>().HandleServerStateChange();
+#endif
+
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE && OPENTHREAD_CONFIG_SRP_SERVER_FAST_START_MODE_ENABLE
+    if (mFastStartMode) {
+        Get<Mle::Mle>().HandleServerStateChange();
+    }
 #endif
 
 exit:

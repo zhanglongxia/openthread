@@ -72,7 +72,7 @@ protected:
         kActionSave,
         kActionResave,
         kActionDelete,
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
         kActionAdd,
         kActionRemove,
         kActionDeleteAll,
@@ -368,7 +368,7 @@ public:
         uint16_t        mVersion;    ///< Version
     } OT_TOOL_PACKED_END;
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     /**
      * Represents the child information for settings storage.
      */
@@ -943,7 +943,7 @@ public:
      */
     template <typename EntryType> Error Delete(void) { return DeleteEntry(EntryType::kKey); }
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     /**
      * Adds a Child Info entry to settings.
      *
@@ -1127,7 +1127,7 @@ public:
 #endif // OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE
 
 private:
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     class ChildInfoIteratorBuilder : public InstanceLocator
     {
     public:

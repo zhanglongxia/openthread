@@ -44,17 +44,20 @@ RegisterLogModule("SubMac");
 
 void SubMac::WedInit(void)
 {
+    mIsWedSampling        = false;
+    mIsWedEnabled         = false;
     mWakeupListenInterval = 0;
     mWedTimer.Stop();
 }
 
 void SubMac::UpdateWakeupListening(bool aEnable, uint32_t aInterval, uint32_t aDuration, uint8_t aChannel)
 {
-    VerifyOrExit(RadioSupportsReceiveTiming());
-
     mWakeupListenInterval = aInterval;
     mWakeupListenDuration = aDuration;
     mWakeupChannel        = aChannel;
+    mIsWedEnabled         = aEnable;
+    mIsWedSampling        = false;
+
     mWedTimer.Stop();
 
     if (aEnable)
@@ -64,14 +67,27 @@ void SubMac::UpdateWakeupListening(bool aEnable, uint32_t aInterval, uint32_t aD
 
         HandleWedTimer();
     }
-
-exit:
-    return;
+    else if (!RadioSupportsReceiveTiming())
+    {
+        UpdateRadioSampleState();
+    }
 }
 
 void SubMac::HandleWedTimer(Timer &aTimer) { aTimer.Get<SubMac>().HandleWedTimer(); }
 
 void SubMac::HandleWedTimer(void)
+{
+    if (RadioSupportsReceiveTiming())
+    {
+        HandleWedReceiveAt();
+    }
+    else
+    {
+        HandleWedReceiveOrSleep();
+    }
+}
+
+void SubMac::HandleWedReceiveAt(void)
 {
     mWedSampleTime += mWakeupListenInterval;
     mWedSampleTimeRadio += mWakeupListenInterval;
@@ -82,6 +98,74 @@ void SubMac::HandleWedTimer(void)
         IgnoreError(
             Get<Radio>().ReceiveAt(mWakeupChannel, static_cast<uint32_t>(mWedSampleTimeRadio), mWakeupListenDuration));
     }
+}
+
+void SubMac::HandleWedReceiveOrSleep(void)
+{
+    TimeMilli fireTime;
+
+    mIsWedSampling = !mIsWedSampling;
+
+    if (mIsWedSampling)
+    {
+        fireTime = mWedSampleTime + mWakeupListenDuration + kMinReceiveOnAfter;
+    }
+    else
+    {
+        mWedSampleTime += mWakeupListenInterval;
+        fireTime = mWedSampleTime - kMinReceiveOnAhead;
+    }
+
+    mWedTimer.FireAt(fireTime);
+
+    LogDebg("Wed Listener, mIsWedSampling %u, channel %u", mIsWedSampling, mWakeupChannel);
+    UpdateRadioSampleState();
+}
+
+Error SubMac::AddWakeupId(const WakeupId &aWakeupId)
+{
+    Error error = kErrorNone;
+
+    VerifyOrExit(!mWakeupIdTable.IsFull(), error = kErrorNoBufs);
+    error = mWakeupIdTable.PushBack(aWakeupId);
+exit:
+    return error;
+}
+
+Error SubMac::RemoveWakeupId(const WakeupId &aWakeupId)
+{
+    Error     error = kErrorNone;
+    WakeupId *wakeupId;
+
+    wakeupId = mWakeupIdTable.Find(aWakeupId);
+    VerifyOrExit(wakeupId != nullptr, error = kErrorNotFound);
+    mWakeupIdTable.Remove(*wakeupId);
+
+exit:
+    return error;
+}
+
+void SubMac::ClearWakeupIds(void) { mWakeupIdTable.Clear(); }
+
+bool SubMac::ShouldHandleWakeupFrame(const RxFrame &aFrame)
+{
+    bool                ret = false;
+    Address             dstAddr;
+    WakeupId            wakeupId;
+    const ConnectionIe *connectionIe;
+
+    VerifyOrExit(mIsWedEnabled);
+
+    SuccessOrExit(aFrame.GetDstAddr(dstAddr));
+    VerifyOrExit(dstAddr.IsBroadcast(), ret = true);
+
+    VerifyOrExit((connectionIe = aFrame.GetConnectionIe()) != nullptr);
+    SuccessOrExit(connectionIe->GetWakeupId(wakeupId));
+    VerifyOrExit(mWakeupIdTable.Contains(wakeupId));
+    ret = true;
+
+exit:
+    return ret;
 }
 
 } // namespace Mac

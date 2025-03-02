@@ -92,7 +92,7 @@ void SubMac::CslSample(void)
     VerifyOrExit(!mRadioFilterEnabled, IgnoreError(Get<Radio>().Sleep()));
 #endif
 
-    SetState(kStateCslSample);
+    SetState(kStateRadioSample);
 
     if (mIsCslSampling && !RadioSupportsReceiveTiming())
     {
@@ -115,21 +115,30 @@ void SubMac::SetCslParams(uint16_t aPeriod, uint8_t aChannel, ShortAddress aShor
     bool diffPeer    = aShortAddr != mCslPeerShort;
     bool retval      = diffPeriod || diffChannel || diffPeer;
 
+    LogInfo("SetCslParams() CSLEnabled:%u, period(%u, %u), channel(%u,%u), peer(0x%04x, 0x%04x)", (aPeriod > 0),
+            mCslPeriod, aPeriod, mCslPeriod, aPeriod, mCslPeerShort, aShortAddr);
+
     VerifyOrExit(retval);
     mCslChannel = aChannel;
 
     VerifyOrExit(diffPeriod || diffPeer);
-    mCslPeriod    = aPeriod;
     mCslPeerShort = aShortAddr;
     IgnoreError(Get<Radio>().EnableCsl(aPeriod, aShortAddr, aExtAddr));
+
+    mCslPeriod     = aPeriod;
+    mIsCslSampling = false;
 
     mCslTimer.Stop();
     if (mCslPeriod > 0)
     {
         mCslSampleTimeRadio = static_cast<uint32_t>(Get<Radio>().GetNow());
         mCslSampleTimeLocal = TimerMicro::GetNow();
-        mIsCslSampling      = false;
+
         HandleCslTimer();
+    }
+    else if (!RadioSupportsReceiveTiming())
+    {
+        UpdateRadioSampleState();
     }
 
 exit:
@@ -213,11 +222,8 @@ void SubMac::HandleCslReceiveOrSleep(uint32_t aTimeAhead, uint32_t aTimeAfter)
     {
         mIsCslSampling = false;
         mCslTimer.FireAt(mCslSampleTimeLocal - aTimeAhead);
-        if (mState == kStateCslSample)
+        if (mState == kStateRadioSample)
         {
-#if !OPENTHREAD_CONFIG_MAC_CSL_DEBUG_ENABLE
-            IgnoreError(Get<Radio>().Sleep()); // Don't actually sleep for debugging
-#endif
             LogDebg("CSL sleep %lu", ToUlong(mCslTimer.GetNow().GetValue()));
         }
     }
@@ -236,13 +242,11 @@ void SubMac::HandleCslReceiveOrSleep(uint32_t aTimeAhead, uint32_t aTimeAfter)
         mCslSampleTimeLocal += periodUs;
 
         Get<Radio>().UpdateCslSampleTime(mCslSampleTimeRadio);
-        if (mState == kStateCslSample)
-        {
-            IgnoreError(Get<Radio>().Receive(mCslChannel));
-        }
 
         LogCslWindow(winStart, winDuration);
     }
+
+    UpdateRadioSampleState();
 }
 
 void SubMac::GetCslWindowEdges(uint32_t &aAhead, uint32_t &aAfter)
@@ -288,7 +292,7 @@ uint32_t SubMac::GetLocalTime(void)
 #if OT_SHOULD_LOG_AT(OT_LOG_LEVEL_DEBG)
 void SubMac::LogCslWindow(uint32_t aWinStart, uint32_t aWinDuration)
 {
-    LogDebg("CSL window start %lu, duration %lu", ToUlong(aWinStart), ToUlong(aWinDuration));
+    LogDebg("CSL window start %lu, duration %lu, channel %u", ToUlong(aWinStart), ToUlong(aWinDuration), mCslChannel);
 }
 #else
 void SubMac::LogCslWindow(uint32_t, uint32_t) {}
@@ -313,7 +317,7 @@ void SubMac::LogReceived(RxFrame *aFrame)
             mIsCslSampling ? "CslSample" : "CslSleep",
             ToUlong(static_cast<uint32_t>(aFrame->mInfo.mRxInfo.mTimestamp)));
 
-    VerifyOrExit(mState == kStateCslSample);
+    VerifyOrExit(mState == kStateRadioSample);
 
     GetCslWindowEdges(ahead, after);
     ahead -= kMinReceiveOnAhead + kCslReceiveTimeAhead;

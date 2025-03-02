@@ -36,6 +36,7 @@
 
 #include "openthread-core-config.h"
 
+#include <openthread/logging.h>
 #include <openthread/radio_stats.h>
 #include <openthread/platform/crypto.h>
 #include <openthread/platform/radio.h>
@@ -949,6 +950,7 @@ inline Error Radio::Sleep(void)
 #if OPENTHREAD_CONFIG_RADIO_STATS_ENABLE && (OPENTHREAD_FTD || OPENTHREAD_MTD)
     mStatistics.RecordStateChange(Statistics::kSleep);
 #endif
+    otLogInfoPlat("Sleep");
     return otPlatRadioSleep(GetInstancePtr());
 }
 
@@ -957,6 +959,8 @@ inline Error Radio::Receive(uint8_t aChannel)
 #if OPENTHREAD_CONFIG_RADIO_STATS_ENABLE && (OPENTHREAD_FTD || OPENTHREAD_MTD)
     mStatistics.RecordStateChange(Statistics::kReceive);
 #endif
+
+    otLogInfoPlat("Rx: %u", aChannel);
     return otPlatRadioReceive(GetInstancePtr(), aChannel);
 }
 
