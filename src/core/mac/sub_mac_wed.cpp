@@ -44,14 +44,14 @@ RegisterLogModule("SubMac");
 
 void SubMac::WedInit(void)
 {
+    mIsWedSampling        = false;
+    mIsWedEnabled         = false;
     mWakeupListenInterval = 0;
     mWedTimer.Stop();
 }
 
 void SubMac::UpdateWakeupListening(bool aEnable, uint32_t aInterval, uint32_t aDuration, uint8_t aChannel)
 {
-    VerifyOrExit(RadioSupportsReceiveTiming());
-
     mWakeupListenInterval = aInterval;
     mWakeupListenDuration = aDuration;
     mWakeupChannel        = aChannel;
@@ -59,19 +59,36 @@ void SubMac::UpdateWakeupListening(bool aEnable, uint32_t aInterval, uint32_t aD
 
     if (aEnable)
     {
+        mIsWedSampling      = true;
         mWedSampleTime      = TimerMicro::GetNow() + kCslReceiveTimeAhead - mWakeupListenInterval;
         mWedSampleTimeRadio = Get<Radio>().GetNow() + kCslReceiveTimeAhead - mWakeupListenInterval;
 
         HandleWedTimer();
     }
+    else if ((mState == kStateRadioSample) && (!RadioSupportsReceiveTiming()))
+    {
+        // Give CSL and SubMac a chance to enter sleep state.
+        RequestSleep(kRequesterWed);
+    }
 
-exit:
-    return;
+    mIsWedEnabled = aEnable;
 }
 
 void SubMac::HandleWedTimer(Timer &aTimer) { aTimer.Get<SubMac>().HandleWedTimer(); }
 
 void SubMac::HandleWedTimer(void)
+{
+    if (RadioSupportsReceiveTiming())
+    {
+        HandleWedReceiveAt();
+    }
+    else
+    {
+        HandleWedReceiveOrSleep();
+    }
+}
+
+void SubMac::HandleWedReceiveAt(void)
 {
     mWedSampleTime += mWakeupListenInterval;
     mWedSampleTimeRadio += mWakeupListenInterval;
@@ -84,6 +101,28 @@ void SubMac::HandleWedTimer(void)
     }
 }
 
+void SubMac::HandleWedReceiveOrSleep(void)
+{
+    uint32_t interval = mIsWedSampling ? mWakeupListenDuration : (mWakeupListenInterval - mWakeupListenDuration);
+    int32_t  delay    = mIsWedSampling ? kMinReceiveOnAfter : -kMinReceiveOnAhead;
+
+    mWedSampleTime += interval;
+    mWedTimer.FireAt(mWedSampleTime + delay);
+
+    if (mState == kStateRadioSample)
+    {
+        if (mIsWedSampling)
+        {
+            RequestReceive(kRequesterWed);
+        }
+        else
+        {
+            RequestSleep(kRequesterWed);
+        }
+    }
+
+    mIsWedSampling = !mIsWedSampling;
+}
 } // namespace Mac
 } // namespace ot
 
