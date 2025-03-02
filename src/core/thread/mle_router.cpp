@@ -2972,7 +2972,7 @@ Error MleRouter::SendChildIdResponse(Child &aChild)
 
     SetChildStateToValid(aChild);
 
-    if (!aChild.IsRxOnWhenIdle())
+    if (!aChild.IsRxOnWhenIdle() && aChild.IsChild())
     {
         Get<IndirectSender>().SetChildUseShortAddress(aChild, false);
     }

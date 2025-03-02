@@ -33,7 +33,7 @@
 
 #include "data_poll_handler.hpp"
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 
 #include "instance/instance.hpp"
 
@@ -96,6 +96,11 @@ void DataPollHandler::HandleDataPoll(Mac::RxFrame &aFrame)
     child = Get<ChildTable>().FindChild(macSource, Child::kInStateValidOrRestoring);
     VerifyOrExit(child != nullptr);
 
+    if (child->GetNeighborType() == Child::kNeighborTypeChild)
+    {
+        VerifyOrExit(!Get<Mle::MleRouter>().IsDetached());
+    }
+
     child->SetLastHeard(TimerMilli::GetNow());
     child->ResetLinkFailures();
 #if OPENTHREAD_CONFIG_MULTI_RADIO
@@ -103,9 +108,6 @@ void DataPollHandler::HandleDataPoll(Mac::RxFrame &aFrame)
 #endif
 
     indirectMsgCount = child->GetIndirectMessageCount();
-
-    LogInfo("Rx data poll, src:0x%04x, qed_msgs:%d, rss:%d, ack-fp:%d", child->GetRloc16(), indirectMsgCount,
-            aFrame.GetRssi(), aFrame.IsAckedWithFramePending());
 
     if (!aFrame.IsAckedWithFramePending())
     {

@@ -759,7 +759,13 @@ Mac::TxFrame *MeshForwarder::HandleFrameRequest(Mac::TxFrames &aTxFrames)
             VerifyOrExit(frame != nullptr);
         }
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-        else if (Get<Mac::Mac>().IsCslEnabled() && mSendMessage->IsSubTypeMle())
+        else if (Get<Mac::Mac>().IsCslEnabled() && mSendMessage->IsSubTypeMle()
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+                 && !mSendMessage->IsMleCommand(Mle::kCommandLinkRequest) &&
+                 !mSendMessage->IsMleCommand(Mle::kCommandLinkAcceptAndRequest) &&
+                 !mSendMessage->IsMleCommand(Mle::kCommandLinkAccept)
+#endif
+        )
         {
             mSendMessage->SetLinkSecurityEnabled(true);
         }

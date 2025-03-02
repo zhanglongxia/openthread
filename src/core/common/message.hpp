@@ -234,7 +234,7 @@ protected:
         void        *mQueue;       // The queue where message is queued (if any). Queue type from `mInPriorityQ`.
         RssAverager  mRssAverager; // The averager maintaining the received signal strength (RSS) average.
         LqiAverager  mLqiAverager; // The averager maintaining the Link quality indicator (LQI) average.
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
         ChildMask mChildMask; // ChildMask to indicate which sleepy children need to receive this.
 #endif
     };
@@ -1055,7 +1055,7 @@ public:
      */
     void SetDatagramTag(uint32_t aTag) { GetMetadata().mDatagramTag = aTag; }
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     /**
      * Gets the indirect transmission `ChildMask` associated with this `Message`.
      *

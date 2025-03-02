@@ -36,6 +36,7 @@
 
 #include "openthread-core-config.h"
 
+#include <openthread/logging.h>
 #include <openthread/radio_stats.h>
 #include <openthread/platform/crypto.h>
 #include <openthread/platform/radio.h>

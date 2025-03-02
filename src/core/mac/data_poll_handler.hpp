@@ -57,7 +57,7 @@ namespace ot {
 
 #if OPENTHREAD_FTD || OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 class Child;
 #endif
 
@@ -134,7 +134,7 @@ public:
         static_assert(kMaxPollTriggeredTxAttempts < (1 << 5), "mIndirectTxAttempts cannot fit max!");
     };
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 
     /**
      * Initializes the data poll handler object.

@@ -412,6 +412,7 @@ Error Client::Start(const Ip6::SockAddr &aServerSockAddr, Requester aRequester)
         ExitNow();
     }
 
+    LogInfo("Client::Start ---------------------------------->");
     LogInfo("%starting, server %s", (aRequester == kRequesterUser) ? "S" : "Auto-s",
             aServerSockAddr.ToString().AsCString());
 

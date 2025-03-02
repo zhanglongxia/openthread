@@ -291,6 +291,34 @@ public:
 
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE || OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
 /**
+ * Implements Thread Header IE generation and parsing.
+ */
+OT_TOOL_PACKED_BEGIN
+class ThreadIeHeader
+{
+public:
+    static constexpr uint8_t kHeaderIeId    = 0x21;
+    static constexpr uint8_t kIeContentSize = sizeof(uint8_t);
+
+    /**
+     * Returns the command.
+     *
+     * @returns The command.
+     */
+    uint8_t GetCommand(void) const { return mCommand; }
+
+    /**
+     * Sets the command.
+     *
+     * @param[in]  aCommand  A command.
+     */
+    void SetCommand(uint8_t aCommand) { mCommand = aCommand; }
+
+private:
+    uint8_t mCommand;
+} OT_TOOL_PACKED_END;
+
+/**
  * This class implements Rendezvous Time IE data structure.
  *
  * IEEE 802.15.4 Rendezvous Time IE contains two fields, Rendezvous Time and
@@ -330,8 +358,15 @@ class ConnectionIe : public VendorIeHeader
 {
 public:
     static constexpr uint8_t kHeaderIeId      = ThreadIe::kHeaderIeId;
-    static constexpr uint8_t kIeContentSize   = ThreadIe::kIeContentSize + sizeof(uint8_t);
+    static constexpr uint8_t kIeContentSize   = ThreadIe::kIeContentSize + sizeof(uint16_t);
     static constexpr uint8_t kThreadIeSubtype = 0x01;
+
+    enum WakeupTarget : uint8_t
+    {
+        kWakeupTargetPeer           = 0, ///< A Peer Thread device.
+        kWakeupTargetSpecificParent = 1, ///< The current Parent of the WED as indicated by address.
+        kWakeupTargetAnyParent      = 2, ///< Any Parent of the WED.
+    };
 
     /**
      * Initializes the Connection IE.
@@ -341,6 +376,7 @@ public:
         SetVendorOui(ThreadIe::kVendorOuiThreadCompanyId);
         SetSubType(kThreadIeSubtype);
         mConnectionWindow = 0;
+        mFlags            = 0;
     }
 
     /**
@@ -371,24 +407,179 @@ public:
      *
      * @returns the Retry Count.
      */
-    uint8_t GetRetryCount(void) const { return mConnectionWindow & kRetryCountMask; }
+    uint8_t GetRetryCount(void) const { return (mConnectionWindow & kRetryCountMask) >> kRetryCountOffset; }
 
     /**
-     * Sets the Retry Count
+     * Sets the Retry Count.
      *
      * @param[in]  aRetryCount  The Retry Count.
      */
     void SetRetryCount(uint8_t aRetryCount)
     {
-        mConnectionWindow = aRetryCount | (mConnectionWindow & ~kRetryCountMask);
+        mConnectionWindow = (aRetryCount << kRetryCountOffset) | (mConnectionWindow & ~kRetryCountMask);
+    }
+
+    /**
+     * Sets the wake-up target.
+     *
+     * @param[in]  aTarget  The wake-up target.
+     */
+    void SetWakeupTarget(WakeupTarget aTarget)
+    {
+        mConnectionWindow = (aTarget << kWakeupTargetOffset) | (mConnectionWindow & ~kWakeupTargetMask);
+    }
+
+    /**
+     * Returns the wake-up target.
+     *
+     * @returns the wake-up target.
+     */
+    WakeupTarget GetWakeupTarget(void) const
+    {
+        return static_cast<WakeupTarget>((mConnectionWindow & kWakeupTargetMask) >> kWakeupTargetOffset);
+    }
+
+    /**
+     * Sets the Group Wake-up flag.
+     *
+     * @param[in]  aGroupWakeupFlag  The Group Wake-up flag.
+     */
+    void SetGroupWakeupFlag(bool aGroupWakeupFlag) { SetFlag(kGroupWakeupFlagOffset, aGroupWakeupFlag); }
+
+    /**
+     * Indicates whether or not the Group Wake-up flag is set.
+     *
+     * @returns TRUE if the Group Wake-up flag is set, FALSE otherwise.
+     */
+    bool GetGroupWakeupFlag(void) const { return GetFlag(kGroupWakeupFlagOffset); }
+
+    /**
+     * Sets the Attached flag.
+     *
+     * @param[in]  aAttachedFlag  The Attached flag.
+     */
+    void SetAttachedFlag(bool aAttachedFlag) { SetFlag(kAttachedFlagOffset, aAttachedFlag); }
+
+    /**
+     * Indicates whether or not the Attached flag is set.
+     *
+     * @returns TRUE if the Attached flag is set, FALSE otherwise.
+     */
+    bool GetAttachedFlag(void) const { return GetFlag(kAttachedFlagOffset); }
+
+    /**
+     * Sets the Router flag.
+     *
+     * @param[in]  aRouterFlag  The Router flag.
+     */
+    void SetRouterFlag(bool aRouterFlag) { SetFlag(kRouterFlagOffset, aRouterFlag); }
+
+    /**
+     * Indicates whether or not the Router flag is set.
+     *
+     * @returns TRUE if the Router flag is set, FALSE otherwise.
+     */
+    bool GetRouterFlag(void) const { return GetFlag(kRouterFlagOffset); }
+
+    /**
+     * Sets the Network Data flag.
+     *
+     * @param[in]  aNetworkDataFlag  The Network Data flag.
+     */
+    void SetNetworkDataFlag(bool aNetworkDataFlag) { SetFlag(kNetworkDataFlagOffset, aNetworkDataFlag); }
+
+    /**
+     * Indicates whether or not the Network Data flag is set.
+     *
+     * @returns TRUE if the Network Data flag is set, FALSE otherwise.
+     */
+    bool GetNetworkDataFlag(void) const { return GetFlag(kNetworkDataFlagOffset); }
+
+    /**
+     * Sets the Wake-up Identifier.
+     *
+     * @param[in]  aWakeupId  A reference to the Wake-up Identifier.
+     *
+     * @retval kErrorNone         Successfully set the Wake-up Identifier.
+     * @retval kErrorInvalidArgs  The length of the given Wake-up Identifier didn't match the reserved length.
+     */
+    Error SetWakeupId(WakeupId &aWakeupId)
+    {
+        Error           error    = kErrorNone;
+        const HeaderIe *headerIe = GetHeaderIe();
+
+        VerifyOrExit(headerIe->GetLength() > sizeof(ConnectionIe), error = kErrorInvalidArgs);
+        VerifyOrExit(headerIe->GetLength() - sizeof(ConnectionIe) == aWakeupId.GetLength(), error = kErrorInvalidArgs);
+
+        aWakeupId.CopyTo(GetWakeupId());
+
+    exit:
+        return error;
+    }
+
+    /**
+     * Gets the Wake-up Identifier.
+     *
+     * @param[out]  aWakeupId  A reference to the Wake-up Identifier.
+     *
+     * @retval kErrorNone      Successfully got the Wake-up Identifier.
+     * @retval kErrorNotFound  The Wake-up Identifier is not found.
+     */
+    Error GetWakeupId(WakeupId &aWakeupId) const
+    {
+        Error           error    = kErrorNone;
+        const HeaderIe *headerIe = GetHeaderIe();
+        uint8_t         wakeupIdLength;
+
+        VerifyOrExit(headerIe->GetLength() > sizeof(ConnectionIe), error = kErrorNotFound);
+
+        wakeupIdLength = headerIe->GetLength() - sizeof(ConnectionIe);
+        VerifyOrExit(wakeupIdLength >= OT_MIN_WAKEUP_ID_SIZE && wakeupIdLength <= OT_MAX_WAKEUP_ID_SIZE,
+                     error = kErrorNotFound);
+
+        aWakeupId.Set(GetWakeupId(), wakeupIdLength);
+
+    exit:
+        return error;
+    }
+
+    const HeaderIe *GetHeaderIe(void) const
+    {
+        return reinterpret_cast<const HeaderIe *>(reinterpret_cast<const uint8_t *>(this) - sizeof(HeaderIe));
     }
 
 private:
-    static constexpr uint8_t kRetryIntervalOffset = 4;
+    static constexpr uint8_t kWakeupTargetOffset  = 0;
+    static constexpr uint8_t kWakeupTargetMask    = 0x3 << kWakeupTargetOffset;
+    static constexpr uint8_t kRetryIntervalOffset = 2;
     static constexpr uint8_t kRetryIntervalMask   = 0x3 << kRetryIntervalOffset;
-    static constexpr uint8_t kRetryCountMask      = 0xf;
+    static constexpr uint8_t kRetryCountOffset    = 4;
+    static constexpr uint8_t kRetryCountMask      = 0xf << kRetryCountOffset;
+
+    static constexpr uint8_t kGroupWakeupFlagOffset = 0;
+    static constexpr uint8_t kAttachedFlagOffset    = 1;
+    static constexpr uint8_t kRouterFlagOffset      = 2;
+    static constexpr uint8_t kNetworkDataFlagOffset = 3;
+
+    const uint8_t *GetWakeupId(void) const { return reinterpret_cast<const uint8_t *>(this) + sizeof(*this); }
+    uint8_t       *GetWakeupId(void) { return reinterpret_cast<uint8_t *>(this) + sizeof(*this); }
+
+    void SetFlag(uint8_t aOffset, bool aValue)
+    {
+        if (aValue)
+        {
+            mFlags = mFlags | (1 << aOffset);
+        }
+        else
+        {
+            mFlags = mFlags & (~(1 << aOffset));
+        }
+    }
+
+    bool GetFlag(uint8_t aOffset) const { return mFlags & (1 << aOffset); }
 
     uint8_t mConnectionWindow;
+    uint8_t mFlags;
 } OT_TOOL_PACKED_END;
 #endif // OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE || OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
 

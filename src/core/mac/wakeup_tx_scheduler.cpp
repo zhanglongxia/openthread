@@ -51,19 +51,20 @@ WakeupTxScheduler::WakeupTxScheduler(Instance &aInstance)
     UpdateFrameRequestAhead();
 }
 
-Error WakeupTxScheduler::WakeUp(const Mac::ExtAddress &aWedAddress, uint16_t aIntervalUs, uint16_t aDurationMs)
+Error WakeupTxScheduler::WakeUp(const Mac::WakeupAddress &aWakeupAddress, uint16_t aIntervalUs, uint16_t aDurationMs)
 {
     Error error = kErrorNone;
 
     VerifyOrExit(!mIsRunning, error = kErrorInvalidState);
 
-    mWedAddress  = aWedAddress;
+    mWakeupAddress = aWakeupAddress;
+
     mTxTimeUs    = TimerMicro::GetNow() + mTxRequestAheadTimeUs;
     mTxEndTimeUs = mTxTimeUs + aDurationMs * Time::kOneMsecInUsec + aIntervalUs;
     mIntervalUs  = aIntervalUs;
     mIsRunning   = true;
 
-    LogInfo("Started wake-up sequence to %s", aWedAddress.ToString().AsCString());
+    LogInfo("Started wake-up sequence to %s", aWakeupAddress.ToString().AsCString());
 
     ScheduleTimer();
 
@@ -74,6 +75,45 @@ exit:
 void WakeupTxScheduler::RequestWakeupFrameTransmission(void) { Get<Mac::Mac>().RequestWakeupFrameTransmission(); }
 
 #if OPENTHREAD_CONFIG_RADIO_LINK_IEEE_802_15_4_ENABLE
+Error WakeupTxScheduler::GenerateWakeupFrame(Mac::TxFrame             &aTxFrames,
+                                             Mac::PanId                aPanId,
+                                             const Mac::WakeupAddress &aWakeupAddress,
+                                             const Mac::Address       &aSource)
+{
+    Error              error = kErrorNone;
+    Mac::TxFrame::Info frameInfo;
+
+    VerifyOrExit(aWakeupAddress.IsValid() && !aSource.IsNone(), error = kErrorInvalidArgs);
+
+    frameInfo.mAddrs.mSource = aSource;
+    if (aWakeupAddress.IsWakeupId())
+    {
+        frameInfo.mAddrs.mDestination.SetShort(Mac::kShortAddrBroadcast);
+        frameInfo.mWakeupIdLength = aWakeupAddress.GetWakeupId().GetLength();
+    }
+    else
+    {
+        frameInfo.mAddrs.mDestination.SetExtended(aWakeupAddress.GetExtAddress());
+        frameInfo.mWakeupIdLength = 0;
+    }
+
+    frameInfo.mPanIds.SetDestination(aPanId);
+
+    frameInfo.mType                   = Mac::Frame::kTypeData;
+    frameInfo.mVersion                = Mac::Frame::kVersion2015;
+    frameInfo.mSecurityLevel          = Mac::Frame::kSecurityEncMic32;
+    frameInfo.mKeyIdMode              = Mac::Frame::kKeyIdMode2;
+    frameInfo.mSuppressSequence       = true;
+    frameInfo.mAppendRendezvousTimeIe = true;
+    frameInfo.mAppendConnectionIe     = true;
+    frameInfo.mIsWakeupFrame          = true;
+
+    frameInfo.PrepareHeadersIn(aTxFrames);
+
+exit:
+
+    return error;
+}
 
 Mac::TxFrame *WakeupTxScheduler::PrepareWakeupFrame(Mac::TxFrames &aTxFrames)
 {
@@ -87,7 +127,6 @@ Mac::TxFrame *WakeupTxScheduler::PrepareWakeupFrame(Mac::TxFrames &aTxFrames)
 
     VerifyOrExit(mIsRunning);
 
-    target.SetExtended(mWedAddress);
     source.SetExtended(Get<Mac::Mac>().GetExtAddress());
     VerifyOrExit(mTxTimeUs >= nowUs);
     radioTxDelay = mTxTimeUs - nowUs;
@@ -98,7 +137,8 @@ Mac::TxFrame *WakeupTxScheduler::PrepareWakeupFrame(Mac::TxFrames &aTxFrames)
     frame = &aTxFrames.GetTxFrame();
 #endif
 
-    VerifyOrExit(frame->GenerateWakeupFrame(Get<Mac::Mac>().GetPanId(), target, source) == kErrorNone, frame = nullptr);
+    VerifyOrExit(GenerateWakeupFrame(*frame, Get<Mac::Mac>().GetPanId(), mWakeupAddress, source) == kErrorNone,
+                 frame = nullptr);
     frame->SetTxDelayBaseTime(static_cast<uint32_t>(Get<Radio>().GetNow()));
     frame->SetTxDelay(radioTxDelay);
     frame->SetCsmaCaEnabled(kWakeupFrameTxCca);
@@ -106,8 +146,8 @@ Mac::TxFrame *WakeupTxScheduler::PrepareWakeupFrame(Mac::TxFrames &aTxFrames)
     frame->SetMaxFrameRetries(0);
 
     // Rendezvous Time is the time between the end of a wake-up frame and the start of the first payload frame.
-    // For the n-th wake-up frame, set the Rendezvous Time so that the expected reception of a Parent Request happens in
-    // the "free space" between the "n+1"-th and "n+2"-th wake-up frame.
+    // For the n-th wake-up frame, set the Rendezvous Time so that the expected reception of a Parent Request
+    // happens in the "free space" between the "n+1"-th and "n+2"-th wake-up frame.
     rendezvousTimeUs = mIntervalUs;
     rendezvousTimeUs += (mIntervalUs - (kWakeupFrameLength + kParentRequestLength) * kOctetDuration) / 2;
     frame->GetRendezvousTimeIe()->SetRendezvousTime(rendezvousTimeUs / kUsPerTenSymbols);
@@ -115,6 +155,20 @@ Mac::TxFrame *WakeupTxScheduler::PrepareWakeupFrame(Mac::TxFrames &aTxFrames)
     connectionIe = frame->GetConnectionIe();
     connectionIe->SetRetryInterval(kConnectionRetryInterval);
     connectionIe->SetRetryCount(kConnectionRetryCount);
+
+    if (mWakeupAddress.IsWakeupId())
+    {
+        VerifyOrExit(connectionIe->SetWakeupId(mWakeupAddress.GetWakeupId()) == kErrorNone, frame = nullptr);
+    }
+
+    {
+        static constexpr uint16_t kBufSize = 257;
+        char                      buf[kBufSize];
+        StringWriter              writer(buf, sizeof(buf));
+
+        writer.AppendHexBytes(frame->mPsdu, frame->mLength);
+        LogInfo("Wake-up frame: len:%u, psdu:%s", frame->mLength, buf);
+    }
 
     // Advance to the time of the next wake-up frame.
     mTxTimeUs = Max(mTxTimeUs + mIntervalUs, TimerMicro::GetNow() + mTxRequestAheadTimeUs);

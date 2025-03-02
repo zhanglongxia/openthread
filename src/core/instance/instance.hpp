@@ -646,7 +646,7 @@ private:
 #endif
 #endif
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     ChildSupervisor mChildSupervisor;
 #endif
     SupervisionListener mSupervisionListener;
@@ -798,9 +798,11 @@ template <> inline Mle::DiscoverScanner &Instance::Get(void) { return mDiscoverS
 
 template <> inline NeighborTable &Instance::Get(void) { return mMleRouter.mNeighborTable; }
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 template <> inline ChildTable &Instance::Get(void) { return mMleRouter.mChildTable; }
+#endif
 
+#if OPENTHREAD_FTD
 template <> inline RouterTable &Instance::Get(void) { return mMleRouter.mRouterTable; }
 #endif
 
@@ -844,7 +846,7 @@ template <> inline IndirectSender &Instance::Get(void) { return mMeshForwarder.m
 template <> inline CslTxScheduler &Instance::Get(void) { return mMeshForwarder.mIndirectSender.mCslTxScheduler; }
 #endif
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 
 template <> inline SourceMatchController &Instance::Get(void)
 {
@@ -852,7 +854,9 @@ template <> inline SourceMatchController &Instance::Get(void)
 }
 
 template <> inline DataPollHandler &Instance::Get(void) { return mMeshForwarder.mIndirectSender.mDataPollHandler; }
+#endif
 
+#if OPENTHREAD_FTD
 template <> inline MeshCoP::Leader &Instance::Get(void) { return mLeader; }
 
 template <> inline MeshCoP::JoinerRouter &Instance::Get(void) { return mJoinerRouter; }
@@ -986,7 +990,7 @@ template <> inline Utils::JamDetector &Instance::Get(void) { return mJamDetector
 template <> inline Sntp::Client &Instance::Get(void) { return mSntpClient; }
 #endif
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 template <> inline ChildSupervisor &Instance::Get(void) { return mChildSupervisor; }
 #endif
 template <> inline SupervisionListener &Instance::Get(void) { return mSupervisionListener; }

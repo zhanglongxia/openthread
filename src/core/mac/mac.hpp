@@ -204,7 +204,7 @@ public:
      */
     void RequestDirectFrameTransmission(void);
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     /**
      * Requests an indirect data frame transmission.
      */
@@ -356,7 +356,7 @@ public:
      */
     void SetMaxFrameRetriesDirect(uint8_t aMaxFrameRetriesDirect) { mMaxFrameRetriesDirect = aMaxFrameRetriesDirect; }
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     /**
      * Returns the maximum number of frame retries during indirect transmission.
      *
@@ -431,7 +431,7 @@ public:
      */
     bool IsEnergyScanInProgress(void) const { return IsActiveOrPending(kOperationEnergyScan); }
 
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     /**
      * Indicates whether the MAC layer is performing an indirect transmission (in middle of a tx).
      *
@@ -756,6 +756,40 @@ public:
      * @retval FALSE  If listening for wake-up frames is not enabled.
      */
     bool IsWakeupListenEnabled(void) const { return mWakeupListenEnabled; }
+
+    /**
+     * Add a wake-up identifier to wake-up identifier table.
+     *
+     * @param[in]  aWakeupId    The wake-up identifier to be added stored in little-endian byte order.
+     *
+     * @retval kErrorNone    Successfully added wake-up identifier to the wake-up identifier table.
+     * @retval kErrorNoBuf   No available entry in the wake-up identifier table.
+     */
+    Error AddWakeupId(const WakeupId &aWakeupId) { return mLinks.AddWakeupId(aWakeupId); }
+
+    /**
+     * Remove a wake-up identifier from the wake-up identifier table.
+     *
+     * @param[in]  aWakeupId    The wake-up identifier to be removed stored in little-endian byte order.
+     *
+     * @retval kErrorNone       Successfully removed the wake-up identifier from the wake-up identifier table.
+     * @retval kErrorNotFound   The wake-up identifier was not in wake-up identifier table.
+     */
+    Error RemoveWakeupId(const WakeupId &aWakeupId) { return mLinks.AddWakeupId(aWakeupId); }
+
+    /**
+     * Clear all wake-up identifiers from the wake-up identifier table.
+     *
+     */
+    void ClearWakeupIds(void) { mLinks.ClearWakeupIds(); }
+
+    // For debugging
+    typedef otWakeupFrameReceivedCallback
+         WakeupFrameReceivedCallback; ///< Callback to signal that the wake up frame is received
+    void SetWakeupFrameReceivedCallback(WakeupFrameReceivedCallback aCallback, void *aContext)
+    {
+        mWakeupFrameReceivedCallback.Set(aCallback, aContext);
+    }
 #endif // OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
 
     /**
@@ -770,6 +804,7 @@ public:
 
 private:
     static constexpr uint16_t kMaxCcaSampleCount = OPENTHREAD_CONFIG_CCA_FAILURE_RATE_AVERAGING_WINDOW;
+    static constexpr uint16_t kWakeupIdTableSize = OPENTHREAD_CONFIG_WAKEUP_ID_TABLE_SZIE;
 
     enum Operation : uint8_t
     {
@@ -780,7 +815,7 @@ private:
         kOperationTransmitDataDirect,
         kOperationTransmitPoll,
         kOperationWaitingForData,
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
         kOperationTransmitDataIndirect,
 #endif
 #if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
@@ -901,7 +936,7 @@ private:
     uint16_t    mScanDuration;
     ChannelMask mScanChannelMask;
     uint8_t     mMaxFrameRetriesDirect;
-#if OPENTHREAD_FTD
+#if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     uint8_t mMaxFrameRetriesIndirect;
 #endif
 #if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
@@ -918,6 +953,8 @@ private:
 #if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
     uint32_t mWakeupListenInterval;
     uint32_t mWakeupListenDuration;
+
+    Callback<WakeupFrameReceivedCallback> mWakeupFrameReceivedCallback;
 #endif
     union
     {
