@@ -451,7 +451,7 @@ public:
      *
      * @returns TRUE if the Group Wake-up flag is set, FALSE otherwise.
      */
-    bool IsGroupWakeupFlagSet(void) const { return GetFlag(kGroupWakeupFlagOffset); }
+    bool GetGroupWakeupFlag(void) const { return GetFlag(kGroupWakeupFlagOffset); }
 
     /**
      * Sets the Attached flag.
@@ -465,7 +465,7 @@ public:
      *
      * @returns TRUE if the Attached flag is set, FALSE otherwise.
      */
-    bool IsAttachedFlagSet(void) const { return GetFlag(kAttachedFlagOffset); }
+    bool GetAttachedFlag(void) const { return GetFlag(kAttachedFlagOffset); }
 
     /**
      * Sets the Router flag.

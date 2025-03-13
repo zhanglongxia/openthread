@@ -35,14 +35,70 @@
 
 #if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 
+#include <openthread/platform/toolchain.h>
+
 #include "instance/instance.hpp"
-#include "openthread/platform/toolchain.h"
 #include "utils/static_counter.hpp"
 
 namespace ot {
 namespace Mle {
 
 RegisterLogModule("MleChild");
+
+#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
+Error Mle::P2pConnect(const Mac::WakeupAddress &aWakeupAddress,
+                      uint16_t                  aIntervalUs,
+                      uint16_t                  aDurationMs,
+                      otP2pConnectedCallback    aCallback,
+                      void                     *aContext)
+{
+    Error error;
+
+    VerifyOrExit(aWakeupAddress.IsValid(), error = kErrorInvalidArgs);
+    VerifyOrExit((aIntervalUs > 0) && (aDurationMs > 0), error = kErrorInvalidArgs);
+    VerifyOrExit(aIntervalUs < aDurationMs * Time::kOneMsecInUsec, error = kErrorInvalidArgs);
+    VerifyOrExit(mWedAttachState == kWedDetached, error = kErrorInvalidState);
+    SuccessOrExit(error = mWakeupTxScheduler.WakeUp(aWakeupAddress, aIntervalUs, aDurationMs));
+
+    mWedAttachState = kWedAttaching;
+    mP2pConnectedCallback.Set(aCallback, aContext);
+    Get<MeshForwarder>().SetRxOnWhenIdle(true);
+    mWedAttachTimer.FireAt(mWakeupTxScheduler.GetTxEndTime() + mWakeupTxScheduler.GetConnectionWindowUs());
+
+    LogInfo("Start to connect to %s", aWakeupAddress.ToString().AsCString());
+
+exit:
+    return error;
+}
+
+void Mle::HandleWedAttachTimer(void)
+{
+    switch (mWedAttachState)
+    {
+    case kWedAttaching:
+        // Connection timeout
+        if (!IsRxOnWhenIdle())
+        {
+            Get<MeshForwarder>().SetRxOnWhenIdle(false);
+        }
+
+        LogInfo("Connection window closed");
+
+        mWedAttachState = kWedDetached;
+        mP2pConnectedCallback.InvokeAndClearIfSet(kErrorFailed);
+        break;
+    default:
+        break;
+    }
+}
+#endif // OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
+
+void Mle::P2pSetEventCallback(otP2pEventCallback aCallback, void *aContext)
+{
+    mP2pEventCallback.Set(aCallback, aContext);
+}
+
+Error Mle::P2pDisconnect(const Mac::ExtAddress &) { return kErrorInvalidState; }
 
 void Mle::SendP2pLinkRequest(const Mac::WakeupInfo &aWakeupInfo)
 {
@@ -55,7 +111,6 @@ void Mle::SendP2pLinkRequest(const Mac::WakeupInfo &aWakeupInfo)
     VerifyOrExit((message = NewMleMessage(kCommandLinkRequest)) != nullptr, error = kErrorNoBufs);
     SuccessOrExit(error = message->AppendModeTlv(GetDeviceMode()));
     SuccessOrExit(error = message->AppendVersionTlv());
-    LogInfo("SendP2pLinkRequest: DeviceMode: %s", GetDeviceMode().ToString().AsCString());
 
     peer = Get<ChildTable>().FindChild(aWakeupInfo.mWcAddress, Child::kInStateAnyExceptInvalid);
     if (peer != nullptr)
@@ -105,7 +160,6 @@ void Mle::HandleP2pLinkRequest(RxInfo &aRxInfo)
     SuccessOrExit(error = aRxInfo.mMessage.ReadChallengeTlv(info.mRxChallenge));
     SuccessOrExit(error = aRxInfo.mMessage.ReadVersionTlv(version));
 
-    LogInfo("HandleP2pLinkRequest: DeviceMode: %s", mode.ToString().AsCString());
     aRxInfo.mMessageInfo.GetPeerAddr().GetIid().ConvertToExtAddress(info.mExtAddress);
     ProcessKeySequence(aRxInfo);
 
@@ -117,12 +171,14 @@ void Mle::HandleP2pLinkRequest(RxInfo &aRxInfo)
 
     InitNeighbor(*aRxInfo.mNeighbor, aRxInfo);
     aRxInfo.mNeighbor->SetDeviceMode(mode);
+    aRxInfo.mNeighbor->SetVersion(version);
     aRxInfo.mNeighbor->SetState(Neighbor::kStateLinkRequest);
     LogInfo("HandleP2pLinkRequest: ExtAddress: %s, DeviceMode: %s",
             aRxInfo.mNeighbor->GetExtAddress().ToString().AsCString(),
             aRxInfo.mNeighbor->GetDeviceMode().ToString().AsCString());
 
     info.mLinkMargin = Get<Mac::Mac>().ComputeLinkMargin(aRxInfo.mMessage.GetAverageRss());
+
     SuccessOrExit(error = SendP2pLinkAcceptAndRequest(info));
     mWakeupTxScheduler.Stop();
 
@@ -132,51 +188,74 @@ exit:
 
 Error Mle::SendP2pLinkAccept(const LinkAcceptInfo &aInfo)
 {
-    return SendP2pLinkAcceptVariant(aInfo, false /* aIsLinkAcceptorRequest*/);
+    return SendP2pLinkAcceptVariant(aInfo, false /* aIsLinkAcceptAndRequest*/);
 }
 
 Error Mle::SendP2pLinkAcceptAndRequest(const LinkAcceptInfo &aInfo)
 {
-    return SendP2pLinkAcceptVariant(aInfo, true /* aIsLinkAcceptorRequest*/);
+    return SendP2pLinkAcceptVariant(aInfo, true /* aIsLinkAcceptAndRequest*/);
 }
 
-Error Mle::SendP2pLinkAcceptVariant(const LinkAcceptInfo &aInfo, bool aIsLinkAcceptorRequest)
+Error Mle::SendP2pLinkAcceptVariant(const LinkAcceptInfo &aInfo, bool aIsLinkAcceptAndRequest)
 {
     Error        error   = kErrorNone;
     TxMessage   *message = nullptr;
-    Command      command = aIsLinkAcceptorRequest ? kCommandLinkAcceptAndRequest : kCommandLinkAccept;
+    Command      command = aIsLinkAcceptAndRequest ? kCommandLinkAcceptAndRequest : kCommandLinkAccept;
+    Child       *peer    = nullptr;
     Ip6::Address destination;
 
-    LogInfo("SendP2pLinkAcceptVariant ---------------> %u", command);
+    if (aIsLinkAcceptAndRequest)
+    {
+        LogInfo("SendP2pLinkAcceptAndRequest --------------->");
+    }
+    else
+    {
+        LogInfo("SendP2pLinkAccept ------------------------->");
+    }
 
     VerifyOrExit((message = NewMleMessage(command)) != nullptr, error = kErrorNoBufs);
     if (command == kCommandLinkAcceptAndRequest)
     {
         SuccessOrExit(error = message->AppendModeTlv(GetDeviceMode()));
         SuccessOrExit(error = message->AppendVersionTlv());
-        LogInfo("SendP2pLinkAcceptVariant: DeviceMode: %s", GetDeviceMode().ToString().AsCString());
     }
 
     SuccessOrExit(error = message->AppendResponseTlv(aInfo.mRxChallenge));
     if (command == kCommandLinkAcceptAndRequest)
     {
-        Child *peer;
-
         VerifyOrExit((peer = Get<ChildTable>().FindChild(aInfo.mExtAddress, Child::kInStateLinkRequest)) != nullptr,
                      error = kErrorNotFound);
         peer->GenerateChallenge();
         SuccessOrExit(error = message->AppendChallengeTlv(peer->GetChallenge()));
+        if (peer->IsRxOnWhenIdle())
+        {
+            message->SetDirectTransmission();
+        }
+        else
+        {
+            message->ClearDirectTransmission();
+        }
     }
 
     SuccessOrExit(error = message->AppendLinkMarginTlv(aInfo.mLinkMargin));
     SuccessOrExit(error = message->AppendLinkAndMleFrameCounterTlvs());
-    // SuccessOrExit(error = message->AppendCslClockAccuracyTlv());
-
-    message->SetDirectTransmission();
+    SuccessOrExit(error = message->AppendCslClockAccuracyTlv());
 
     destination.SetToLinkLocalAddress(aInfo.mExtAddress);
 
+#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
+    if (!IsRxOnWhenIdle())
+    {
+        Get<Mac::Mac>().SetCslCapable(true /* aIsCslCapable*/);
+    }
+#endif
+
     SuccessOrExit(error = message->SendTo(destination));
+
+    if (command == kCommandLinkAcceptAndRequest)
+    {
+        mP2pEventCallback.InvokeIfSet(OT_P2P_EVENT_WC_CONNECTED, &aInfo.mExtAddress);
+    }
 
     Log(kMessageSend, (command == kCommandLinkAccept) ? kTypeLinkAccept : kTypeLinkAcceptAndRequest, destination);
 
@@ -213,8 +292,6 @@ void Mle::HandleP2pLinkAcceptVariant(RxInfo &aRxInfo, MessageType aMessageType)
 
     Log(kMessageReceive, aMessageType, aRxInfo.mMessageInfo.GetPeerAddr());
 
-    LogInfo("HandleP2pLinkAcceptVariant TP1");
-
     if (aRxInfo.mNeighbor == nullptr)
     {
         aRxInfo.mMessageInfo.GetPeerAddr().GetIid().ConvertToExtAddress(info.mExtAddress);
@@ -232,9 +309,6 @@ void Mle::HandleP2pLinkAcceptVariant(RxInfo &aRxInfo, MessageType aMessageType)
         SuccessOrExit(error = aRxInfo.mMessage.ReadVersionTlv(version));
         peer->SetDeviceMode(mode);
         peer->SetVersion(version);
-        LogInfo("HandleP2pLinkAcceptVariant: DeviceMode: %s", mode.ToString().AsCString());
-        LogInfo("HandleP2pLinkAcceptVariant1: ExtAddress: %s, DeviceMode: %s",
-                peer->GetExtAddress().ToString().AsCString(), peer->GetDeviceMode().ToString().AsCString());
     }
 
     SuccessOrExit(error = aRxInfo.mMessage.ReadResponseTlv(response));
@@ -251,11 +325,7 @@ void Mle::HandleP2pLinkAcceptVariant(RxInfo &aRxInfo, MessageType aMessageType)
     peer->SetState(Neighbor::kStateValid);
     peer->SetKeySequence(aRxInfo.mKeySequence);
     peer->ClearLinkAcceptTimeout();
-    // peer->SetLinkQualityOut(LinkQualityForLinkMargin(linkMargin));
     aRxInfo.mClass = RxInfo::kAuthoritativeMessage;
-
-    LogInfo("HandleP2pLinkAcceptVariant2: ExtAddress: %s, DeviceMode: %s", peer->GetExtAddress().ToString().AsCString(),
-            peer->GetDeviceMode().ToString().AsCString());
 
     ProcessKeySequence(aRxInfo);
 
@@ -273,10 +343,9 @@ void Mle::HandleP2pLinkAcceptVariant(RxInfo &aRxInfo, MessageType aMessageType)
     {
         LogInfo("HandleP2pLinkAccept --------------------> P2P link is established !!!!!!!!");
         Get<MeshForwarder>().SetRxOnWhenIdle(IsRxOnWhenIdle());
-        mWakeupCallback.InvokeAndClearIfSet(kErrorNone);
+        mP2pConnectedCallback.InvokeAndClearIfSet(kErrorNone);
+        mP2pEventCallback.InvokeIfSet(OT_P2P_EVENT_WED_CONNECTED, &peer->GetExtAddress());
     }
-
-    LogInfo("HandleP2pLinkAcceptVariant TP5");
 
 exit:
     LogProcessError(aMessageType, error);

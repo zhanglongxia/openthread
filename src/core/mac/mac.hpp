@@ -765,7 +765,7 @@ public:
      * @retval kErrorNone    Successfully added wake-up identifier to the wake-up identifier table.
      * @retval kErrorNoBuf   No available entry in the wake-up identifier table.
      */
-    Error AddWakeupId(WakeupId &aWakeupId);
+    Error AddWakeupId(const WakeupId &aWakeupId) { return mLinks.AddWakeupId(aWakeupId); }
 
     /**
      * Remove a wake-up identifier from the wake-up identifier table.
@@ -775,13 +775,13 @@ public:
      * @retval kErrorNone       Successfully removed the wake-up identifier from the wake-up identifier table.
      * @retval kErrorNotFound   The wake-up identifier was not in wake-up identifier table.
      */
-    Error RemoveWakeupId(WakeupId &aWakeupId);
+    Error RemoveWakeupId(const WakeupId &aWakeupId) { return mLinks.AddWakeupId(aWakeupId); }
 
     /**
      * Clear all wake-up identifiers from the wake-up identifier table.
      *
      */
-    void ClearWakeupIds(void);
+    void ClearWakeupIds(void) { mLinks.ClearWakeupIds(); }
 
     // For debugging
     typedef otWakeupFrameReceivedCallback
@@ -954,7 +954,6 @@ private:
     uint32_t mWakeupListenInterval;
     uint32_t mWakeupListenDuration;
 
-    Array<WakeupId, kWakeupIdTableSize>   mWakeupIdTable;
     Callback<WakeupFrameReceivedCallback> mWakeupFrameReceivedCallback;
 #endif
     union

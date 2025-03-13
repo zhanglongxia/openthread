@@ -309,12 +309,7 @@ private:
     static void HandleIp6Receive(otMessage *aMessage, void *aContext);
 #endif
 
-#if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
-    static void HandleWakeupFrameReceived(const otExtAddress *aWcAddress, void *aContext);
-    void        HandleWakeupFrameReceived(const otExtAddress *aWcAddress);
-#endif
-
-#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
+#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE && OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     static void HandleWakeupResult(otError aError, void *aContext);
     void        HandleWakeupResult(otError aError);
 #endif

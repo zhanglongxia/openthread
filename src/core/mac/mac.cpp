@@ -588,7 +588,10 @@ void Mac::UpdateIdleMode(void)
 #endif
     }
 #if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
-    else if (IsPending(kOperationTransmitDataCsl))
+#if !OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    else
+#endif
+        if (IsPending(kOperationTransmitDataCsl))
     {
         mTimer.FireAt(mCslTxFireTime);
     }
@@ -1555,7 +1558,10 @@ void Mac::HandleTimer(void)
 #endif
         }
 #if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
-        else if (IsPending(kOperationTransmitDataCsl))
+#if !OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+        else
+#endif
+            if (IsPending(kOperationTransmitDataCsl))
         {
             PerformNextOperation();
         }
@@ -1841,6 +1847,13 @@ Error Mac::FilterDestShortAddress(ShortAddress aDestAddress) const
     {
         ExitNow();
     }
+
+#if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+    if (aDestAddress == kShortAddrBroadcast)
+    {
+        ExitNow();
+    }
+#endif
 
     error = kErrorDestinationAddressFiltered;
 
@@ -2551,7 +2564,7 @@ void Mac::ProcessCsl(const RxFrame &aFrame, const Address &aSrcAddr)
     CslNeighbor *neighbor = nullptr;
     const CslIe *csl;
 
-    VerifyOrExit(aFrame.IsVersion2015() && aFrame.GetSecurityEnabled());
+    // VerifyOrExit(aFrame.IsVersion2015() && aFrame.GetSecurityEnabled());
 
     csl = aFrame.GetCslIe();
     VerifyOrExit(csl != nullptr);
@@ -2638,31 +2651,6 @@ exit:
 #endif
 
 #if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
-Error Mac::AddWakeupId(WakeupId &aWakeupId)
-{
-    Error error = kErrorNone;
-
-    VerifyOrExit(!mWakeupIdTable.IsFull(), error = kErrorNoBufs);
-    error = mWakeupIdTable.PushBack(aWakeupId);
-exit:
-    return error;
-}
-
-Error Mac::RemoveWakeupId(WakeupId &aWakeupId)
-{
-    Error     error = kErrorNone;
-    WakeupId *wakeupId;
-
-    wakeupId = mWakeupIdTable.Find(aWakeupId);
-    VerifyOrExit(wakeupId != nullptr, error = kErrorNotFound);
-    mWakeupIdTable.Remove(*wakeupId);
-
-exit:
-    return error;
-}
-
-void Mac::ClearWakeupIds(void) { mWakeupIdTable.Clear(); }
-
 void Mac::GetWakeupListenParameters(uint32_t &aInterval, uint32_t &aDuration) const
 {
     aInterval = mWakeupListenInterval;
@@ -2687,14 +2675,6 @@ exit:
 Error Mac::SetWakeupListenEnabled(bool aEnable)
 {
     Error error = kErrorNone;
-
-#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
-    if (aEnable && GetCslPeriod() > 0)
-    {
-        LogWarn("Cannot enable wake-up frame listening while CSL is enabled");
-        ExitNow(error = kErrorInvalidState);
-    }
-#endif
 
     if (aEnable == mWakeupListenEnabled)
     {
@@ -2721,62 +2701,40 @@ void Mac::UpdateWakeupListening(void)
 
 Error Mac::HandleWakeupFrame(const RxFrame &aFrame)
 {
-    // constexpr uint32_t kWakeupIntervalUs = kDefaultWedListenInterval * kUsPerTenSymbols;
-
     Error               error = kErrorNone;
     const ConnectionIe *connectionIe;
-    // uint32_t            rvTimeUs;
-    // uint64_t            rvTimestampUs;
-    // uint32_t            attachDelayMs;
-    // uint64_t            radioNowUs;
-    // uint8_t             retryInterval;
-    // uint8_t             retryCount;
-    Address    dstAddr;
-    Address    srcAddress;
-    WakeupInfo info;
+    uint32_t            rvTimeUs;
+    uint64_t            rvTimestampUs;
+    uint64_t            radioNowUs;
+    Address             srcAddress;
+    WakeupInfo          info;
 
     VerifyOrExit(mWakeupListenEnabled && aFrame.IsWakeupFrame());
 
     LogInfo("HandleWakeupFrame() ---------------------------");
     VerifyOrExit((connectionIe = aFrame.GetConnectionIe()) != nullptr);
-    SuccessOrExit(error = aFrame.GetDstAddr(dstAddr));
 
-    if (dstAddr.IsBroadcast())
-    {
-        WakeupId wakeupId;
+    info.mRetryInterval        = connectionIe->GetRetryInterval();
+    info.mRetryCount           = connectionIe->GetRetryCount();
+    info.mWakeupTarget         = static_cast<uint8_t>(connectionIe->GetWakeupTarget());
+    info.mIsGroupWakeup        = connectionIe->GetGroupWakeupFlag();
+    info.mIsAttached           = connectionIe->GetAttachedFlag();
+    info.mIsRouter             = connectionIe->GetRouterFlag();
+    info.mIsNetworkDataCapable = connectionIe->GetNetworkDataFlag();
 
-        SuccessOrExit(error = connectionIe->GetWakeupId(wakeupId));
-        VerifyOrExit(mWakeupIdTable.Contains(wakeupId));
-    }
-
-    info.mRetryInterval = connectionIe->GetRetryInterval();
-    info.mRetryCount    = connectionIe->GetRetryCount();
-
-#if AA
     radioNowUs    = otPlatRadioGetNow(&GetInstance());
     rvTimeUs      = aFrame.GetRendezvousTimeIe()->GetRendezvousTime() * kUsPerTenSymbols;
     rvTimestampUs = aFrame.GetTimestamp() + kRadioHeaderPhrDuration + aFrame.GetLength() * kOctetDuration + rvTimeUs;
 
     if (rvTimestampUs > radioNowUs + kCslRequestAhead)
     {
-        attachDelayMs = static_cast<uint32_t>(rvTimestampUs - radioNowUs - kCslRequestAhead);
-        attachDelayMs = attachDelayMs / 1000;
+        info.mAttachDelayMs = static_cast<uint32_t>(rvTimestampUs - radioNowUs - kCslRequestAhead);
+        info.mAttachDelayMs = info.mAttachDelayMs / 1000;
     }
     else
     {
-        attachDelayMs = 0;
+        info.mAttachDelayMs = 0;
     }
-
-#if OT_SHOULD_LOG_AT(OT_LOG_LEVEL_INFO)
-    {
-        uint32_t frameCounter;
-
-        IgnoreError(aFrame.GetFrameCounter(info.mFrameCounter));
-        LogInfo("Received wake-up frame, fc:%lu, rendezvous:%luus, retries:%u/%u", ToUlong(frameCounter),
-                ToUlong(rvTimeUs), retryCount, retryInterval);
-    }
-#endif
-#endif
 
     SuccessOrExit(error = aFrame.GetFrameCounter(info.mFrameCounter));
     SuccessOrExit(error = aFrame.GetSrcAddr(srcAddress));

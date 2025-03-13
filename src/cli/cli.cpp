@@ -8107,13 +8107,9 @@ template <> otError Interpreter::Process<Cmd("wakeup")>(Arg aArgs[])
     else if (aArgs[0] == "listen")
     {
         error = ProcessEnableDisable(aArgs + 1, otLinkIsWakeupListenEnabled, otLinkSetWakeUpListenEnabled);
-        if (error == OT_ERROR_NONE)
-        {
-            // otLinkSetWakeupFrameReceivedCallback(GetInstancePtr(), HandleWakeupFrameReceived, this);
-        }
     }
 #endif // OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
-#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
+#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE && OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     /**
      * @cli wakeup wake
      * @code
@@ -8127,18 +8123,35 @@ template <> otError Interpreter::Process<Cmd("wakeup")>(Arg aArgs[])
      */
     else if (aArgs[0] == "wake")
     {
-        uint16_t   length = OT_MAX_WAKEUP_ID_SIZE;
-        otWakeupId wakeupId;
-        uint16_t   wakeupIntervalUs;
-        uint16_t   wakeupDurationMs;
+        uint16_t        length;
+        otWakeupAddress wakeupAddress;
+        uint16_t        wakeupIntervalUs;
+        uint16_t        wakeupDurationMs;
 
-        SuccessOrExit(error = aArgs[1].ParseAsHexString(length, wakeupId.m8));
-        SuccessOrExit(error = aArgs[2].ParseAsUint16(wakeupIntervalUs));
-        SuccessOrExit(error = aArgs[3].ParseAsUint16(wakeupDurationMs));
+        if ((aArgs[1] == "id") || (aArgs[1] == "groupid"))
+        {
+            length = OT_MAX_WAKEUP_ID_SIZE;
+            SuccessOrExit(error = aArgs[2].ParseAsHexString(length, wakeupAddress.mShared.mWakeupId.m8));
+            wakeupAddress.mShared.mWakeupId.mLength = length;
+            wakeupAddress.mIsWakeupId               = true;
+            wakeupAddress.mIsGroupId                = (aArgs[1] == "groupid");
+        }
+        else if (aArgs[1] == "extaddr")
+        {
+            length = OT_EXT_ADDRESS_SIZE;
+            SuccessOrExit(error = aArgs[2].ParseAsHexString(length, wakeupAddress.mShared.mExtAddress.m8));
+            VerifyOrExit(length == OT_EXT_ADDRESS_SIZE, error = OT_ERROR_INVALID_ARGS);
+        }
+        else
+        {
+            ExitNow(error = OT_ERROR_INVALID_ARGS);
+        }
 
-        wakeupId.mLength = length;
-        SuccessOrExit(error = otThreadWakeup(GetInstancePtr(), &wakeupId, wakeupIntervalUs, wakeupDurationMs,
-                                             HandleWakeupResult, this));
+        SuccessOrExit(error = aArgs[3].ParseAsUint16(wakeupIntervalUs));
+        SuccessOrExit(error = aArgs[4].ParseAsUint16(wakeupDurationMs));
+
+        SuccessOrExit(error = otP2pConnect(GetInstancePtr(), &wakeupAddress, wakeupIntervalUs, wakeupDurationMs,
+                                           HandleWakeupResult, this));
         error = OT_ERROR_PENDING;
     }
 #endif // OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
@@ -8152,26 +8165,13 @@ exit:
 }
 #endif // OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE || OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
 
-#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
+#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE && OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 void Interpreter::HandleWakeupResult(otError aError, void *aContext)
 {
     static_cast<Interpreter *>(aContext)->HandleWakeupResult(aError);
 }
 
 void Interpreter::HandleWakeupResult(otError aError) { OutputResult(aError); }
-#endif
-
-#if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
-void Interpreter::HandleWakeupFrameReceived(const otExtAddress *aWcAddress, void *aContext)
-{
-    static_cast<Interpreter *>(aContext)->HandleWakeupFrameReceived(aWcAddress);
-}
-
-void Interpreter::HandleWakeupFrameReceived(const otExtAddress *aWcAddress)
-{
-    OutputFormat("Wakeup Frame Received: ");
-    OutputExtAddressLine(*aWcAddress);
-}
 #endif
 
 #endif // OPENTHREAD_FTD || OPENTHREAD_MTD

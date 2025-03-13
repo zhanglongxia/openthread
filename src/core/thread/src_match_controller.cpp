@@ -87,7 +87,6 @@ void SourceMatchController::SetSrcMatchAsShort(Child &aChild, bool aUseShortAddr
 {
     VerifyOrExit(aChild.IsIndirectSourceMatchShort() != aUseShortAddress);
 
-    LogInfo("SetSrcMatchAsShort(): aUseShortAddress=%u", aUseShortAddress);
     if (aChild.GetIndirectMessageCount() > 0)
     {
         ClearEntry(aChild);
@@ -128,7 +127,6 @@ void SourceMatchController::AddEntry(Child &aChild)
     }
     else
     {
-        LogInfo("AddEntries()");
         VerifyOrExit(AddAddress(aChild) == kErrorNone, Enable(false));
         aChild.SetIndirectSourceMatchPending(false);
     }
@@ -199,7 +197,6 @@ Error SourceMatchController::AddPendingEntries(void)
 {
     Error error = kErrorNone;
 
-    LogInfo("AddPendingEntries()");
     for (Child &child : Get<ChildTable>().Iterate(Child::kInStateValidOrRestoring))
     {
         if (child.IsIndirectSourceMatchPending())

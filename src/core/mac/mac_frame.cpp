@@ -1473,7 +1473,7 @@ exit:
 #endif // OPENTHREAD_CONFIG_THREAD_VERSION >= OT_THREAD_VERSION_1_2
 
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
-Error TxFrame::GenerateWakeupFrame(PanId aPanId, const WakeupId &aWakeupId, const Address &aSource)
+Error TxFrame::GenerateWakeupFrame(PanId aPanId, const WakeupAddress &aWakeupAddress, const Address &aSource)
 {
     Error        error          = kErrorNone;
     uint8_t      wakeupIdLength = 0;
@@ -1485,19 +1485,16 @@ Error TxFrame::GenerateWakeupFrame(PanId aPanId, const WakeupId &aWakeupId, cons
     fcf = kTypeMultipurpose | kMpFcfLongFrame | kMpFcfPanidPresent | kMpFcfSecurityEnabled | kMpFcfSequenceSuppression |
           kMpFcfIePresent;
 
-    VerifyOrExit(aWakeupId.IsValid() && !aSource.IsNone(), error = kErrorInvalidArgs);
+    VerifyOrExit(aWakeupAddress.IsValid() && !aSource.IsNone(), error = kErrorInvalidArgs);
 
-    if (aWakeupId.IsExtAddress())
+    if (aWakeupAddress.IsWakeupId())
     {
-        ExtAddress address;
-
-        aWakeupId.ConvertToExtAddress(address);
-        dest.SetExtended(address);
+        wakeupIdLength = aWakeupAddress.GetWakeupId().GetLength();
+        dest.SetShort(OT_RADIO_BROADCAST_SHORT_ADDR);
     }
     else
     {
-        wakeupIdLength = aWakeupId.GetLength();
-        dest.SetShort(OT_RADIO_BROADCAST_SHORT_ADDR);
+        dest.SetExtended(aWakeupAddress.GetExtAddress());
     }
 
     fcf |= DetermineFcfAddrType(dest, kMpFcfDstAddrShift);

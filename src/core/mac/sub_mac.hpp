@@ -41,6 +41,7 @@
 #include <openthread/platform/crypto.h>
 
 #include "common/callback.hpp"
+#include "common/heap_array.hpp"
 #include "common/locator.hpp"
 #include "common/non_copyable.hpp"
 #include "common/timer.hpp"
@@ -496,6 +497,10 @@ public:
      * @param[in]  aChannel   The wake-up channel.
      */
     void UpdateWakeupListening(bool aEnable, uint32_t aInterval, uint32_t aDuration, uint8_t aChannel);
+
+    Error AddWakeupId(const WakeupId &aWakeupId);
+    Error RemoveWakeupId(const WakeupId &aWakeupId);
+    void  ClearWakeupIds(void);
 #endif
 
 private:
@@ -522,6 +527,7 @@ private:
     void        HandleWedTimer(void);
     void        HandleWedReceiveAt(void);
     void        HandleWedReceiveOrSleep(void);
+    bool        ShouldHandleWakeupFrame(const RxFrame &aFrame);
 #endif
 
     static constexpr uint8_t  kCsmaMinBe         = 3;                  // macMinBE (IEEE 802.15.4-2006).
@@ -580,6 +586,7 @@ private:
     // Margin to be applied after the end of a wake-up listen duration to schedule the next listen interval.
     // The value is in usec.
     static constexpr uint32_t kWedReceiveTimeAfter = OPENTHREAD_CONFIG_WED_RECEIVE_TIME_AFTER;
+    static constexpr uint16_t kWakeupIdTableSize   = OPENTHREAD_CONFIG_WAKEUP_ID_TABLE_SZIE;
 #endif
 
 #if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
@@ -700,6 +707,7 @@ private:
     TimeMicro  mWedSampleTime;        // The WED sample time of the current interval in local time.
     uint64_t   mWedSampleTimeRadio;   // The WED sample time of the current interval in radio time.
     TimerMicro mWedTimer;
+    Array<WakeupId, kWakeupIdTableSize> mWakeupIdTable;
 #endif
 };
 

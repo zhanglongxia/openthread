@@ -365,14 +365,12 @@ public:
 #endif // OPENTHREAD_CONFIG_TMF_PROXY_MLR_ENABLE
 
 #if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
-    // void                    GenerateChallenge(void) { mChallenge.GenerateRandom(); }
-    // const Mle::TxChallenge &GetChallenge(void) const { return mChallenge; }
-
     void    RestartLinkAcceptTimeout(void) { mLinkAcceptTimeout = Mle::kLinkAcceptTimeout; }
     void    ClearLinkAcceptTimeout(void) { mLinkAcceptTimeout = 0; }
     bool    IsWaitingForLinkAccept(void) const { return (mLinkAcceptTimeout > 0); }
     uint8_t DecrementLinkAcceptTimeout(void) { return --mLinkAcceptTimeout; }
 #endif
+
     enum NeighborType : uint8_t
     {
         kNeighborTypeChild = 0,
@@ -410,7 +408,6 @@ private:
     uint16_t mSecondsSinceSupervision;
 
 #if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
-    // Mle::TxChallenge mChallenge;
     uint8_t mLinkAcceptTimeout : 2; // Timeout (in seconds) after sending Link Request waiting for Link Accept
 #endif
     NeighborType mNeighborType;

@@ -499,6 +499,37 @@ public:
         mSubMac.UpdateWakeupListening(aEnable, aInterval, aDuration, aChannel);
 #endif
     }
+
+    Error AddWakeupId(const WakeupId &aWakeupId)
+    {
+        OT_UNUSED_VARIABLE(aWakeupId);
+
+        return
+#if OPENTHREAD_CONFIG_RADIO_LINK_IEEE_802_15_4_ENABLE
+            mSubMac.AddWakeupId(aWakeupId);
+#else
+            kErrorNotImplemented;
+#endif
+    }
+
+    Error RemoveWakeupId(const WakeupId &aWakeupId)
+    {
+        OT_UNUSED_VARIABLE(aWakeupId);
+
+        return
+#if OPENTHREAD_CONFIG_RADIO_LINK_IEEE_802_15_4_ENABLE
+            mSubMac.RemoveWakeupId(aWakeupId);
+#else
+            kErrorNotImplemented;
+#endif
+    }
+
+    void ClearWakeupIds(void)
+    {
+#if OPENTHREAD_CONFIG_RADIO_LINK_IEEE_802_15_4_ENABLE
+        mSubMac.ClearWakeupIds();
+#endif
+    }
 #endif
 
     /**

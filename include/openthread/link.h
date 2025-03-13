@@ -102,6 +102,21 @@ struct otWakeupId
 typedef struct otWakeupId otWakeupId;
 
 /**
+ * Represents a Wake-up Identifier or Extended Address.
+ */
+typedef struct otWakeupAddress
+{
+    union
+    {
+        otWakeupId   mWakeupId;   ///< Wake-up identifier of the WED.
+        otExtAddress mExtAddress; ///< IEEE 802.15.4 Extended Address of the WED.
+    } mShared;
+
+    bool mIsWakeupId : 1; ///< The wake-up address type (Wake-up Identifier or Extended Address).
+    bool mIsGroupId : 1;  ///< Indicates whether the wake-up id is a group wake-up id.
+} otWakeupAddress;
+
+/**
  * Represents the MAC layer counters.
  */
 typedef struct otMacCounters

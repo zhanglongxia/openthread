@@ -36,6 +36,8 @@
 
 #include "openthread-core-config.h"
 
+#include <openthread/p2p.h>
+
 #include "common/callback.hpp"
 #include "common/encoding.hpp"
 #include "common/locator.hpp"
@@ -122,7 +124,8 @@ class Mle : public InstanceLocator, private NonCopyable
 public:
     typedef otDetachGracefullyCallback DetachCallback; ///< Callback to signal end of graceful detach.
 
-    typedef otWakeupCallback WakeupCallback; ///< Callback to communicate the result of waking a Wake-up End Device
+    typedef otP2pConnectedCallback P2pConnectedCallback;
+    typedef otP2pEventCallback     P2pEventCallback;
 
     /**
      * Initializes the MLE object.
@@ -744,22 +747,26 @@ public:
     /**
      * Attempts to wake a Wake-up End Device.
      *
-     * @param[in] aWakeupId   The wake-up identifier of the Wake-up End Device.
-     * @param[in] aIntervalUs An interval between consecutive wake-up frames (in microseconds).
-     * @param[in] aDurationMs Duration of the wake-up sequence (in milliseconds).
-     * @param[in] aCallback   A pointer to function that is called when the wake-up succeeds or fails.
-     * @param[in] aContext    A pointer to callback application-specific context.
+     * @param[in] aWakeupRequestInfo  A reference to the wake-up request info.
      *
      * @retval kErrorNone         Successfully started the wake-up.
      * @retval kErrorInvalidState Another wake-up request is still in progress.
      * @retval kErrorInvalidArgs  The wake-up interval or duration are invalid.
      */
-    Error Wakeup(const Mac::WakeupId &aWakeupId,
-                 uint16_t             aIntervalUs,
-                 uint16_t             aDurationMs,
-                 WakeupCallback       aCallback,
-                 void                *aCallbackContext);
+    // Error Wakeup(const WakeupRequestInfo &aWakeupRequestInfo);
+
 #endif // OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
+    Error P2pConnect(const Mac::WakeupAddress &aWakeupAddress,
+                     uint16_t                  aIntervalUs,
+                     uint16_t                  aDurationMs,
+                     otP2pConnectedCallback    aCallback,
+                     void                     *aContext);
+#endif
+    void  P2pSetEventCallback(otP2pEventCallback aCallback, void *aContext);
+    Error P2pDisconnect(const Mac::ExtAddress &aExtAddress);
+#endif
 
 #if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
     /**
@@ -1450,10 +1457,10 @@ private:
     static void Log(MessageAction, MessageType, const Ip6::Address &, uint16_t) {}
 #endif
 
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
     void HandleWedAttachTimer(void);
 #endif
-#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     void  SendP2pLinkRequest(const Mac::WakeupInfo &aWakeupInfo);
     Error SendP2pLinkAccept(const LinkAcceptInfo &aInfo);
     Error SendP2pLinkAcceptAndRequest(const LinkAcceptInfo &aInfo);
@@ -1565,14 +1572,17 @@ private:
     Ip6::Netif::MulticastAddress mLinkLocalAllThreadNodes;
     Ip6::Netif::MulticastAddress mRealmLocalAllThreadNodes;
 
-#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
-    WakeupTxScheduler        mWakeupTxScheduler;
-    WedAttachState           mWedAttachState;
-    WedAttachTimer           mWedAttachTimer;
-    Callback<WakeupCallback> mWakeupCallback;
-#endif
 #if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
-    ChildTable mChildTable;
+#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
+    WakeupTxScheduler              mWakeupTxScheduler;
+    WedAttachState                 mWedAttachState;
+    WedAttachTimer                 mWedAttachTimer;
+    Callback<P2pConnectedCallback> mP2pConnectedCallback;
+#endif
+    Callback<P2pEventCallback> mP2pEventCallback;
+#if !OPENTHREAD_FTD
+    ChildTable mChildTable; // The child table is used as the peer table.
+#endif
 #endif
 };
 

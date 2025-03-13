@@ -67,7 +67,7 @@ public:
      * @retval kErrorNone         Successfully started the wake-up sequence.
      * @retval kErrorInvalidState This or another device is currently being woken-up.
      */
-    Error WakeUp(const Mac::WakeupId &aWakeupId, uint16_t aIntervalUs, uint16_t aDurationMs);
+    Error WakeUp(const Mac::WakeupAddress &aWakeupAddress, uint16_t aIntervalUs, uint16_t aDurationMs);
 
     /**
      * Returns the connection window used by this device.
@@ -116,13 +116,13 @@ private:
 
     using WakeupTimer = TimerMicroIn<WakeupTxScheduler, &WakeupTxScheduler::RequestWakeupFrameTransmission>;
 
-    Mac::WakeupId mWakeupId;
-    TimeMicro     mTxTimeUs;             // Point in time when the next TX occurs.
-    TimeMicro     mTxEndTimeUs;          // Point in time when the wake-up sequence is over.
-    uint16_t      mTxRequestAheadTimeUs; // How much ahead the TX MAC operation needs to be requested.
-    uint16_t      mIntervalUs;           // Interval between consecutive wake-up frames.
-    WakeupTimer   mTimer;
-    bool          mIsRunning;
+    Mac::WakeupAddress mWakeupAddress;
+    TimeMicro          mTxTimeUs;             // Point in time when the next TX occurs.
+    TimeMicro          mTxEndTimeUs;          // Point in time when the wake-up sequence is over.
+    uint16_t           mTxRequestAheadTimeUs; // How much ahead the TX MAC operation needs to be requested.
+    uint16_t           mIntervalUs;           // Interval between consecutive wake-up frames.
+    WakeupTimer        mTimer;
+    bool               mIsRunning;
 };
 
 } // namespace ot

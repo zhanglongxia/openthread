@@ -1073,6 +1073,26 @@ private:
 
 } OT_TOOL_PACKED_END;
 
+/**
+ * Represents a wake-up request info.
+ */
+OT_TOOL_PACKED_BEGIN
+class WakeupAddress : public otWakeupAddress
+{
+public:
+    bool              IsValid(void) const;
+    const WakeupId   &GetWakeupId(void) const { return *static_cast<const WakeupId *>(&mShared.mWakeupId); }
+    WakeupId         &GetWakeupId(void) { return *static_cast<WakeupId *>(&mShared.mWakeupId); }
+    const ExtAddress &GetExtAddress(void) const { return *static_cast<const ExtAddress *>(&mShared.mExtAddress); }
+    ExtAddress       &GetExtAddress(void) { return *static_cast<ExtAddress *>(&mShared.mExtAddress); }
+    bool              IsWakeupId(void) const { return mIsWakeupId; }
+    bool              IsGroupId(void) const { return mIsGroupId; }
+
+    static constexpr uint16_t       kInfoStringSize = 100; ///< Max chars for the info string (`ToString()`).
+    typedef String<kInfoStringSize> InfoString;
+    InfoString                      ToString(void) const;
+};
+
 #if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
 /**
  * Represents MAC wake-up frame information.
@@ -1089,6 +1109,7 @@ struct WakeupInfo
 
     ExtAddress mWcAddress;
     uint32_t   mFrameCounter;
+    uint32_t   mAttachDelayMs;
     uint8_t    mWakeupTarget : 2;
     uint8_t    mRetryInterval : 2;
     uint8_t    mRetryCount : 2;
@@ -1107,6 +1128,7 @@ struct WakeupInfo
 
 DefineCoreType(otExtAddress, Mac::ExtAddress);
 DefineCoreType(otWakeupId, Mac::WakeupId);
+DefineCoreType(otWakeupAddress, Mac::WakeupAddress);
 DefineCoreType(otMacKey, Mac::Key);
 
 } // namespace ot

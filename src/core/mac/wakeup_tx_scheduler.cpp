@@ -51,19 +51,20 @@ WakeupTxScheduler::WakeupTxScheduler(Instance &aInstance)
     UpdateFrameRequestAhead();
 }
 
-Error WakeupTxScheduler::WakeUp(const Mac::WakeupId &aWakeupId, uint16_t aIntervalUs, uint16_t aDurationMs)
+Error WakeupTxScheduler::WakeUp(const Mac::WakeupAddress &aWakeupAddress, uint16_t aIntervalUs, uint16_t aDurationMs)
 {
     Error error = kErrorNone;
 
     VerifyOrExit(!mIsRunning, error = kErrorInvalidState);
 
-    mWakeupId    = aWakeupId;
+    mWakeupAddress = aWakeupAddress;
+
     mTxTimeUs    = TimerMicro::GetNow() + mTxRequestAheadTimeUs;
     mTxEndTimeUs = mTxTimeUs + aDurationMs * Time::kOneMsecInUsec + aIntervalUs;
     mIntervalUs  = aIntervalUs;
     mIsRunning   = true;
 
-    LogInfo("Started wake-up sequence to %s", aWakeupId.ToString().AsCString());
+    LogInfo("Started wake-up sequence to %s", aWakeupAddress.ToString().AsCString());
 
     ScheduleTimer();
 
@@ -97,7 +98,7 @@ Mac::TxFrame *WakeupTxScheduler::PrepareWakeupFrame(Mac::TxFrames &aTxFrames)
     frame = &aTxFrames.GetTxFrame();
 #endif
 
-    VerifyOrExit(frame->GenerateWakeupFrame(Get<Mac::Mac>().GetPanId(), mWakeupId, source) == kErrorNone,
+    VerifyOrExit(frame->GenerateWakeupFrame(Get<Mac::Mac>().GetPanId(), mWakeupAddress, source) == kErrorNone,
                  frame = nullptr);
     frame->SetTxDelayBaseTime(static_cast<uint32_t>(Get<Radio>().GetNow()));
     frame->SetTxDelay(radioTxDelay);
@@ -116,20 +117,18 @@ Mac::TxFrame *WakeupTxScheduler::PrepareWakeupFrame(Mac::TxFrames &aTxFrames)
     connectionIe->SetRetryInterval(kConnectionRetryInterval);
     connectionIe->SetRetryCount(kConnectionRetryCount);
 
-    if (!mWakeupId.IsExtAddress())
+    if (mWakeupAddress.IsWakeupId())
     {
-        VerifyOrExit(connectionIe->SetWakeupId(mWakeupId) == kErrorNone, frame = nullptr);
+        VerifyOrExit(connectionIe->SetWakeupId(mWakeupAddress.GetWakeupId()) == kErrorNone, frame = nullptr);
     }
 
     {
         static constexpr uint16_t kBufSize = 257;
         char                      buf[kBufSize];
         StringWriter              writer(buf, sizeof(buf));
-        uint8_t                  *ie = reinterpret_cast<uint8_t *>(frame->GetRendezvousTimeIe());
 
         writer.AppendHexBytes(frame->mPsdu, frame->mLength);
-        LogInfo("wake-up frame: len:%u, psdu:%s", frame->mLength, buf);
-        LogInfo("ConnectionIeOffset:%lu", ToUlong(ie - frame->mPsdu));
+        LogInfo("Wake-up frame: len:%u, psdu:%s", frame->mLength, buf);
     }
 
     // Advance to the time of the next wake-up frame.

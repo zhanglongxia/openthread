@@ -385,12 +385,45 @@ bool KeyMaterial::operator==(const KeyMaterial &aOther) const
 #endif
 }
 
+bool WakeupAddress::IsValid(void) const
+{
+    bool ret = true;
+
+    if (IsWakeupId())
+    {
+        const WakeupId *wakeupId = static_cast<const WakeupId *>(&mShared.mWakeupId);
+        ret                      = wakeupId->IsValid();
+    }
+
+    return ret;
+}
+WakeupAddress::InfoString WakeupAddress::ToString(void) const
+{
+    InfoString string;
+
+    string.Append("id: %u, ", IsWakeupId());
+    string.Append("grp: %u ", IsGroupId());
+    string.Append("m8: ");
+
+    if (IsWakeupId())
+    {
+        string.Append("%s ", GetWakeupId().ToString().AsCString());
+    }
+    else
+    {
+        string.Append("%s ", GetExtAddress().ToString().AsCString());
+    }
+
+    return string;
+}
+
 WakeupInfo::InfoString WakeupInfo::ToString(void) const
 {
     InfoString string;
 
     string.Append("wcaddr: ");
     string.AppendHexBytes(mWcAddress.m8, sizeof(ExtAddress));
+    string.Append(",delayms: %u ", mAttachDelayMs);
     string.Append(",fcnt: %u ", mFrameCounter);
     string.Append(",target: %u ", mWakeupTarget);
     string.Append(",RI: %u, RC: %u ", mRetryInterval, mRetryCount);

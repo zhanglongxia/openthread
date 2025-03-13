@@ -260,7 +260,6 @@ Error SubMac::RadioSleep(void)
 
     VerifyOrExit(ShouldHandleTransitionToSleep());
 
-    LogDebg("sleep()");
     error = Get<Radio>().Sleep();
 
 exit:
@@ -288,7 +287,6 @@ Error SubMac::Receive(uint8_t aChannel)
     else
 #endif
     {
-        LogDebg("Receive(%u)", aChannel);
         error = Get<Radio>().Receive(aChannel);
     }
 
@@ -306,17 +304,6 @@ exit:
 
 void SubMac::HandleReceiveDone(RxFrame *aFrame, Error aError)
 {
-#if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
-    if ((aFrame != nullptr) && aFrame->IsWakeupFrame())
-    {
-        LogCrit("Received Wakeup frame ----------");
-    }
-    else
-#endif
-    {
-        LogCrit("Received frame ----------");
-    }
-
     if (mPcapCallback.IsSet() && (aFrame != nullptr) && (aError == kErrorNone))
     {
         mPcapCallback.Invoke(aFrame, false);
@@ -326,6 +313,14 @@ void SubMac::HandleReceiveDone(RxFrame *aFrame, Error aError)
     {
         SignalFrameCounterUsed(aFrame->mInfo.mRxInfo.mAckFrameCounter, aFrame->mInfo.mRxInfo.mAckKeyId);
     }
+
+#if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+    if ((aFrame != nullptr) && (aFrame->IsWakeupFrame()))
+    {
+        VerifyOrExit(ShouldHandleWakeupFrame(*aFrame));
+        LogDebg("HandleReceiveDone -------------------------WakeupFrame");
+    }
+#endif
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
     UpdateCslLastSyncTimestamp(aFrame, aError);
@@ -337,6 +332,11 @@ void SubMac::HandleReceiveDone(RxFrame *aFrame, Error aError)
     {
         mCallbacks.ReceiveDone(aFrame, aError);
     }
+
+#if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+exit:
+    return;
+#endif
 }
 
 Error SubMac::Send(void)

@@ -1321,7 +1321,7 @@ public:
      * @retval  kErrorNone        Successfully generated Wake-up frame.
      * @retval  kErrorInvalidArgs @p aDest or @p aSource have incorrect type.
      */
-    Error GenerateWakeupFrame(PanId aPanId, const WakeupId &aWakeupId, const Address &aSource);
+    Error GenerateWakeupFrame(PanId aPanId, const WakeupAddress &aWakeupAddress, const Address &aSource);
 #endif
 
 #if OPENTHREAD_CONFIG_THREAD_VERSION >= OT_THREAD_VERSION_1_2

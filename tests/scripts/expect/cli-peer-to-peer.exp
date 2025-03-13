@@ -1,17 +1,35 @@
 #!/usr/bin/expect -f
 #
-#  WC (FED) <----> WED (SED)
+# Test topology:
+#
+# WC1 (SED) <----\
+#                  + --> WED (SED)
+# WC2 (SED) <----/
+#
+# Test Steps:
+# <1> Setup WED
+# <2> Setup WC1
+# <3> WC1 establishs a P2P link with WED and enables the SRP server
+# <4> WED pings WC1 and starts the SRP client
+# <5> WC1 checks all registered srp server hosts
+# <6> Setup WC2
+# <7> WED enables the wake-up listener
+# <8> WC2 establishs a P2P link with WED and enables the SRP server
+# <9> WED pings WC2 and starts the SRP client
+# <10> WC2 checks all registered srp server hosts
 #
 
 log_file test.log
 source "tests/scripts/expect/_common.exp"
 source "tests/scripts/expect/_multinode.exp"
 
-set WC  1
-set WED 2
+set WC1 1
+set WC2 2
+set WED 3
 set WAKEUP_ID "dead0000beef0000cafe"
 
-send_user "\n\n>>> setup WED (SED)\n"
+#-----------------------------WED-------------------------------------
+send_user "\n\n>>> setup WED\n"
 spawn_node $WED
 
 setup_default_network
@@ -19,11 +37,23 @@ setup_default_network
 send "mode -\n"
 expect_line "Done"
 
-send "extaddr deadbeefcafe0002\n"
+send "csl period 640000\n"
 expect_line "Done"
 
-send "pollperiod 2500\n"
+send "csl timeout 10\n"
+expect_line "Done"
+
+send "childsupervision checktimeout 10\n"
 expect "Done"
+
+send "childsupervision interval 2\n"
+expect "Done"
+
+send "pollperiod 200000\n "
+expect "Done"
+
+send "extaddr deadbeefcafe0003\n"
+expect_line "Done"
 
 send "wakeup channel 11\n"
 expect_line "Done"
@@ -37,8 +67,8 @@ expect_line "Done"
 send "ifconfig up\n"
 expect_line "Done"
 
-send "thread start\n"
-expect_line "Done"
+#send "thread start\n"
+#expect_line "Done"
 
 send "ipaddr\n"
 expect_line "Done"
@@ -47,6 +77,7 @@ send "wakeup listen enable\n"
 expect_line "Done"
 
 set wed_link_local_addr [get_ipaddr linklocal]
+
 send "srp client host name wed\n"
 expect_line "Done"
 
@@ -56,13 +87,29 @@ expect_line "Done"
 send "srp client service add ins1 _matter._tcp 5540\n"
 expect_line "Done"
 
+#-----------------------------WC1-------------------------------------
 
-send_user "\n\n>>> setup WC (FED)\n"
-spawn_node $WC
+send_user "\n\n>>> Setup WC1\n"
+spawn_node $WC1
 setup_default_network
 
-send "mode rdn\n"
+send "mode -\n"
 expect_line "Done"
+
+send "csl period 640000\n"
+expect_line "Done"
+
+send "csl timeout 10\n"
+expect_line "Done"
+
+send "childsupervision checktimeout 10\n"
+expect "Done"
+
+send "childsupervision interval 2\n"
+expect "Done"
+
+send "pollperiod 200000\n "
+expect "Done"
 
 send "extaddr deadbeefcafe0001\n"
 expect_line "Done"
@@ -76,13 +123,14 @@ expect_line "Done"
 send "ifconfig up\n"
 expect_line "Done"
 
-send "thread start\n"
-expect_line "Done"
+#send "thread start\n"
+#expect_line "Done"
 
-set wc_link_local_addr [get_ipaddr linklocal]
+set wc1_link_local_addr [get_ipaddr linklocal]
 
-send_user "\n\n>>> WC wakes up WED\n"
-send "wakeup wake $WAKEUP_ID 7500 1090\n"
+send_user "\n\n>>> WC1 establishs a P2P link with WED and enables the SRP server\n"
+
+send "wakeup wake id $WAKEUP_ID 7500 1090\n"
 expect_line "Done"
 
 send "srp server addrmode anycast\n"
@@ -99,25 +147,130 @@ expect_line "Done"
 
 sleep 1
 
-send_user "\n\n>>> setup WED (SED)\n"
+#-----------------------------WED-------------------------------------
+send_user "\n\n>>> WED pings WC1 and starts the SRP client\n"
 
 switch_node $WED
 
 send "ipaddr\n"
 expect_line "Done"
 
-send "ping $wc_link_local_addr\n"
+send "ping $wc1_link_local_addr\n"
 expect_line "Done"
 
-sleep 5
+sleep 1
 
-send "srp client start $wc_link_local_addr 53\n"
+send "srp client start $wc1_link_local_addr 53\n"
 expect_line "Done"
 
-sleep 10
+sleep 2
 
-send_user "\n\n>>> setup WC (FED)\n"
-switch_node $WC
+#-----------------------------WC1-------------------------------------
+send_user "\n\n>>> WC1 checks all registered srp server hosts \n"
+switch_node $WC1
+
+send "srp server state\n"
+expect_line "Done"
+
+send "srp server host\n"
+expect_line "Done"
+
+
+#-----------------------------WC2-------------------------------------
+
+send_user "\n\n>>> Setup WC2\n"
+spawn_node $WC2
+setup_default_network
+
+send "mode -\n"
+expect_line "Done"
+
+send "csl period 640000\n"
+expect_line "Done"
+
+send "csl timeout 10\n"
+expect_line "Done"
+
+send "childsupervision checktimeout 10\n"
+expect "Done"
+
+send "childsupervision interval 2\n"
+expect "Done"
+
+send "pollperiod 200000\n "
+expect "Done"
+
+send "extaddr deadbeefcafe0002\n"
+expect_line "Done"
+
+send "routereligible disable\n"
+expect_line "Done"
+
+send "wakeup channel 11\n"
+expect_line "Done"
+
+send "ifconfig up\n"
+expect_line "Done"
+
+#send "thread start\n"
+#expect_line "Done"
+
+set wc2_link_local_addr [get_ipaddr linklocal]
+
+
+#-----------------------------WED-------------------------------------
+send_user "\n\n>>> WED enables the wake-up listener\n"
+switch_node $WED
+
+send "wakeup listen enable\n"
+expect_line "Done"
+
+sleep 1
+
+#-----------------------------WC2-------------------------------------
+send_user "\n\n>>> WC2 establishs a P2P link with WED and enables the SRP server\n"
+switch_node $WC2
+send "wakeup wake id $WAKEUP_ID 7500 1090\n"
+expect_line "Done"
+
+send "srp server addrmode anycast\n"
+expect_line "Done"
+
+send "srp server enable\n"
+expect_line "Done"
+
+send "srp server state\n"
+expect_line "Done"
+
+send "ping $wed_link_local_addr\n"
+expect_line "Done"
+
+sleep 1
+
+#-----------------------------WED-------------------------------------
+send_user "\n\n>>> WED pings WC2 and starts the SRP client\n"
+
+switch_node $WED
+
+send "ipaddr\n"
+expect_line "Done"
+
+send "ping $wc2_link_local_addr\n"
+expect_line "Done"
+
+send "srp client stop\n"
+expect_line "Done"
+
+sleep 1
+
+send "srp client start $wc2_link_local_addr 53\n"
+expect_line "Done"
+
+sleep 2
+
+#-----------------------------WC2-------------------------------------
+send_user "\n\n>>> WC2 checks all registered srp server hosts \n"
+switch_node $WC2
 
 send "srp server state\n"
 expect_line "Done"

@@ -92,7 +92,7 @@ Mle::Mle(Instance &aInstance)
     , mWedAttachState(kWedDetached)
     , mWedAttachTimer(aInstance)
 #endif
-#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE && !OPENTHREAD_FTD
     , mChildTable(aInstance)
 #endif
 {
@@ -4471,54 +4471,6 @@ uint64_t Mle::CalcParentCslMetric(const Mac::CslAccuracy &aCslAccuracy) const
            aCslAccuracy.GetUncertaintyInMicrosec() * k;
 }
 #endif
-
-#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
-void Mle::HandleWedAttachTimer(void)
-{
-    switch (mWedAttachState)
-    {
-    case kWedAttaching:
-        // Connection timeout
-        if (!IsRxOnWhenIdle())
-        {
-            Get<MeshForwarder>().SetRxOnWhenIdle(false);
-        }
-
-        LogInfo("Connection window closed");
-
-        mWedAttachState = kWedDetached;
-        mWakeupCallback.InvokeAndClearIfSet(kErrorFailed);
-        break;
-    default:
-        break;
-    }
-}
-
-Error Mle::Wakeup(const Mac::WakeupId &aWakeupId,
-                  uint16_t             aIntervalUs,
-                  uint16_t             aDurationMs,
-                  WakeupCallback       aCallback,
-                  void                *aCallbackContext)
-{
-    Error error;
-
-    VerifyOrExit((aIntervalUs > 0) && (aDurationMs > 0), error = kErrorInvalidArgs);
-    VerifyOrExit(aIntervalUs < aDurationMs * Time::kOneMsecInUsec, error = kErrorInvalidArgs);
-    VerifyOrExit(mWedAttachState == kWedDetached, error = kErrorInvalidState);
-
-    SuccessOrExit(error = mWakeupTxScheduler.WakeUp(aWakeupId, aIntervalUs, aDurationMs));
-
-    mWedAttachState = kWedAttaching;
-    mWakeupCallback.Set(aCallback, aCallbackContext);
-    Get<MeshForwarder>().SetRxOnWhenIdle(true);
-    mWedAttachTimer.FireAt(mWakeupTxScheduler.GetTxEndTime() + mWakeupTxScheduler.GetConnectionWindowUs());
-
-    LogInfo("Connection window open");
-
-exit:
-    return error;
-}
-#endif // OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
 
 #if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
 void Mle::HandleWakeupFrame(const Mac::WakeupInfo &aWakeupInfo)
