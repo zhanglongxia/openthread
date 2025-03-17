@@ -318,7 +318,6 @@ void SubMac::HandleReceiveDone(RxFrame *aFrame, Error aError)
     if ((aFrame != nullptr) && (aFrame->IsWakeupFrame()))
     {
         VerifyOrExit(ShouldHandleWakeupFrame(*aFrame));
-        LogDebg("HandleReceiveDone -------------------------WakeupFrame");
     }
 #endif
 
@@ -1099,37 +1098,25 @@ bool SubMac::IsRadioSampleEnabled(void) const { return IsCslEnabled() || mIsWedE
  *             |  Radio::Receive(WedCh)
  *      Radio::Receive(CslCh)
  */
-void SubMac::RequestSleep(Requester aRequester)
+void SubMac::RequestSleep(void)
 {
-    if (IsCslEnabled() && mIsWedEnabled)
-    {
-        if ((aRequester == kRequesterCsl) && mIsWedSampling)
-        {
-            IgnoreError(Get<Radio>().Receive(mWakeupChannel));
-        }
-        else if ((aRequester == kRequesterWed) && mIsCslSampling)
-        {
-            // When the CSL is in the receive state and the WED enters the sleep state, the radio should have entered
-            // receive state using CSL channel. Do nothing here.
-        }
-        else
-        {
-            IgnoreError(Get<Radio>().Sleep());
-        }
-    }
-    else
+    if (!mIsCslSampling && !mIsWedSampling)
     {
         IgnoreError(Get<Radio>().Sleep());
     }
+    else if (!mIsCslSampling && mIsWedSampling)
+    {
+        IgnoreError(Get<Radio>().Receive(mWakeupChannel));
+    }
 }
 
-void SubMac::RequestReceive(Requester aRequester)
+void SubMac::RequestReceive(void)
 {
-    if (aRequester == kRequesterCsl)
+    if (mIsCslSampling)
     {
         IgnoreError(Get<Radio>().Receive(mCslChannel));
     }
-    else if ((aRequester == kRequesterWed) && ((IsCslEnabled() && !mIsCslSampling) || !IsCslEnabled()))
+    else if (mIsWedSampling)
     {
         IgnoreError(Get<Radio>().Receive(mWakeupChannel));
     }
@@ -1139,12 +1126,12 @@ bool SubMac::RequestSample(void)
 {
     bool ret = false;
 
-    if (mIsCslSampling && IsCslEnabled())
+    if (mIsCslSampling)
     {
         IgnoreError(Get<Radio>().Receive(mCslChannel));
         ret = true;
     }
-    else if (mIsWedSampling && mIsWedEnabled)
+    else if (mIsWedSampling)
     {
         IgnoreError(Get<Radio>().Receive(mWakeupChannel));
         ret = true;
@@ -1158,8 +1145,8 @@ bool SubMac::RequestSample(void)
 // CSL receiver only case
 
 bool SubMac::IsRadioSampleEnabled(void) const { return IsCslEnabled(); }
-void SubMac::RequestSleep(Requester) { IgnoreError(Get<Radio>().Sleep()); }
-void SubMac::RequestReceive(Requester) { IgnoreError(Get<Radio>().Receive(mCslChannel)); }
+void SubMac::RequestSleep(void) { IgnoreError(Get<Radio>().Sleep()); }
+void SubMac::RequestReceive(void) { IgnoreError(Get<Radio>().Receive(mCslChannel)); }
 
 bool SubMac::RequestSample(void)
 {
@@ -1175,8 +1162,8 @@ bool SubMac::RequestSample(void)
 // WED listener only case
 
 bool SubMac::IsRadioSampleEnabled(void) const { return mIsWedEnabled; }
-void SubMac::RequestSleep(Requester) { IgnoreError(Get<Radio>().Sleep()); }
-void SubMac::RequestReceive(Requester) { IgnoreError(Get<Radio>().Receive(mWakeupChannel)); }
+void SubMac::RequestSleep(void) { IgnoreError(Get<Radio>().Sleep()); }
+void SubMac::RequestReceive(void) { IgnoreError(Get<Radio>().Receive(mWakeupChannel)); }
 
 bool SubMac::RequestSample(void)
 {

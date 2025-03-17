@@ -66,12 +66,12 @@ typedef void (*otP2pConnectedCallback)(otError aError, void *aContext);
  * @retval OT_ERROR_INVALID_STATE Another attachment request is still in progress.
  * @retval OT_ERROR_INVALID_ARGS  The wake-up address, wake-up interval or duration are invalid.
  */
-otError otP2pConnect(otInstance            *aInstance,
-                     const otWakeupAddress *aWakeupAddress,
-                     uint16_t               mWakeupIntervalUs,
-                     uint16_t               mWakeupDurationMs,
-                     otP2pConnectedCallback aCallback,
-                     void                  *aContext);
+otError otP2pWakeupAndConnect(otInstance            *aInstance,
+                              const otWakeupAddress *aWakeupAddress,
+                              uint16_t               mWakeupIntervalUs,
+                              uint16_t               mWakeupDurationMs,
+                              otP2pConnectedCallback aCallback,
+                              void                  *aContext);
 
 /**
  * Tear down the peer-to-peer link.
@@ -89,10 +89,8 @@ otError otP2pDisconnect(otInstance *aInstance, const otExtAddress *aExtAddress);
  */
 typedef enum
 {
-    OT_P2P_EVENT_WED_CONNECTED    = 0, ///< The device is connected to the WED.
-    OT_P2P_EVENT_WED_DISCONNECTED = 1, ///< The device is disconnected from the WC.
-    OT_P2P_EVENT_WC_CONNECTED     = 2, ///< The device is connected to the WC.
-    OT_P2P_EVENT_WC_DISCONNECTED  = 3, ///< The device is disconnected from the WC.
+    OT_P2P_EVENT_CONNECTED    = 0, ///< The peer-to-peer link is connected.
+    OT_P2P_EVENT_DISCONNECTED = 1, ///< The peer-to-peer link is disconnected.
 } otP2pEvent;
 
 /**

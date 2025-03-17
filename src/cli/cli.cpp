@@ -7952,6 +7952,126 @@ exit:
 
 #endif // OPENTHREAD_CONFIG_VERHOEFF_CHECKSUM_ENABLE
 
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+template <> otError Interpreter::Process<Cmd("p2p")>(Arg aArgs[])
+{
+    otError error = OT_ERROR_NONE;
+
+#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
+    if (aArgs[0] == "connect")
+    {
+        uint16_t        length;
+        otWakeupAddress wakeupAddress;
+        uint16_t        wakeupIntervalUs;
+        uint16_t        wakeupDurationMs;
+
+        /**
+         * @cli connect id 1ece0a6c4653a7c1 7500 1090
+         * @code
+         * connect id 1ece0a6c4653a7c1 7500 1090
+         * Done
+         * @endcode
+         * @cparam connect id @ca{wakeup-identifeir} @ca{wakeup-interval} @ca{wakeup-duration}
+         * @par
+         * Wakes a Wake-up End Device identified by the wake-up identifier and establishes a peer-to-peer link with
+         * the WED, using the provided wake-up interval (in the units of microseconds), and wake-up duration (in the
+         * units of milliseconds).
+         */
+        if (aArgs[1] == "id")
+        {
+            length = OT_MAX_WAKEUP_ID_SIZE;
+            SuccessOrExit(error = aArgs[2].ParseAsHexString(length, wakeupAddress.mShared.mWakeupId.m8));
+            wakeupAddress.mShared.mWakeupId.mLength = length;
+            wakeupAddress.mIsWakeupId               = true;
+            wakeupAddress.mIsGroupId                = false;
+        }
+        else if (aArgs[1] == "gid")
+        {
+            length = OT_MAX_WAKEUP_ID_SIZE;
+            SuccessOrExit(error = aArgs[2].ParseAsHexString(length, wakeupAddress.mShared.mWakeupId.m8));
+            wakeupAddress.mShared.mWakeupId.mLength = length;
+            wakeupAddress.mIsWakeupId               = true;
+            wakeupAddress.mIsGroupId                = true;
+        }
+        else if (aArgs[1] == "extaddr")
+        {
+            length = OT_EXT_ADDRESS_SIZE;
+            SuccessOrExit(error = aArgs[2].ParseAsHexString(length, wakeupAddress.mShared.mExtAddress.m8));
+            VerifyOrExit(length == OT_EXT_ADDRESS_SIZE, error = OT_ERROR_INVALID_ARGS);
+            wakeupAddress.mIsWakeupId = false;
+        }
+        else
+        {
+            ExitNow(error = OT_ERROR_INVALID_ARGS);
+        }
+
+        SuccessOrExit(error = aArgs[3].ParseAsUint16(wakeupIntervalUs));
+        SuccessOrExit(error = aArgs[4].ParseAsUint16(wakeupDurationMs));
+
+        SuccessOrExit(error = otP2pWakeupAndConnect(GetInstancePtr(), &wakeupAddress, wakeupIntervalUs,
+                                                    wakeupDurationMs, HandleWakeupResult, this));
+        error = OT_ERROR_PENDING;
+    }
+    else
+#endif // OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
+        if (aArgs[0] == "disconnect")
+        {
+            /**
+             * @cli disconnect 1ece0a6c4653a7c1
+             * @code
+             * disconnect 1ece0a6c4653a7c1
+             * Done
+             * @endcode
+             * @cparam disconnect @ca{ext-address}
+             * @par
+             *  Disconnect the peer-to-peer link identifier by the ext address.
+             */
+            uint16_t     length;
+            otExtAddress extAddress;
+
+            length = OT_EXT_ADDRESS_SIZE;
+            SuccessOrExit(error = aArgs[1].ParseAsHexString(length, extAddress.m8));
+            VerifyOrExit(length == OT_EXT_ADDRESS_SIZE, error = OT_ERROR_INVALID_ARGS);
+
+            SuccessOrExit(error = otP2pDisconnect(GetInstancePtr(), &extAddress));
+        }
+        else if (aArgs[0] == "event")
+        {
+            if (aArgs[1] == "enable")
+            {
+                otP2pSetEventCallback(GetInstancePtr(), HandleP2pEvent, this);
+            }
+            else if (aArgs[1] == "disable")
+            {
+                otP2pSetEventCallback(GetInstancePtr(), nullptr, nullptr);
+            }
+            else
+            {
+                error = OT_ERROR_INVALID_ARGS;
+            }
+        }
+        else
+        {
+            error = OT_ERROR_INVALID_ARGS;
+        }
+
+exit:
+    return error;
+}
+
+void Interpreter::HandleP2pEvent(otP2pEvent aEvent, const otExtAddress *aExtAddress, void *aContext)
+{
+    static_cast<Interpreter *>(aContext)->HandleP2pEvent(aEvent, aExtAddress);
+}
+
+void Interpreter::HandleP2pEvent(otP2pEvent aEvent, const otExtAddress *aExtAddress)
+{
+    OutputExtAddress(*aExtAddress);
+    OutputLine(" is %s", aEvent == OT_P2P_EVENT_CONNECTED ? "connected" : "disconnected");
+}
+
+#endif //  && OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE || OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
 template <> otError Interpreter::Process<Cmd("wakeup")>(Arg aArgs[])
 {
@@ -8123,35 +8243,16 @@ template <> otError Interpreter::Process<Cmd("wakeup")>(Arg aArgs[])
      */
     else if (aArgs[0] == "wake")
     {
-        uint16_t        length;
-        otWakeupAddress wakeupAddress;
-        uint16_t        wakeupIntervalUs;
-        uint16_t        wakeupDurationMs;
+        otExtAddress extAddress;
+        uint16_t     wakeupIntervalUs;
+        uint16_t     wakeupDurationMs;
 
-        if ((aArgs[1] == "id") || (aArgs[1] == "groupid"))
-        {
-            length = OT_MAX_WAKEUP_ID_SIZE;
-            SuccessOrExit(error = aArgs[2].ParseAsHexString(length, wakeupAddress.mShared.mWakeupId.m8));
-            wakeupAddress.mShared.mWakeupId.mLength = length;
-            wakeupAddress.mIsWakeupId               = true;
-            wakeupAddress.mIsGroupId                = (aArgs[1] == "groupid");
-        }
-        else if (aArgs[1] == "extaddr")
-        {
-            length = OT_EXT_ADDRESS_SIZE;
-            SuccessOrExit(error = aArgs[2].ParseAsHexString(length, wakeupAddress.mShared.mExtAddress.m8));
-            VerifyOrExit(length == OT_EXT_ADDRESS_SIZE, error = OT_ERROR_INVALID_ARGS);
-        }
-        else
-        {
-            ExitNow(error = OT_ERROR_INVALID_ARGS);
-        }
+        SuccessOrExit(error = aArgs[1].ParseAsHexString(extAddress.m8));
+        SuccessOrExit(error = aArgs[2].ParseAsUint16(wakeupIntervalUs));
+        SuccessOrExit(error = aArgs[3].ParseAsUint16(wakeupDurationMs));
 
-        SuccessOrExit(error = aArgs[3].ParseAsUint16(wakeupIntervalUs));
-        SuccessOrExit(error = aArgs[4].ParseAsUint16(wakeupDurationMs));
-
-        SuccessOrExit(error = otP2pConnect(GetInstancePtr(), &wakeupAddress, wakeupIntervalUs, wakeupDurationMs,
-                                           HandleWakeupResult, this));
+        SuccessOrExit(error = otThreadWakeup(GetInstancePtr(), &extAddress, wakeupIntervalUs, wakeupDurationMs,
+                                             HandleWakeupResult, this));
         error = OT_ERROR_PENDING;
     }
 #endif // OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
@@ -8173,7 +8274,6 @@ void Interpreter::HandleWakeupResult(otError aError, void *aContext)
 
 void Interpreter::HandleWakeupResult(otError aError) { OutputResult(aError); }
 #endif
-
 #endif // OPENTHREAD_FTD || OPENTHREAD_MTD
 
 void Interpreter::Initialize(otInstance *aInstance, otCliOutputCallback aCallback, void *aContext)
@@ -8390,6 +8490,11 @@ otError Interpreter::ProcessCommand(Arg aArgs[])
 #endif
 #if OPENTHREAD_FTD
         CmdEntry("nexthop"),
+#endif
+#if OPENTHREAD_FTD || OPENTHREAD_MTD
+#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE || OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+        CmdEntry("p2p"),
+#endif
 #endif
         CmdEntry("panid"),
         CmdEntry("parent"),

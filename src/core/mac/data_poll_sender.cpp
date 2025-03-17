@@ -54,32 +54,12 @@ DataPollSender::DataPollSender(Instance &aInstance)
     , mRemainingFastPolls(0)
 {
 }
-#if 0
+
 const Neighbor &DataPollSender::GetParent(void) const
 {
     const Neighbor &parentCandidate = Get<Mle::MleRouter>().GetParentCandidate();
 
     return parentCandidate.IsStateValid() ? parentCandidate : Get<Mle::MleRouter>().GetParent();
-}
-#endif
-
-const Neighbor &DataPollSender::GetParent(void) const
-{
-    const Child *ret = Get<ChildTable>().GetChildAtIndex(0);
-    Child       *peer;
-    uint16_t     index = 0;
-
-    while ((peer = Get<ChildTable>().GetChildAtIndex(index++)) != nullptr)
-    {
-        if (!peer->IsRxOnWhenIdle() || !peer->IsStateValid())
-        {
-            continue;
-        }
-
-        ret = peer;
-    }
-
-    return *ret;
 }
 
 void DataPollSender::StartPolling(void)
@@ -87,6 +67,8 @@ void DataPollSender::StartPolling(void)
     VerifyOrExit(!mEnabled);
 
     OT_ASSERT(!Get<Mle::MleRouter>().IsRxOnWhenIdle());
+
+    ExitNow(GetParent().IsStateValid());
 
     mEnabled = true;
     ScheduleNextPoll(kRecalculatePollPeriod);
@@ -119,7 +101,6 @@ Error DataPollSender::SendDataPoll(void)
 
     mTimer.Stop();
 
-    LogWarn("SendDataPoll() RequestDataPollTransmission");
     SuccessOrExit(error = Get<Mac::Mac>().RequestDataPollTransmission());
 
 exit:
@@ -155,20 +136,16 @@ Error DataPollSender::GetPollDestinationAddress(Mac::Address &aDest) const
     const Neighbor &parent = GetParent();
 
     VerifyOrExit(parent.IsStateValidOrRestoring(), error = kErrorAbort);
-#if 0
     // Use extended address attaching to a new parent (i.e. parent is the parent candidate).
     if ((Get<Mac::Mac>().GetShortAddress() == Mac::kShortAddrInvalid) ||
         (&parent == &Get<Mle::MleRouter>().GetParentCandidate()))
     {
-#endif
-    aDest.SetExtended(parent.GetExtAddress());
-#if 0
+        aDest.SetExtended(parent.GetExtAddress());
     }
     else
     {
         aDest.SetShort(parent.GetRloc16());
     }
-#endif
 #if OPENTHREAD_CONFIG_MULTI_RADIO
     aRadioType = Get<RadioSelector>().SelectPollFrameRadio(parent);
 #endif
@@ -581,12 +558,10 @@ Mac::TxFrame *DataPollSender::PrepareDataRequest(Mac::TxFrames &aTxFrames)
 
     if (frameInfo.mAddrs.mDestination.IsExtended())
     {
-        LogWarn("PrepareDataRequest() SetExtended(%s)", Get<Mac::Mac>().GetExtAddress().ToString().AsCString());
         frameInfo.mAddrs.mSource.SetExtended(Get<Mac::Mac>().GetExtAddress());
     }
     else
     {
-        LogWarn("PrepareDataRequest() SetShort(0x%04x)", Get<Mac::Mac>().GetShortAddress());
         frameInfo.mAddrs.mSource.SetShort(Get<Mac::Mac>().GetShortAddress());
     }
 

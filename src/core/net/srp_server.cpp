@@ -1739,7 +1739,6 @@ Error Server::ProcessMessage(Message                &aMessage,
     metadata.mLeaseConfig = aLeaseConfig;
     metadata.mMessageInfo = aMessageInfo;
 
-    LogInfo("ProcessMessage() =======");
     SuccessOrExit(error = aMessage.Read(metadata.mOffset, metadata.mDnsHeader));
     metadata.mOffset += sizeof(Dns::UpdateHeader);
 

@@ -307,7 +307,17 @@ public:
     }
 
 private:
-    static constexpr uint16_t kMaxChildren = OPENTHREAD_CONFIG_MLE_MAX_CHILDREN;
+    static constexpr uint16_t kMaxChildren =
+#if OPENTHREAD_FTD
+        OPENTHREAD_CONFIG_MLE_MAX_CHILDREN
+#else
+        0
+#endif
+
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+        + OPENTHREAD_CONFIG_PEER_TABLE_SZIE
+#endif
+        ;
 
     class IteratorBuilder : public InstanceLocator
     {

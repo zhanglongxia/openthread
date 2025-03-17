@@ -109,7 +109,7 @@ Child *ChildTable::GetNewChild(Child::NeighborType aType)
     VerifyOrExit(child != nullptr);
     child->Clear();
     child->SetNeighborType(aType);
-    LogWarn("GetNewChild() ---------------------->>>>>>> %s", aType == Child::kNeighborTypeChild ? "Child" : "Peer");
+    LogWarn("GetNewChild() %s", aType == Child::kNeighborTypeChild ? "Child" : "Peer");
 
 exit:
     return child;

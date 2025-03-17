@@ -112,7 +112,8 @@ void ChildSupervisor::CheckState(void)
     // enabled, and there is at least one "valid" child in the
     // child table.
 
-    bool shouldRun = (!Get<Mle::Mle>().IsDisabled() && Get<ChildTable>().HasChildren(Child::kInStateValid));
+    // bool shouldRun = (!Get<Mle::Mle>().IsDisabled() && Get<ChildTable>().HasChildren(Child::kInStateValid));
+    bool shouldRun = Get<ChildTable>().HasChildren(Child::kInStateValid);
 
     if (shouldRun && !Get<TimeTicker>().IsReceiverRegistered(TimeTicker::kChildSupervisor))
     {
@@ -135,7 +136,7 @@ void ChildSupervisor::HandleNotifierEvents(Events aEvents)
     }
 }
 
-#endif // #if OPENTHREAD_FTD
+#endif // OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 
 SupervisionListener::SupervisionListener(Instance &aInstance)
     : InstanceLocator(aInstance)

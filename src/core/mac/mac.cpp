@@ -389,7 +389,7 @@ void Mac::SetRxOnWhenIdle(bool aRxOnWhenIdle)
     VerifyOrExit(mRxOnWhenIdle != aRxOnWhenIdle);
 
     mRxOnWhenIdle = aRxOnWhenIdle;
-    LogDebg("SetRxOnWhenIdle(): mRxOnWhenIdle=%u~~~~~~~~~~~~~", mRxOnWhenIdle);
+    LogDebg("SetRxOnWhenIdle(%u)", mRxOnWhenIdle);
 
     // If the new value for `mRxOnWhenIdle` is `true` (i.e., radio should
     // remain in Rx while idle) we stop any ongoing or pending `WaitingForData`
@@ -2709,9 +2709,7 @@ Error Mac::HandleWakeupFrame(const RxFrame &aFrame)
     Address             srcAddress;
     WakeupInfo          info;
 
-    VerifyOrExit(mWakeupListenEnabled && aFrame.IsWakeupFrame());
-
-    LogInfo("HandleWakeupFrame() ---------------------------");
+    LogInfo("HandleWakeupFrame()");
     VerifyOrExit((connectionIe = aFrame.GetConnectionIe()) != nullptr);
 
     info.mRetryInterval        = connectionIe->GetRetryInterval();

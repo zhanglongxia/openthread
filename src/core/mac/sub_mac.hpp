@@ -575,11 +575,6 @@ private:
     // CSL/wake-up listening receivers would wake up `kCslReceiveTimeAhead` earlier
     // than expected sample window. The value is in usec.
     static constexpr uint32_t kCslReceiveTimeAhead = OPENTHREAD_CONFIG_CSL_RECEIVE_TIME_AHEAD;
-
-    enum Requester : uint8_t{
-        kRequesterCsl, // The CSL receiver requester.
-        kRequesterWed, // The Wake-up listener requester.
-    };
 #endif
 
 #if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
@@ -645,8 +640,8 @@ private:
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE || OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
     bool IsRadioSampleEnabled(void) const;
-    void RequestSleep(Requester aRequester);
-    void RequestReceive(Requester aRequester);
+    void RequestSleep(void);
+    void RequestReceive(void);
     bool RequestSample(void);
     void RadioSample(void);
 #endif

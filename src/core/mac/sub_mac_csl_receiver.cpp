@@ -115,6 +115,9 @@ void SubMac::SetCslParams(uint16_t aPeriod, uint8_t aChannel, ShortAddress aShor
     bool diffPeer    = aShortAddr != mCslPeerShort;
     bool retval      = diffPeriod || diffChannel || diffPeer;
 
+    LogInfo("SetCslParams() CSLEnabled:%u, period(%u, %u), channel(%u,%u), peer(0x%04x, 0x%04x)", (aPeriod > 0),
+            mCslPeriod, aPeriod, mCslPeriod, aPeriod, mCslPeerShort, aShortAddr);
+
     VerifyOrExit(retval);
     mCslChannel = aChannel;
 
@@ -122,23 +125,22 @@ void SubMac::SetCslParams(uint16_t aPeriod, uint8_t aChannel, ShortAddress aShor
     mCslPeerShort = aShortAddr;
     IgnoreError(Get<Radio>().EnableCsl(aPeriod, aShortAddr, aExtAddr));
 
+    mCslPeriod     = aPeriod;
+    mIsCslSampling = false;
+
     mCslTimer.Stop();
-    if (aPeriod > 0)
+    if (mCslPeriod > 0)
     {
         mCslSampleTimeRadio = static_cast<uint32_t>(Get<Radio>().GetNow());
         mCslSampleTimeLocal = TimerMicro::GetNow();
-        mIsCslSampling      = false;
-        mCslPeriod          = aPeriod;
 
         HandleCslTimer();
     }
     else if ((mState == kStateRadioSample) && (!RadioSupportsReceiveTiming()))
     {
         // Give WED a chance to enter receive or sleep state, and give SubMac a chance to enter sleep state.
-        RequestSleep(kRequesterCsl);
+        RequestSleep();
     }
-
-    mCslPeriod = aPeriod;
 
 exit:
     return;
@@ -224,7 +226,7 @@ void SubMac::HandleCslReceiveOrSleep(uint32_t aTimeAhead, uint32_t aTimeAfter)
         if (mState == kStateRadioSample)
         {
 #if !OPENTHREAD_CONFIG_MAC_CSL_DEBUG_ENABLE
-            RequestSleep(kRequesterCsl); // Don't actually sleep for debugging
+            RequestSleep(); // Don't actually sleep for debugging
 #endif
             LogDebg("CSL sleep %lu", ToUlong(mCslTimer.GetNow().GetValue()));
         }
@@ -246,7 +248,7 @@ void SubMac::HandleCslReceiveOrSleep(uint32_t aTimeAhead, uint32_t aTimeAfter)
         Get<Radio>().UpdateCslSampleTime(mCslSampleTimeRadio);
         if (mState == kStateRadioSample)
         {
-            RequestReceive(kRequesterCsl);
+            RequestReceive();
         }
 
         LogCslWindow(winStart, winDuration);

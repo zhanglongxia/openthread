@@ -124,6 +124,7 @@ class Mle : public InstanceLocator, private NonCopyable
 public:
     typedef otDetachGracefullyCallback DetachCallback; ///< Callback to signal end of graceful detach.
 
+    typedef otWakeupCallback WakeupCallback; ///< Callback to communicate the result of waking a Wake-up End Device
     typedef otP2pConnectedCallback P2pConnectedCallback;
     typedef otP2pEventCallback     P2pEventCallback;
 
@@ -747,22 +748,30 @@ public:
     /**
      * Attempts to wake a Wake-up End Device.
      *
-     * @param[in] aWakeupRequestInfo  A reference to the wake-up request info.
+     * @param[in] aWedAddress The extended address of the Wake-up End Device.
+     * @param[in] aIntervalUs An interval between consecutive wake-up frames (in microseconds).
+     * @param[in] aDurationMs Duration of the wake-up sequence (in milliseconds).
+     * @param[in] aCallback   A pointer to function that is called when the wake-up succeeds or fails.
+     * @param[in] aContext    A pointer to callback application-specific context.
      *
      * @retval kErrorNone         Successfully started the wake-up.
      * @retval kErrorInvalidState Another wake-up request is still in progress.
      * @retval kErrorInvalidArgs  The wake-up interval or duration are invalid.
      */
-    // Error Wakeup(const WakeupRequestInfo &aWakeupRequestInfo);
+    Error Wakeup(const Mac::ExtAddress &aWedAddress,
+                 uint16_t               aIntervalUs,
+                 uint16_t               aDurationMs,
+                 WakeupCallback         aCallback,
+                 void                  *aCallbackContext);
 
 #endif // OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
 #if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
-    Error P2pConnect(const Mac::WakeupAddress &aWakeupAddress,
-                     uint16_t                  aIntervalUs,
-                     uint16_t                  aDurationMs,
-                     otP2pConnectedCallback    aCallback,
-                     void                     *aContext);
+    Error P2pWakeupAndConnect(const Mac::WakeupAddress &aWakeupAddress,
+                              uint16_t                  aIntervalUs,
+                              uint16_t                  aDurationMs,
+                              otP2pConnectedCallback    aCallback,
+                              void                     *aContext);
 #endif
     void  P2pSetEventCallback(otP2pEventCallback aCallback, void *aContext);
     Error P2pDisconnect(const Mac::ExtAddress &aExtAddress);
@@ -809,6 +818,11 @@ private:
     static constexpr uint8_t kMaxTxCount                = 3; // Max tx count for MLE message
     static constexpr uint8_t kMaxCriticalTxCount        = 6; // Max tx count for critical MLE message
     static constexpr uint8_t kMaxChildKeepAliveAttempts = 4; // Max keep alive attempts before reattach
+
+#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE || OPENTHREAD_CONFIG_WAKEUP_END_ENABLE
+    // Max keep alive time of P2P link before removing the peer from the neighbor table, in units of milliseconds.
+    static constexpr uint16_t kMaxP2pKeepAliveBeforeRemovePeer = 2000;
+#endif
 
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     // Attach backoff feature (CONFIG_ENABLE_ATTACH_BACKOFF) - Intervals are in milliseconds.
@@ -987,11 +1001,11 @@ private:
     };
 
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
-    enum WedAttachState : uint8_t{
-        kWedDetached,
-        kWedAttaching,
-        kWedAttached,
-        kWedDetaching,
+    enum P2pState : uint8_t{
+        kP2pIdle,
+        kP2pAttaching,
+        kP2pAttached,
+        kP2pDetaching,
     };
 #endif
 
@@ -1459,7 +1473,7 @@ private:
 
 #if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
-    void HandleWedAttachTimer(void);
+    void HandleP2pTimer(void);
 #endif
     void  SendP2pLinkRequest(const Mac::WakeupInfo &aWakeupInfo);
     Error SendP2pLinkAccept(const LinkAcceptInfo &aInfo);
@@ -1475,6 +1489,9 @@ private:
     void HandlePeerLinkRequest(RxInfo &aRxInfo);
     void HandlePeerLinkAcceptAndRequest(RxInfo &aRxInfo);
     void HandlePeerLinkAccept(RxInfo &aRxInfo);
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    void HandleLinkTearDown(RxInfo &aRxInfo);
+#endif
 #endif
 
 #if OT_SHOULD_LOG_AT(OT_LOG_LEVEL_NOTE)
@@ -1502,7 +1519,7 @@ private:
     using MsgTxTimer  = TimerMilliIn<Mle, &Mle::HandleMessageTransmissionTimer>;
     using MleSocket   = Ip6::Udp::SocketIn<Mle, &Mle::HandleUdpReceive>;
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
-    using WedAttachTimer = TimerMicroIn<Mle, &Mle::HandleWedAttachTimer>;
+    using P2pTimer = TimerMicroIn<Mle, &Mle::HandleP2pTimer>;
 #endif
 
     static const otMeshLocalPrefix kMeshLocalPrefixInit;
@@ -1575,11 +1592,13 @@ private:
 #if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
     WakeupTxScheduler              mWakeupTxScheduler;
-    WedAttachState                 mWedAttachState;
-    WedAttachTimer                 mWedAttachTimer;
     Callback<P2pConnectedCallback> mP2pConnectedCallback;
 #endif
+    P2pState                   mP2pState;
+    Child                     *mP2pPeer;
+    P2pTimer                   mP2pTimer;
     Callback<P2pEventCallback> mP2pEventCallback;
+
 #if !OPENTHREAD_FTD
     ChildTable mChildTable; // The child table is used as the peer table.
 #endif

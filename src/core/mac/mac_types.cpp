@@ -397,6 +397,7 @@ bool WakeupAddress::IsValid(void) const
 
     return ret;
 }
+
 WakeupAddress::InfoString WakeupAddress::ToString(void) const
 {
     InfoString string;

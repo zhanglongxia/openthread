@@ -89,8 +89,8 @@ Mle::Mle(Instance &aInstance)
     , mMessageTransmissionTimer(aInstance)
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
     , mWakeupTxScheduler(aInstance)
-    , mWedAttachState(kWedDetached)
-    , mWedAttachTimer(aInstance)
+    , mP2pState(kP2pIdle)
+    , mP2pTimer(aInstance)
 #endif
 #if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE && !OPENTHREAD_FTD
     , mChildTable(aInstance)
@@ -2551,7 +2551,6 @@ void Mle::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageIn
 
 #if OPENTHREAD_FTD || OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
     case kCommandLinkRequest:
-        LogInfo("kCommandLinkRequest");
         HandlePeerLinkRequest(rxInfo);
         break;
 
@@ -2562,6 +2561,12 @@ void Mle::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageIn
     case kCommandLinkAcceptAndRequest:
         HandlePeerLinkAcceptAndRequest(rxInfo);
         break;
+
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    case kCommandLinkTearDown:
+        HandleLinkTearDown(rxInfo);
+        break;
+#endif
 #endif
 
 #if OPENTHREAD_FTD
@@ -4481,6 +4486,10 @@ void Mle::HandleWakeupFrame(const Mac::WakeupInfo &aWakeupInfo)
 #endif
 }
 #endif
+
+#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
+Error Mle::Wakeup(const Mac::ExtAddress &, uint16_t, uint16_t, WakeupCallback, void *) { return kErrorNotImplemented; }
+#endif // OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
 
 Error Mle::DetachGracefully(DetachCallback aCallback, void *aContext)
 {

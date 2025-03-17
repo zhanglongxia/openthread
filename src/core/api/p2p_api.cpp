@@ -40,15 +40,15 @@
 using namespace ot;
 
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
-otError otP2pConnect(otInstance            *aInstance,
-                     const otWakeupAddress *aWakeupAddress,
-                     uint16_t               aWakeupIntervalUs,
-                     uint16_t               aWakeupDurationMs,
-                     otP2pConnectedCallback aCallback,
-                     void                  *aContext)
+otError otP2pWakeupAndConnect(otInstance            *aInstance,
+                              const otWakeupAddress *aWakeupAddress,
+                              uint16_t               aWakeupIntervalUs,
+                              uint16_t               aWakeupDurationMs,
+                              otP2pConnectedCallback aCallback,
+                              void                  *aContext)
 {
-    return AsCoreType(aInstance).Get<Mle::Mle>().P2pConnect(AsCoreType(aWakeupAddress), aWakeupIntervalUs,
-                                                            aWakeupDurationMs, aCallback, aContext);
+    return AsCoreType(aInstance).Get<Mle::Mle>().P2pWakeupAndConnect(AsCoreType(aWakeupAddress), aWakeupIntervalUs,
+                                                                     aWakeupDurationMs, aCallback, aContext);
 }
 #endif
 

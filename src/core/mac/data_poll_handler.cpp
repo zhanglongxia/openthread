@@ -89,12 +89,10 @@ void DataPollHandler::HandleDataPoll(Mac::RxFrame &aFrame)
     Child       *child;
     uint16_t     indirectMsgCount;
 
-    LogWarn("HandleDataPoll() TP1");
     VerifyOrExit(aFrame.GetSecurityEnabled());
-    // VerifyOrExit(!Get<Mle::MleRouter>().IsDetached());
+    VerifyOrExit(!Get<Mle::MleRouter>().IsDetached());
 
     SuccessOrExit(aFrame.GetSrcAddr(macSource));
-    LogWarn("HandleDataPoll() TP2");
     child = Get<ChildTable>().FindChild(macSource, Child::kInStateValidOrRestoring);
     VerifyOrExit(child != nullptr);
 
@@ -103,7 +101,6 @@ void DataPollHandler::HandleDataPoll(Mac::RxFrame &aFrame)
         VerifyOrExit(!Get<Mle::MleRouter>().IsDetached());
     }
 
-    LogWarn("HandleDataPoll() TP3");
     child->SetLastHeard(TimerMilli::GetNow());
     child->ResetLinkFailures();
 #if OPENTHREAD_CONFIG_MULTI_RADIO
@@ -112,22 +109,10 @@ void DataPollHandler::HandleDataPoll(Mac::RxFrame &aFrame)
 
     indirectMsgCount = child->GetIndirectMessageCount();
 
-    if (child->IsChild())
-    {
-        LogInfo("Rx data poll, src:0x%04x, qed_msgs:%d, rss:%d, ack-fp:%d", child->GetRloc16(), indirectMsgCount,
-                aFrame.GetRssi(), aFrame.IsAckedWithFramePending());
-    }
-    else
-    {
-        LogInfo("Rx data poll, src:%s, qed_msgs:%d, rss:%d, ack-fp:%d", child->GetExtAddress().ToString().AsCString(),
-                indirectMsgCount, aFrame.GetRssi(), aFrame.IsAckedWithFramePending());
-    }
-
     if (!aFrame.IsAckedWithFramePending())
     {
         if ((indirectMsgCount > 0) && macSource.IsShort())
         {
-            LogWarn("HandleDataPoll() SetSrcMatchAsShort");
             Get<SourceMatchController>().SetSrcMatchAsShort(*child, true);
         }
 

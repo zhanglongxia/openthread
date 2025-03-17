@@ -266,10 +266,6 @@ private:
 
     using PollTimer = TimerMilliIn<DataPollSender, &DataPollSender::HandlePollTimer>;
 
-    struct Info
-    {
-    };
-
     TimeMilli mTimerStartTime;
     uint32_t  mPollPeriod;
     uint32_t  mExternalPollPeriod : 26; // In milliseconds.

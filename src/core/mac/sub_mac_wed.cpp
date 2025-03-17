@@ -55,11 +55,13 @@ void SubMac::UpdateWakeupListening(bool aEnable, uint32_t aInterval, uint32_t aD
     mWakeupListenInterval = aInterval;
     mWakeupListenDuration = aDuration;
     mWakeupChannel        = aChannel;
+    mIsWedEnabled         = aEnable;
+    mIsWedSampling        = false;
+
     mWedTimer.Stop();
 
     if (aEnable)
     {
-        mIsWedSampling      = true;
         mWedSampleTime      = TimerMicro::GetNow() + kCslReceiveTimeAhead - mWakeupListenInterval;
         mWedSampleTimeRadio = Get<Radio>().GetNow() + kCslReceiveTimeAhead - mWakeupListenInterval;
 
@@ -68,10 +70,8 @@ void SubMac::UpdateWakeupListening(bool aEnable, uint32_t aInterval, uint32_t aD
     else if ((mState == kStateRadioSample) && (!RadioSupportsReceiveTiming()))
     {
         // Give CSL and SubMac a chance to enter sleep state.
-        RequestSleep(kRequesterWed);
+        RequestSleep();
     }
-
-    mIsWedEnabled = aEnable;
 }
 
 void SubMac::HandleWedTimer(Timer &aTimer) { aTimer.Get<SubMac>().HandleWedTimer(); }
@@ -113,11 +113,11 @@ void SubMac::HandleWedReceiveOrSleep(void)
     {
         if (mIsWedSampling)
         {
-            RequestReceive(kRequesterWed);
+            RequestReceive();
         }
         else
         {
-            RequestSleep(kRequesterWed);
+            RequestSleep();
         }
     }
 

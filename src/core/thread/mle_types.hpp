@@ -152,6 +152,7 @@ enum Command : uint8_t
     kCommandLinkMetricsManagementRequest  = 18, ///< Link Metrics Management Request command
     kCommandLinkMetricsManagementResponse = 19, ///< Link Metrics Management Response command
     kCommandLinkProbe                     = 20, ///< Link Probe command
+    kCommandLinkTearDown                  = 21, ///< Link Tear Down command
     kCommandTimeSync                      = 99, ///< Time Sync command
 };
 
