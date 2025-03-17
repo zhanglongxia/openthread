@@ -2,32 +2,24 @@
 #
 # Test topology:
 #
-# WC1 (SED) <----\
-#                  + --> WED (SED)
-# WC2 (SED) <----/
+# WC1 (SSED) <------> WED (SSED)
 #
 # Test Steps:
 # <1> Setup WED
 # <2> Setup WC1
-# <3> WC1 establishs a P2P link with WED and enables the SRP server
-# <4> WED pings WC1 and starts the SRP client
-# <5> WC1 checks all registered srp server hosts
-# <6> Setup WC2
-# <7> WED enables the wake-up listener
-# <8> WC2 establishs a P2P link with WED and enables the SRP server
-# <9> WED pings WC2 and starts the SRP client
-# <10> WC2 checks all registered srp server hosts
+# <3> WC1 establishs a P2P link with WED
+# <4> WED pings WC1
+# <5> WED tears down the P2P link form WC1
 #
 
 log_file test.log
+
 source "tests/scripts/expect/_common.exp"
 source "tests/scripts/expect/_multinode.exp"
 
 set WC1 1
-set WC2 2
 set WED 3
 set wc1_ext_address "deadbeefcafe0001"
-set wc2_ext_address "deadbeefcafe0002"
 set wed_ext_address "deadbeefcafe0003"
 set WAKEUP_ID "dead0000beef0000cafe"
 
@@ -81,15 +73,6 @@ expect_line "Done"
 
 set wed_link_local_addr [get_ipaddr linklocal]
 
-send "srp client host name wed\n"
-expect_line "Done"
-
-send "srp client host address $wed_link_local_addr\n"
-expect_line "Done"
-
-send "srp client service add ins1 _matter._tcp 5540\n"
-expect_line "Done"
-
 #-----------------------------WC1-------------------------------------
 
 send_user "\n\n>>> Setup WC1\n"
@@ -131,13 +114,13 @@ expect_line "Done"
 
 set wc1_link_local_addr [get_ipaddr linklocal]
 
-send_user "\n\n>>> WC1 establishs a P2P link with WED and enables the SRP server\n"
+send_user "\n\n>>> WC1 establishs a P2P link with WED\n"
 
 send "p2p connect id $WAKEUP_ID 7500 1090\n"
 expect_line "Done"
 
 #-----------------------------WED-------------------------------------
-send_user "\n\n>>> WED pings WC1 and starts the SRP client\n"
+send_user "\n\n>>> WED pings WC1\n"
 
 switch_node $WED
 
@@ -148,6 +131,8 @@ send "ping $wc1_link_local_addr\n"
 expect_line "Done"
 
 sleep 1
+
+send_user "\n\n>>> WED tears down the P2P link form WC1 \n"
 
 send "p2p disconnect $wc1_ext_address\n"
 expect_line "Done"

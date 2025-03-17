@@ -424,8 +424,8 @@ WakeupInfo::InfoString WakeupInfo::ToString(void) const
 
     string.Append("wcaddr: ");
     string.AppendHexBytes(mWcAddress.m8, sizeof(ExtAddress));
-    string.Append(",delayms: %u ", mAttachDelayMs);
-    string.Append(",fcnt: %u ", mFrameCounter);
+    string.Append(",delayms: %lu ", ToUlong(mAttachDelayMs));
+    string.Append(",fcnt: %lu ", ToUlong(mFrameCounter));
     string.Append(",target: %u ", mWakeupTarget);
     string.Append(",RI: %u, RC: %u ", mRetryInterval, mRetryCount);
     string.Append(",flags: ");

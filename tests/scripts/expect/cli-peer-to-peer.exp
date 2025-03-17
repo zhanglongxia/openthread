@@ -2,9 +2,9 @@
 #
 # Test topology:
 #
-# WC1 (SED) <----\
-#                  + --> WED (SED)
-# WC2 (SED) <----/
+# WC1 (SSED) <----\
+#                  + --> WED (SSED)
+# WC2 (SSED) <----/
 #
 # Test Steps:
 # <1> Setup WED
@@ -21,6 +21,7 @@
 #
 
 log_file test.log
+
 source "tests/scripts/expect/_common.exp"
 source "tests/scripts/expect/_multinode.exp"
 
@@ -298,4 +299,8 @@ expect_line "Done"
 
 sleep 3
 
-interact
+# interact
+
+dispose_node $WC1
+dispose_node $WC2
+dispose_node $WED
