@@ -125,6 +125,7 @@ void CslTxScheduler::RescheduleCslTx(void)
 
     if (bestNeighbor != nullptr)
     {
+        LogInfo("RequestCslFrameTransmission() delay=%lu", minDelayTime / 1000UL);
         Get<Mac::Mac>().RequestCslFrameTransmission(minDelayTime / 1000UL);
     }
 
@@ -221,6 +222,7 @@ Mac::TxFrame *CslTxScheduler::HandleFrameRequest(Mac::TxFrames &aTxFrames)
 
     VerifyOrExit(delay <= mCslFrameRequestAheadUs + kFramePreparationGuardInterval, frame = nullptr);
 
+    LogInfo("HandleFrameRequest() txDelay=%u", txDelay);
     frame->SetTxDelay(txDelay);
     frame->SetTxDelayBaseTime(
         static_cast<uint32_t>(mCslTxNeighbor->GetLastRxTimestamp())); // Only LSB part of the time is required.

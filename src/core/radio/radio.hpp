@@ -550,6 +550,14 @@ public:
      * @retval  kErrorNone           Successfully disabled CSL.
      */
     Error ResetCsl(void);
+
+    Error SetCslParams(uint32_t               aCslPeriod,
+                       uint8_t                aCslChannel,
+                       otShortAddress         aShortAddr,
+                       const Mac::ExtAddress &aExtAddress);
+
+    void SetCslParentAccuracy(const Mac::CslAccuracy &aCslAccuracy);
+
 #endif // OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE || OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE || \
@@ -986,6 +994,20 @@ inline Error Radio::EnableCsl(uint32_t aCslPeriod, Mac::ShortAddress aShortAddr,
 }
 
 inline Error Radio::ResetCsl(void) { return otPlatRadioResetCsl(GetInstancePtr()); }
+
+inline Error Radio::SetCslParams(uint32_t               aCslPeriod,
+                                 uint8_t                aCslChannel,
+                                 otShortAddress         aShortAddr,
+                                 const Mac::ExtAddress &aExtAddress)
+{
+    return otPlatRadioSetCslParams(GetInstancePtr(), aCslPeriod, aCslChannel, aShortAddr, &aExtAddress);
+}
+
+inline void Radio::SetCslParentAccuracy(const Mac::CslAccuracy &aCslAccuracy)
+{
+    otPlatRadioSetCslParentAccuracy(GetInstancePtr(), &aCslAccuracy);
+}
+
 #endif
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE || OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE || \
@@ -1093,6 +1115,12 @@ inline Error Radio::EnableCsl(uint32_t, Mac::ShortAddress aShortAddr, const Mac:
 }
 
 inline Error Radio::ResetCsl(void) { return kErrorNotImplemented; }
+inline Error Radio::SetCslParams(uint32_t, uint8_t, otShortAddress, const Mac::ExtAddress &)
+{
+    return kErrorNotImplemented;
+}
+
+inline void Radio::SetCslParentAccuracy(const Mac::CslAccuracy &) {}
 #endif
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE || OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE || \

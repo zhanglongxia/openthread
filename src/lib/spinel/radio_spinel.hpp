@@ -822,15 +822,24 @@ public:
      * @retval   The current CSL rx/tx scheduling drift, in units of ± ppm.
      */
     uint8_t GetCslAccuracy(void);
-#endif
 
-#if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
     /**
      * Get the current uncertainty, in units of 10 us, of the clock used for scheduling CSL operations.
      *
      * @retval  The current CSL Clock Uncertainty in units of 10 us.
      */
     uint8_t GetCslUncertainty(void);
+#endif
+
+#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
+    otError EnableCsl(uint32_t aCslPeriod, uint16_t aShortAddress, const otExtAddress &aExtAddress);
+    otError ResetCsl(void);
+    otError UpdateCslSampleTime(uint32_t aCslSampleTime);
+    otError SetCslParams(uint32_t            aCslPeriod,
+                         uint8_t             aCslChannel,
+                         uint16_t            aShortAddress,
+                         const otExtAddress &aExtAddress);
+    void    SetCslParentAccuracy(const otCslAccuracy &aCslAccuracy);
 #endif
 
     /**

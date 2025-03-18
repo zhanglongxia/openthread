@@ -433,6 +433,11 @@ OT_TOOL_WEAK otError otPlatRadioResetCsl(otInstance *) { return OT_ERROR_NONE; }
 
 OT_TOOL_WEAK void otPlatRadioUpdateCslSampleTime(otInstance *, uint32_t) {}
 
+OT_TOOL_WEAK otError otPlatRadioSetCslParams(otInstance *, uint8_t, uint32_t, otShortAddress, const otExtAddress *)
+{
+    return OT_ERROR_NONE;
+}
+
 OT_TOOL_WEAK uint8_t otPlatRadioGetCslAccuracy(otInstance *)
 {
     return static_cast<uint8_t>(otPlatTimeGetXtalAccuracy() / 2);

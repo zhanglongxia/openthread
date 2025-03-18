@@ -978,9 +978,7 @@ uint8_t otPlatRadioGetCslAccuracy(otInstance *aInstance)
 
     return GetRadioSpinel().GetCslAccuracy();
 }
-#endif
 
-#if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
 uint8_t otPlatRadioGetCslUncertainty(otInstance *aInstance)
 {
     OT_UNUSED_VARIABLE(aInstance);
@@ -989,9 +987,39 @@ uint8_t otPlatRadioGetCslUncertainty(otInstance *aInstance)
 }
 #endif
 
-otError otPlatRadioSetChannelMaxTransmitPower(otInstance *aInstance, uint8_t aChannel, int8_t aMaxPower)
+#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
+otError otPlatRadioEnableCsl(otInstance *,
+                             uint32_t            aCslPeriod,
+                             otShortAddress      aShortAddress,
+                             const otExtAddress *aExtAddress)
 {
-    OT_UNUSED_VARIABLE(aInstance);
+    return GetRadioSpinel().EnableCsl(aCslPeriod, aShortAddress, *aExtAddress);
+}
+
+otError otPlatRadioResetCsl(otInstance *) { return GetRadioSpinel().ResetCsl(); }
+
+void otPlatRadioUpdateCslSampleTime(otInstance *, uint32_t aCslSampleTime)
+{
+    GetRadioSpinel().UpdateCslSampleTime(aCslSampleTime);
+}
+
+otError otPlatRadioSetCslParams(otInstance *,
+                                uint8_t             aCslChannel,
+                                uint32_t            aCslPeriod,
+                                otShortAddress      aShortAddress,
+                                const otExtAddress *aExtAddress)
+{
+    return GetRadioSpinel().SetCslParams(aCslChannel, aCslPeriod, aShortAddress, *aExtAddress);
+}
+
+void otPlatRadioSetCslParentAccuracy(otInstance *, const otCslAccuracy *aCslAccuracy)
+{
+    GetRadioSpinel().SetCslParentAccuracy(*aCslAccuracy);
+}
+#endif
+
+otError otPlatRadioSetChannelMaxTransmitPower(otInstance *, uint8_t aChannel, int8_t aMaxPower)
+{
     return GetRadioSpinel().SetChannelMaxTransmitPower(aChannel, aMaxPower);
 }
 

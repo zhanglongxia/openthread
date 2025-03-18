@@ -86,22 +86,42 @@ exit:
     return;
 }
 
-void SubMac::SetCslParams(uint16_t aPeriod, uint8_t aChannel, ShortAddress aShortAddr, const ExtAddress &aExtAddr)
+void SubMac::SetCslParentAccuracy(const CslAccuracy &aCslAccuracy)
 {
-    bool diffPeriod  = aPeriod != mCslPeriod;
-    bool diffChannel = aChannel != mCslChannel;
-    bool diffPeer    = aShortAddr != mCslPeerShort;
-    bool retval      = diffPeriod || diffChannel || diffPeer;
+    LogInfo("SetCslParentAccuracy");
+    mCslParentAccuracy = aCslAccuracy;
+    if (RadioSupportsCslReceiver())
+    {
+        Get<Radio>().SetCslParentAccuracy(aCslAccuracy);
+    }
+}
+
+Error SubMac::SetCslParams(uint16_t aPeriod, uint8_t aChannel, ShortAddress aShortAddr, const ExtAddress &aExtAddr)
+{
+    Error error       = kErrorNone;
+    bool  diffPeriod  = aPeriod != mCslPeriod;
+    bool  diffChannel = aChannel != mCslChannel;
+    bool  diffPeer    = aShortAddr != mCslPeerShort;
+    bool  retval      = diffPeriod || diffChannel || diffPeer;
+
+    LogInfo("SetCslParams, ch:%u ------------------------------------------>", aChannel);
+    if (RadioSupportsCslReceiver())
+    {
+        LogInfo("Get<Radio>().SetCslParams()");
+        error = Get<Radio>().SetCslParams(aPeriod, aChannel, aShortAddr, aExtAddr);
+        ExitNow();
+    }
 
     VerifyOrExit(retval);
     mCslChannel = aChannel;
 
     VerifyOrExit(diffPeriod || diffPeer);
     mCslPeerShort = aShortAddr;
-    IgnoreError(Get<Radio>().EnableCsl(aPeriod, aShortAddr, aExtAddr));
+    SuccessOrExit(error = Get<Radio>().EnableCsl(aPeriod, aShortAddr, aExtAddr));
 
     mIsCslSampling = false;
     mCslPeriod     = aPeriod;
+    LogInfo("SetCslParams: mCslChannel:%u, mCslPeriod:%u", mCslChannel, mCslPeriod);
 
     mCslTimer.Stop();
     if (mCslPeriod > 0)
@@ -117,7 +137,7 @@ void SubMac::SetCslParams(uint16_t aPeriod, uint8_t aChannel, ShortAddress aShor
     }
 
 exit:
-    return;
+    return error;
 }
 
 void SubMac::HandleCslTimer(Timer &aTimer) { aTimer.Get<SubMac>().HandleCslTimer(); }
@@ -199,7 +219,7 @@ void SubMac::HandleCslReceiveOrSleep(uint32_t aTimeAhead, uint32_t aTimeAfter)
         mCslTimer.FireAt(mCslSampleTimeLocal - aTimeAhead);
         if (mState == kStateRadioSample)
         {
-            LogDebg("CSL sleep %lu", ToUlong(mCslTimer.GetNow().GetValue()));
+            // LogDebg("CSL sleep %lu", ToUlong(mCslTimer.GetNow().GetValue()));
         }
     }
     else
@@ -221,6 +241,7 @@ void SubMac::HandleCslReceiveOrSleep(uint32_t aTimeAhead, uint32_t aTimeAfter)
         LogCslWindow(winStart, winDuration);
     }
 
+    // LogInfo("State: %s", StateToString(mState));
     UpdateRadioSampleState();
 }
 

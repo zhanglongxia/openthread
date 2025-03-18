@@ -103,6 +103,7 @@ public:
      * @retval kErrorInvalidState    The radio was disabled or transmitting.
      */
     Error Receive(void);
+    Error Sleep(void);
 
     /**
      * Invokes the mReceiveDoneCallback, if set.
@@ -287,6 +288,14 @@ public:
     void RecordFrameTransmitStatus(const TxFrame &aFrame, Error aError, uint8_t aRetryCount, bool aWillRetx);
 #else
     void    RecordFrameTransmitStatus(const TxFrame &, Error, uint8_t, bool) {}
+#endif
+
+#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
+    Error SetCslParams(uint32_t          aCslPeriod,
+                       uint8_t           aCslChannel,
+                       otShortAddress    aShortAddress,
+                       const ExtAddress &aExtAddress);
+    void  SetCslParentAccuracy(const CslAccuracy &aCslAccuracy);
 #endif
 
 private:

@@ -38,6 +38,7 @@
 
 using namespace ot;
 
+RegisterLogModule("Radio");
 //---------------------------------------------------------------------------------------------------------------------
 // otPlatRadio callbacks
 
@@ -57,6 +58,7 @@ extern "C" void otPlatRadioReceiveDone(otInstance *aInstance, otRadioFrame *aFra
     }
 #endif
 
+    LogInfo("RxDone");
     instance.Get<Radio::Callbacks>().HandleReceiveDone(rxFrame, aError);
 
 exit:
@@ -97,6 +99,7 @@ extern "C" void otPlatRadioTxDone(otInstance *aInstance, otRadioFrame *aFrame, o
     txFrame.SetRadioType(Mac::kRadioTypeIeee802154);
 #endif
 
+    LogInfo("TxDone");
     instance.Get<Radio::Callbacks>().HandleTransmitDone(txFrame, ackFrame, aError);
 
 exit:
@@ -366,3 +369,10 @@ extern "C" OT_TOOL_WEAK void otPlatRadioSetRxOnWhenIdle(otInstance *aInstance, b
 }
 
 OT_TOOL_WEAK otError otPlatRadioSetChannelTargetPower(otInstance *, uint8_t, int16_t) { return kErrorNotImplemented; }
+
+OT_TOOL_WEAK otError otPlatRadioSetCslParams(otInstance *, uint8_t, uint32_t, otShortAddress, const otExtAddress *)
+{
+    return kErrorNotImplemented;
+}
+
+OT_TOOL_WEAK void otPlatRadioSetCslParentAccuracy(otInstance *, const otCslAccuracy *) {}

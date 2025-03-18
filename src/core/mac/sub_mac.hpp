@@ -385,7 +385,7 @@ public:
      * @param[in]  aShortAddr The short source address of CSL receiver's peer.
      * @param[in]  aExtAddr   The extended source address of CSL receiver's peer.
      */
-    void SetCslParams(uint16_t aPeriod, uint8_t aChannel, ShortAddress aShortAddr, const ExtAddress &aExtAddr);
+    Error SetCslParams(uint16_t aPeriod, uint8_t aChannel, ShortAddress aShortAddr, const ExtAddress &aExtAddr);
 
     /**
      * Returns parent CSL accuracy (clock accuracy and uncertainty).
@@ -399,7 +399,7 @@ public:
      *
      * @param[in] aCslAccuracy  The parent CSL accuracy.
      */
-    void SetCslParentAccuracy(const CslAccuracy &aCslAccuracy) { mCslParentAccuracy = aCslAccuracy; }
+    void SetCslParentAccuracy(const CslAccuracy &aCslAccuracy);
 
 #endif // OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
 
@@ -600,6 +600,7 @@ private:
     bool RadioSupportsTransmitTiming(void) const { return ((mRadioCaps & OT_RADIO_CAPS_TRANSMIT_TIMING) != 0); }
     bool RadioSupportsReceiveTiming(void) const { return ((mRadioCaps & OT_RADIO_CAPS_RECEIVE_TIMING) != 0); }
     bool RadioSupportsRxOnWhenIdle(void) const { return ((mRadioCaps & OT_RADIO_CAPS_RX_ON_WHEN_IDLE) != 0); }
+    bool RadioSupportsCslReceiver(void) const { return ((mRadioCaps & OT_RADIO_CAPS_CSL_RECEIVER) != 0); }
 
     bool ShouldHandleTransmitSecurity(void) const;
     bool ShouldHandleCsmaBackOff(void) const;

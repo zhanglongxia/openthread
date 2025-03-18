@@ -506,6 +506,7 @@ void RadioSpinel::HandleValueIs(spinel_prop_key_t aKey, const uint8_t *aBuffer, 
 
     if (aKey == SPINEL_PROP_STREAM_RAW)
     {
+        LogInfo("HandleValueIs() SPINEL_PROP_STREAM_RAW mState:%u", mState);
         SuccessOrExit(error = ParseRadioFrame(mRxRadioFrame, aBuffer, aLength, unpacked));
         RadioReceive();
     }
@@ -746,8 +747,11 @@ void RadioSpinel::RadioReceive(void)
         switch (mState)
         {
         case kStateDisabled:
-        case kStateSleep:
             ExitNow();
+        case kStateSleep:
+#if !OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
+            ExitNow();
+#endif
 
         case kStateReceive:
         case kStateTransmitting:
@@ -2391,22 +2395,62 @@ otError RadioSpinel::ConfigureEnhAckProbing(otLinkMetrics         aLinkMetrics,
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE || OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
 uint8_t RadioSpinel::GetCslAccuracy(void)
 {
-    uint8_t accuracy = UINT8_MAX;
-    otError error    = Get(SPINEL_PROP_RCP_CSL_ACCURACY, SPINEL_DATATYPE_UINT8_S, &accuracy);
+    static uint8_t sAccuracy = UINT8_MAX;
+    otError        error     = OT_ERROR_NONE;
+
+    if (sAccuracy == UINT8_MAX)
+    {
+        error = Get(SPINEL_PROP_RCP_CSL_ACCURACY, SPINEL_DATATYPE_UINT8_S, &sAccuracy);
+    }
 
     LogIfFail("Get CSL Accuracy failed", error);
-    return accuracy;
+    return sAccuracy;
+}
+
+uint8_t RadioSpinel::GetCslUncertainty(void)
+{
+    static uint8_t sUncertainty = UINT8_MAX;
+    otError        error        = OT_ERROR_NONE;
+
+    if (sUncertainty == UINT8_MAX)
+    {
+        error = Get(SPINEL_PROP_RCP_CSL_UNCERTAINTY, SPINEL_DATATYPE_UINT8_S, &sUncertainty);
+    }
+
+    LogIfFail("Get CSL Uncertainty failed", error);
+    return sUncertainty;
 }
 #endif
 
-#if OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
-uint8_t RadioSpinel::GetCslUncertainty(void)
+#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
+otError RadioSpinel::EnableCsl(uint32_t aCslPeriod, uint16_t aShortAddress, const otExtAddress &aExtAddress)
 {
-    uint8_t uncertainty = UINT8_MAX;
-    otError error       = Get(SPINEL_PROP_RCP_CSL_UNCERTAINTY, SPINEL_DATATYPE_UINT8_S, &uncertainty);
+    return Set(SPINEL_PROP_RCP_CSL_ENABLE, SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT16_S SPINEL_DATATYPE_EUI64_S,
+               aCslPeriod, aShortAddress, aExtAddress.m8);
+}
 
-    LogIfFail("Get CSL Uncertainty failed", error);
-    return uncertainty;
+otError RadioSpinel::ResetCsl(void) { return Set(SPINEL_PROP_RCP_CSL_RESET, nullptr); }
+
+otError RadioSpinel::UpdateCslSampleTime(uint32_t aCslSampleTime)
+{
+    return Set(SPINEL_PROP_RCP_CSL_SAMPLE_TIME, SPINEL_DATATYPE_UINT32_S, aCslSampleTime);
+}
+
+otError RadioSpinel::SetCslParams(uint32_t            aCslPeriod,
+                                  uint8_t             aCslChannel,
+                                  uint16_t            aShortAddress,
+                                  const otExtAddress &aExtAddress)
+{
+    return Set(SPINEL_PROP_RCP_CSL_PARAMETERS,
+               SPINEL_DATATYPE_UINT32_S SPINEL_DATATYPE_UINT8_S SPINEL_DATATYPE_UINT16_S SPINEL_DATATYPE_EUI64_S,
+               aCslPeriod, aCslChannel, aShortAddress, aExtAddress.m8);
+}
+
+void RadioSpinel::SetCslParentAccuracy(const otCslAccuracy &aCslAccuracy)
+{
+    otError error = Set(SPINEL_PROP_RCP_CSL_PARENT_ACCURACY, SPINEL_DATATYPE_UINT8_S SPINEL_DATATYPE_UINT8_S,
+                        aCslAccuracy.mClockAccuracy, aCslAccuracy.mUncertainty);
+    LogIfFail("Set CSL Parent Accuracy failed", error);
 }
 #endif
 

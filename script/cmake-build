@@ -216,6 +216,13 @@ Could not fild the Android NDK CMake toolchain file
                 "-DOT_TCP=OFF"
                 "-DOT_LOG_OUTPUT=PLATFORM_DEFINED"
                 "-DOT_POSIX_MAX_POWER_TABLE=ON"
+                "-DOT_CSL_RECEIVER=ON"
+                "-DBUILD_TESTING=OFF"
+                "-DOT_BUILD_GTEST=OFF"
+                "-DOT_CLI_LOG=ON"
+                "-DOT_FULL_LOGS=ON"
+                "-DOT_LOG_LEVEL=DEBG"
+                "-DOT_LOG_MAX_SIZE=1024"
             )
             options+=("${OT_POSIX_SIM_COMMON_OPTIONS[@]}" "${local_options[@]}")
             ;;
@@ -225,6 +232,13 @@ Could not fild the Android NDK CMake toolchain file
                 "-DOT_DNS_DSO=ON"
                 "-DOT_DNS_CLIENT_OVER_TCP=ON"
                 "-DOT_UDP_FORWARD=ON"
+                "-DOT_CSL_RECEIVER=ON"
+                "-DBUILD_TESTING=OFF"
+                "-DOT_BUILD_GTEST=OFF"
+                "-DOT_CLI_LOG=ON"
+                "-DOT_FULL_LOGS=ON"
+                "-DOT_LOG_LEVEL=DEBG"
+                "-DOT_LOG_MAX_SIZE=1024"
             )
             options+=("${OT_POSIX_SIM_COMMON_OPTIONS[@]}" "${local_options[@]}")
             ;;

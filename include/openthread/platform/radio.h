@@ -135,6 +135,7 @@ enum
     OT_RADIO_CAPS_RX_ON_WHEN_IDLE      = 1 << 8,  ///< Radio supports RxOnWhenIdle handling.
     OT_RADIO_CAPS_TRANSMIT_FRAME_POWER = 1 << 9,  ///< Radio supports setting per-frame transmit power.
     OT_RADIO_CAPS_ALT_SHORT_ADDR       = 1 << 10, ///< Radio supports setting alternate short address.
+    OT_RADIO_CAPS_CSL_RECEIVER         = 1 << 11, ///< Radio supports CSL receiver.
 };
 
 #define OT_PANID_BROADCAST 0xffff ///< IEEE 802.15.4 Broadcast PAN ID
@@ -1218,6 +1219,27 @@ otError otPlatRadioResetCsl(otInstance *aInstance);
  *                               the frame is expected.
  */
 void otPlatRadioUpdateCslSampleTime(otInstance *aInstance, uint32_t aCslSampleTime);
+
+otError otPlatRadioSetCslParams(otInstance         *aInstance,
+                                uint8_t             aCslChannel,
+                                uint32_t            aCslPeriod,
+                                otShortAddress      aShortAddress,
+                                const otExtAddress *aExtAddress);
+
+/**
+ * @struct otCslAccuracy
+ *
+ * Represents the CSL Accuracy.
+ */
+typedef struct otCslAccuracy
+{
+    uint8_t mClockAccuracy; ///< The accuracy of the clock that is used by the Device for scheduling CSL Transmissions
+                            ///< in units of ±ppm.
+    uint8_t mUncertainty;   ///< The fixed uncertainty of the Device for scheduling CSL Transmissions in units of 10
+                            ///< microseconds.
+} otCslAccuracy;
+
+void otPlatRadioSetCslParentAccuracy(otInstance *aInstance, const otCslAccuracy *aCslAccuracy);
 
 /**
  * Get the current estimated worst case accuracy (maximum ± deviation from the

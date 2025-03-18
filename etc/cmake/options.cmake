@@ -320,7 +320,7 @@ endif()
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 if(OT_REFERENCE_DEVICE AND NOT OT_PLATFORM STREQUAL "posix")
-    set(OT_DEFAULT_LOG_OUTPUT "APP")
+    set(OT_DEFAULT_LOG_OUTPUT "PLATFORM_DEFINED")
 else()
     set(OT_DEFAULT_LOG_OUTPUT "")
 endif()

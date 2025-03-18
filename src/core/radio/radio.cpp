@@ -32,6 +32,7 @@
 
 namespace ot {
 
+RegisterLogModule("Radio");
 const uint8_t Radio::kSupportedChannelPages[kNumChannelPages] = {
 #if OPENTHREAD_CONFIG_RADIO_2P4GHZ_OQPSK_SUPPORT
     kChannelPage0,
@@ -119,6 +120,7 @@ Error Radio::Transmit(Mac::TxFrame &aFrame)
     Get<Utils::Otns>().EmitTransmit(aFrame);
 #endif
 
+    LogInfo("Tx");
     return otPlatRadioTransmit(GetInstancePtr(), &aFrame);
 }
 #endif // OPENTHREAD_CONFIG_RADIO_LINK_IEEE_802_15_4_ENABLE

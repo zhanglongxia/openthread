@@ -184,6 +184,18 @@ exit:
     return error;
 }
 
+Error LinkRaw::Sleep(void)
+{
+    Error error = kErrorNone;
+
+    VerifyOrExit(IsEnabled(), error = kErrorInvalidState);
+
+    SuccessOrExit(error = mSubMac.Sleep());
+
+exit:
+    return error;
+}
+
 void LinkRaw::InvokeReceiveDone(RxFrame *aFrame, Error aError)
 {
     LogDebg("ReceiveDone(%d bytes), error:%s", (aFrame != nullptr) ? aFrame->mLength : 0, ErrorToString(aError));
@@ -273,6 +285,24 @@ Error LinkRaw::SetMacFrameCounter(uint32_t aFrameCounter, bool aSetIfLarger)
 exit:
     return error;
 }
+
+#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
+Error LinkRaw::SetCslParams(uint32_t          aCslPeriod,
+                            uint8_t           aCslChannel,
+                            otShortAddress    aShortAddress,
+                            const ExtAddress &aExtAddress)
+{
+    Error error;
+
+    VerifyOrExit(IsEnabled(), error = kErrorInvalidState);
+    error = mSubMac.SetCslParams(aCslPeriod, aCslChannel, aShortAddress, aExtAddress);
+
+exit:
+    return error;
+}
+
+void LinkRaw::SetCslParentAccuracy(const CslAccuracy &aCslAccuracy) { mSubMac.SetCslParentAccuracy(aCslAccuracy); }
+#endif
 
 // LCOV_EXCL_START
 

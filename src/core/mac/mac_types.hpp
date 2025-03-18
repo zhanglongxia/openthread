@@ -902,7 +902,8 @@ private:
 /**
  * Represents CSL accuracy.
  */
-class CslAccuracy
+OT_TOOL_PACKED_BEGIN
+class CslAccuracy : public otCslAccuracy
 {
 public:
     static constexpr uint8_t kWorstClockAccuracy = 255; ///< Worst possible crystal accuracy, in units of ± ppm.
@@ -954,10 +955,7 @@ public:
 
 private:
     static constexpr uint8_t kUsPerUncertUnit = 10;
-
-    uint8_t mClockAccuracy;
-    uint8_t mUncertainty;
-};
+} OT_TOOL_PACKED_END;
 
 /**
  * @}
@@ -967,6 +965,7 @@ private:
 
 DefineCoreType(otExtAddress, Mac::ExtAddress);
 DefineCoreType(otMacKey, Mac::Key);
+DefineCoreType(otCslAccuracy, Mac::CslAccuracy);
 
 } // namespace ot
 

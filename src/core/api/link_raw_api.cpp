@@ -72,18 +72,7 @@ exit:
     return error;
 }
 
-otError otLinkRawSleep(otInstance *aInstance)
-{
-    Error     error    = kErrorNone;
-    Instance &instance = AsCoreType(aInstance);
-
-    VerifyOrExit(instance.Get<Mac::LinkRaw>().IsEnabled(), error = kErrorInvalidState);
-
-    error = instance.Get<Radio>().Sleep();
-
-exit:
-    return error;
-}
+otError otLinkRawSleep(otInstance *aInstance) { return AsCoreType(aInstance).Get<Mac::LinkRaw>().Sleep(); }
 
 otError otLinkRawReceive(otInstance *aInstance) { return AsCoreType(aInstance).Get<Mac::LinkRaw>().Receive(); }
 
@@ -225,6 +214,23 @@ uint64_t otLinkRawGetRadioTime(otInstance *aInstance)
     OT_UNUSED_VARIABLE(aInstance);
     return otPlatTimeGet();
 }
+
+#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
+otError otLinkRawSetCslParams(otInstance         *aInstance,
+                              uint32_t            aCslPeriod,
+                              uint8_t             aCslChannel,
+                              otShortAddress      aShortAddr,
+                              const otExtAddress *aExtAddress)
+{
+    return AsCoreType(aInstance).Get<Mac::LinkRaw>().SetCslParams(aCslPeriod, aCslChannel, aShortAddr,
+                                                                  AsCoreType(aExtAddress));
+}
+
+void otLinkRawSetCslParentAccuracy(otInstance *aInstance, const otCslAccuracy *aCslAccuracy)
+{
+    AsCoreType(aInstance).Get<Mac::LinkRaw>().SetCslParentAccuracy(AsCoreType(aCslAccuracy));
+}
+#endif
 
 #if OPENTHREAD_RADIO
 

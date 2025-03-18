@@ -383,6 +383,14 @@ otError otLinkRawSetMacFrameCounterIfLarger(otInstance *aInstance, uint32_t aMac
  */
 uint64_t otLinkRawGetRadioTime(otInstance *aInstance);
 
+otError otLinkRawSetCslParams(otInstance         *aInstance,
+                              uint32_t            aCslPeriod,
+                              uint8_t             aCslChannel,
+                              otShortAddress      aShortAddr,
+                              const otExtAddress *aExtAddr);
+
+void otLinkRawSetCslParentAccuracy(otInstance *aInstance, const otCslAccuracy *aCslAccuracy);
+
 /**
  * @}
  */

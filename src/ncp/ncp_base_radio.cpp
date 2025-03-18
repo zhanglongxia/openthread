@@ -420,6 +420,74 @@ exit:
     return error;
 }
 
+#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
+template <> otError NcpBase::HandlePropertySet<SPINEL_PROP_RCP_CSL_ENABLE>(void)
+{
+    otError             error = OT_ERROR_NONE;
+    uint32_t            cslPeriod;
+    uint16_t            shortAddress;
+    const otExtAddress *extAddress = nullptr;
+
+    SuccessOrExit(error = mDecoder.ReadUint32(cslPeriod));
+    SuccessOrExit(error = mDecoder.ReadUint16(shortAddress));
+    SuccessOrExit(error = mDecoder.ReadEui64(extAddress));
+
+    error = otPlatRadioEnableCsl(mInstance, cslPeriod, shortAddress, extAddress);
+
+exit:
+    return error;
+}
+
+template <> otError NcpBase::HandlePropertySet<SPINEL_PROP_RCP_CSL_RESET>(void)
+{
+    return otPlatRadioResetCsl(mInstance);
+}
+
+template <> otError NcpBase::HandlePropertySet<SPINEL_PROP_RCP_CSL_SAMPLE_TIME>(void)
+{
+    otError  error = OT_ERROR_NONE;
+    uint32_t cslSampleTime;
+
+    SuccessOrExit(error = mDecoder.ReadUint32(cslSampleTime));
+    otPlatRadioUpdateCslSampleTime(mInstance, cslSampleTime);
+
+exit:
+    return error;
+}
+
+template <> otError NcpBase::HandlePropertySet<SPINEL_PROP_RCP_CSL_PARAMETERS>(void)
+{
+    otError             error = OT_ERROR_NONE;
+    uint8_t             cslChannel;
+    uint32_t            cslPeriod;
+    uint16_t            shortAddress;
+    const otExtAddress *extAddress = nullptr;
+
+    SuccessOrExit(error = mDecoder.ReadUint32(cslPeriod));
+    SuccessOrExit(error = mDecoder.ReadUint8(cslChannel));
+    SuccessOrExit(error = mDecoder.ReadUint16(shortAddress));
+    SuccessOrExit(error = mDecoder.ReadEui64(extAddress));
+
+    error = otLinkRawSetCslParams(mInstance, cslPeriod, cslChannel, shortAddress, extAddress);
+
+exit:
+    return error;
+}
+
+template <> otError NcpBase::HandlePropertySet<SPINEL_PROP_RCP_CSL_PARENT_ACCURACY>(void)
+{
+    otError       error = OT_ERROR_NONE;
+    otCslAccuracy cslAccuracy;
+
+    SuccessOrExit(error = mDecoder.ReadUint8(cslAccuracy.mClockAccuracy));
+    SuccessOrExit(error = mDecoder.ReadUint8(cslAccuracy.mUncertainty));
+    otLinkRawSetCslParentAccuracy(mInstance, &cslAccuracy);
+
+exit:
+    return error;
+}
+#endif
+
 #if OPENTHREAD_CONFIG_MULTIPAN_RCP_ENABLE
 template <> otError NcpBase::HandlePropertySet<SPINEL_PROP_MULTIPAN_ACTIVE_INTERFACE>(void)
 {

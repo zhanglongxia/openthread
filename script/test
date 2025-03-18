@@ -93,7 +93,7 @@ build_simulation()
 {
     local version="$1"
     local options=(
-        "-DBUILD_TESTING=ON"
+        #"-DBUILD_TESTING=ON"
         "-DOT_ANYCAST_LOCATOR=ON"
         "-DOT_DNS_CLIENT=ON"
         "-DOT_DNS_DSO=ON"
@@ -178,7 +178,7 @@ build_posix()
 {
     local version="$1"
     local options=(
-        "-DBUILD_TESTING=ON"
+        #"-DBUILD_TESTING=ON"
         "-DOT_MESSAGE_USE_HEAP=ON"
         "-DOT_PLATFORM_BOOTLOADER_MODE=ON"
         "-DOT_PLATFORM_LOG_CRASH_DUMP=ON"

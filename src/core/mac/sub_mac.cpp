@@ -140,6 +140,10 @@ otRadioCaps SubMac::GetCaps(void) const
     caps |= OT_RADIO_CAPS_RX_ON_WHEN_IDLE;
 #endif
 
+#if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
+    caps |= OT_RADIO_CAPS_CSL_RECEIVER;
+#endif
+
 #if OPENTHREAD_RADIO
     caps |= OT_RADIO_CAPS_SLEEP_TO_TX;
 #endif
@@ -240,6 +244,8 @@ Error SubMac::Sleep(void)
 {
     Error error = kErrorNone;
 
+    LogInfo("Sleep() IsRadioSampleEnabled=%u", IsRadioSampleEnabled());
+
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE || OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
     if (IsRadioSampleEnabled())
     {
@@ -260,6 +266,7 @@ Error SubMac::RadioSleep(void)
 
     VerifyOrExit(ShouldHandleTransitionToSleep());
 
+    LogInfo("RadioSleep()");
     error = Get<Radio>().Sleep();
 
 exit:
@@ -430,6 +437,7 @@ void SubMac::StartCsmaBackoff(void)
 {
     uint8_t backoffExponent = kCsmaMinBe + mCsmaBackoffs;
 
+    LogInfo("StartCsmaBackoff()");
 #if !OPENTHREAD_MTD && OPENTHREAD_CONFIG_MAC_CSL_TRANSMITTER_ENABLE
     if (mTransmitFrame.mInfo.mTxInfo.mTxDelay != 0 || mTransmitFrame.mInfo.mTxInfo.mTxDelayBaseTime != 0)
     {
@@ -445,6 +453,7 @@ void SubMac::StartCsmaBackoff(void)
 
             if (radioNow < txStartTime)
             {
+                LogInfo("StartTimer(%u)", txStartTime - radioNow);
                 StartTimer(txStartTime - radioNow);
             }
             else // Transmit without delay
@@ -489,6 +498,7 @@ void SubMac::StartTimerForBackoff(uint8_t aBackoffExponent)
         IgnoreError(Get<Radio>().Sleep());
     }
 
+    LogInfo("StartTimerForBackoff() backoff=%u", backoff);
     StartTimer(backoff);
 
 #if OPENTHREAD_CONFIG_MAC_ADD_DELAY_ON_NO_ACK_ERROR_BEFORE_RETRY
@@ -1100,6 +1110,7 @@ void SubMac::UpdateRadioSampleState(void)
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
     if (mIsCslSampling)
     {
+        LogInfo("Csl Sample: ch:%u", mCslChannel);
         IgnoreError(Get<Radio>().Receive(mCslChannel));
         ExitNow();
     }
@@ -1108,12 +1119,14 @@ void SubMac::UpdateRadioSampleState(void)
 #if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
     if (mIsWedSampling)
     {
+        LogInfo("Wed Sample");
         IgnoreError(Get<Radio>().Receive(mWakeupChannel));
         ExitNow();
     }
 #endif
 
 #if !OPENTHREAD_CONFIG_MAC_CSL_DEBUG_ENABLE
+    LogInfo("Sleep");
     IgnoreError(Get<Radio>().Sleep()); // Don't actually sleep for debugging
 #endif
 
