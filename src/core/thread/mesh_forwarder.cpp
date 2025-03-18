@@ -807,6 +807,22 @@ Mac::TxFrame *MeshForwarder::HandleFrameRequest(Mac::TxFrames &aTxFrames)
         ExitNow(frame = nullptr);
     }
 
+    if (mSendMessage->IsMleCommand(Mle::kCommandLinkRequest))
+    {
+        LogNote("LinkRequest ------------------------------> IsLinkSecurityEnabled:%u",
+                mSendMessage->IsLinkSecurityEnabled());
+    }
+    else if (mSendMessage->IsMleCommand(Mle::kCommandLinkAcceptAndRequest))
+    {
+        LogNote("LinkAcceptAndRequest ---------------------> IsLinkSecurityEnabled:%u",
+                mSendMessage->IsLinkSecurityEnabled());
+    }
+    else if (mSendMessage->IsMleCommand(Mle::kCommandLinkAccept))
+    {
+        LogNote("LinkAccept -------------------------------> IsLinkSecurityEnabled:%u",
+                mSendMessage->IsLinkSecurityEnabled());
+    }
+
     frame->SetIsARetransmission(false);
 
 exit:

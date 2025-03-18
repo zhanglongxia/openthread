@@ -876,7 +876,6 @@ void Mac::ProcessTransmitSecurity(TxFrame &aFrame)
     const ExtAddress *extAddress = nullptr;
 
     VerifyOrExit(aFrame.GetSecurityEnabled());
-
     IgnoreError(aFrame.GetKeyIdMode(keyIdMode));
 
     switch (keyIdMode)
@@ -963,6 +962,70 @@ void Mac::ProcessTransmitSecurity(TxFrame &aFrame)
     aFrame.ProcessTransmitAesCcm(*extAddress);
 
 exit:
+    LogNote("===========================");
+    if (!aFrame.GetSecurityEnabled())
+    {
+        LogNote("MacFrameSec: None");
+    }
+    else
+    {
+        enum KeyIdMode : uint8_t
+        {
+            kKeyIdMode0 = 0 << 3, ///< Key ID Mode 0 - Key is determined implicitly.
+            kKeyIdMode1 = 1 << 3, ///< Key ID Mode 1 - Key is determined from Key Index field.
+            kKeyIdMode2 = 2 << 3, ///< Key ID Mode 2 - Key is determined from 4-bytes Key Source and Index fields.
+            kKeyIdMode3 = 3 << 3, ///< Key ID Mode 3 - Key is determined from 8-bytes Key Source and Index fields.
+        };
+        static constexpr uint8_t kSecLevelMask  = 7 << 0;
+        static constexpr uint8_t kKeyIdModeMask = 3 << 3;
+        uint8_t                  secLevel;
+        uint8_t                  keyIdMod;
+        uint8_t                  secControl;
+        uint8_t                  keyIdIndex;
+        uint32_t                 frameCounter;
+        const uint8_t           *keySource;
+
+        SuccessOrExit(aFrame.GetSecurityControlField(secControl));
+        secLevel = secControl & kSecLevelMask;
+        keyIdMod = secControl & kKeyIdModeMask;
+        SuccessOrExit(aFrame.GetFrameCounter(frameCounter));
+
+        switch (keyIdMod)
+        {
+        case kKeyIdMode0: // 0
+            LogNote("MacFrameSec: SecCtrlField: %u (SecLevel:%u, KeyIdMode:%u), FrameCounter:%u, KeyId(KeySource:None, "
+                    "KeyIdIndex:None) ",
+                    secControl, secLevel, keyIdMod, frameCounter);
+            break;
+
+        case kKeyIdMode1: // 1
+            SuccessOrExit(aFrame.GetKeyId(keyIdIndex));
+            LogNote("MacFrameSec: SecCtrlField: %u (SecLevel:%u, KeyIdMode:%u), FrameCounter:%u, KeyId(KeySource:None, "
+                    "KeyIdIndex:%u) ",
+                    secControl, secLevel, keyIdMod, frameCounter, keyIdIndex);
+            break;
+
+        case kKeyIdMode2: // 4
+            SuccessOrExit(aFrame.GetKeyId(keyIdIndex));
+            keySource = aFrame.GetKeySource();
+            LogNote("MacFrameSec: SecCtrlField: %u (SecLevel:%u, KeyIdMode:%u), FrameCounter:%u, KeyId(KeySource:%08x, "
+                    "KeyIdIndex:%u) ",
+                    secControl, secLevel, keyIdMod, frameCounter, *reinterpret_cast<const uint32_t *>(keySource),
+                    keyIdIndex);
+            break;
+
+        case kKeyIdMode3: // 8
+            SuccessOrExit(aFrame.GetKeyId(keyIdIndex));
+            keySource = aFrame.GetKeySource();
+            LogNote(
+                "MacFrameSec: SecCtrlField: %u (SecLevel:%u, KeyIdMode:%u), FrameCounter:%u, KeyId(KeySource:%016lx, "
+                "KeyIdIndex:%u) ",
+                secControl, secLevel, keyIdMod, frameCounter, *reinterpret_cast<const uint64_t *>(keySource),
+                keyIdIndex);
+            break;
+        }
+    }
+
     return;
 }
 

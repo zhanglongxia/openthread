@@ -1,0 +1,17 @@
+#!/usr/bin/expect -f
+
+source "tests/scripts/expect/_common.exp"
+source "tests/scripts/expect/_multinode.exp"
+
+
+spawn_node 3
+spawn_node 2
+spawn_node 1
+
+setup_leader
+setup_node 3 "rdn" "router"
+setup_node 2 "rdn" "router"
+
+sleep 5
+
+interact

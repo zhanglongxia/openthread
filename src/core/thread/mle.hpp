@@ -1214,15 +1214,22 @@ private:
             mKeyIndex  = (aKeySequence & 0x7f) + 1;
         }
 
+        uint8_t mSecurityControl;
+        uint8_t mKeyIndex;
+
     private:
         static constexpr uint8_t kKeyIdMode2Mic32 =
             static_cast<uint8_t>(Mac::Frame::kKeyIdMode2) | static_cast<uint8_t>(Mac::Frame::kSecurityEncMic32);
 
-        uint8_t  mSecurityControl;
         uint32_t mFrameCounter;
         uint32_t mKeySource;
-        uint8_t  mKeyIndex;
     } OT_TOOL_PACKED_END;
+
+    static void ShowMleSecurity(Message             &aMessage,
+                                Crypto::AesCcm::Mode aMode,
+                                uint8_t              aSecuritySuite,
+                                SecurityHeader      &aHeader,
+                                uint8_t              aCommand);
 
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -1448,6 +1455,7 @@ private:
     static void        LogError(MessageAction aAction, MessageType aType, Error aError);
     static const char *MessageActionToString(MessageAction aAction);
     static const char *MessageTypeToString(MessageType aType);
+    static const char *CommandToString(uint8_t aCommand);
     static const char *MessageTypeActionToSuffixString(MessageType aType, MessageAction aAction);
     static void        LogProcessError(MessageType aType, Error aError);
     static void        LogSendError(MessageType aType, Error aError);

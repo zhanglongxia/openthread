@@ -2352,6 +2352,41 @@ exit:
     return error;
 }
 
+void Mle::ShowMleSecurity(Message             &aMessage,
+                          Crypto::AesCcm::Mode aMode,
+                          uint8_t              aSecuritySuite,
+                          SecurityHeader      &aHeader,
+                          uint8_t              aCommand)
+{
+    static constexpr uint8_t kSecLevelMask  = 7 << 0;
+    static constexpr uint8_t kKeyIdModeMask = 3 << 3;
+    uint8_t                  secLevel       = aHeader.mSecurityControl & kSecLevelMask;
+    uint8_t                  keyIdMode      = aHeader.mSecurityControl & kKeyIdModeMask;
+
+    if (aSecuritySuite == k154Security) // MLE msg is not secured
+    {
+        LogNote("MleFrameSec: None");
+    }
+    else if (aSecuritySuite == kNoSecurity) // MLE msg is secured
+    {
+        LogNote("MleFrameSec: SecCtrlField: %u (SecLevel:%u, KeyIdMode:%u), FrameCounter:%u, KeyId(KeySource:%08x, "
+                "KeyIdIndex:%u) IsLinkSecurityEnabled=%u",
+                aHeader.mSecurityControl, secLevel, keyIdMode, aHeader.GetFrameCounter(), aHeader.GetKeyId(),
+                aHeader.mKeyIndex, aMessage.IsLinkSecurityEnabled());
+    }
+
+    if (aMode == Crypto::AesCcm::kDecrypt)
+    {
+        LogNote("<---------------------------------------------------------------------------------- %s",
+                CommandToString(aCommand));
+    }
+    else
+    {
+        LogNote("----------------------------------------------------------------------------------> %s",
+                CommandToString(aCommand));
+    }
+}
+
 void Mle::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageInfo)
 {
     Error           error = kErrorNone;
@@ -2623,6 +2658,9 @@ void Mle::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageIn
 #endif
 
 exit:
+
+    ShowMleSecurity(aMessage, Crypto::AesCcm::kDecrypt, securitySuite, header, command);
+
     // We skip logging failures for broadcast MLE messages since it
     // can be common to receive such messages from adjacent Thread
     // networks.
@@ -4157,6 +4195,36 @@ const char *Mle::MessageActionToString(MessageAction aAction)
     return kMessageActionStrings[aAction];
 }
 
+const char *Mle::CommandToString(uint8_t aCommand)
+{
+    static const char *const kCommandStrings[] = {
+        "kCommandLinkRequest",                   // 0,  ///< Link Request command
+        "kCommandLinkAccept",                    // 1,  ///< Link Accept command
+        "kCommandLinkAcceptAndRequest",          // 2,  ///< Link Accept And Request command
+        "kCommandLinkReject",                    // 3,  ///< Link Reject command
+        "kCommandAdvertisement",                 // 4,  ///< Advertisement command
+        "kCommandUpdate",                        // 5,  ///< Update command
+        "kCommandUpdateRequest",                 // 6,  ///< Update Request command
+        "kCommandDataRequest",                   // 7,  ///< Data Request command
+        "kCommandDataResponse",                  // 8,  ///< Data Response command
+        "kCommandParentRequest",                 // 9,  ///< Parent Request command
+        "kCommandParentResponse",                // 10, ///< Parent Response command
+        "kCommandChildIdRequest",                // 11, ///< Child ID Request command
+        "kCommandChildIdResponse",               // 12, ///< Child ID Response command
+        "kCommandChildUpdateRequest",            // 13, ///< Child Update Request command
+        "kCommandChildUpdateResponse",           // 14, ///< Child Update Response command
+        "kCommandAnnounce",                      // 15, ///< Announce command
+        "kCommandDiscoveryRequest",              // 16, ///< Discovery Request command
+        "kCommandDiscoveryResponse",             // 17, ///< Discovery Response command
+        "kCommandLinkMetricsManagementRequest",  // 18, ///< Link Metrics Management Request command
+        "kCommandLinkMetricsManagementResponse", // 19, ///< Link Metrics Management Response command
+        "kCommandLinkProbe",                     // 20, ///< Link Probe command
+        "kCommandTimeSync",                      // 99, ///< Time Sync command
+    };
+
+    return kCommandStrings[aCommand];
+}
+
 const char *Mle::MessageTypeToString(MessageType aType)
 {
     static const char *const kMessageTypeStrings[] = {
@@ -5201,6 +5269,7 @@ Error Mle::TxMessage::SendTo(const Ip6::Address &aDestination)
     uint16_t         offset = 0;
     uint8_t          securitySuite;
     Ip6::MessageInfo messageInfo;
+    SecurityHeader   header;
 
     messageInfo.SetPeerAddr(aDestination);
     messageInfo.SetSockAddr(Get<Mle>().mLinkLocalAddress.GetAddress());
@@ -5212,8 +5281,6 @@ Error Mle::TxMessage::SendTo(const Ip6::Address &aDestination)
 
     if (securitySuite == k154Security)
     {
-        SecurityHeader header;
-
         // Update the fields in the security header
 
         IgnoreError(Read(offset, header));
@@ -5231,6 +5298,7 @@ Error Mle::TxMessage::SendTo(const Ip6::Address &aDestination)
     SuccessOrExit(error = Get<Mle>().mSocket.SendTo(*this, messageInfo));
 
 exit:
+    ShowMleSecurity(*this, Crypto::AesCcm::kEncrypt, securitySuite, header, GetMleCommand());
     return error;
 }
 
