@@ -220,7 +220,7 @@ public:
      */
     const ConnectionIe *GetConnectionIe(void) const
     {
-        const uint8_t *ie = GetThreadIe(ConnectionIe::kThreadIeSubtype);
+        const uint8_t *ie = GetThreadOuiIe(ConnectionIe::kThreadOuiIeSubtype);
 
         return (ie != nullptr) ? reinterpret_cast<const ConnectionIe *>(ie + sizeof(HeaderIe)) : nullptr;
     }
@@ -645,7 +645,7 @@ public:
      *
      * @returns A pointer to the Thread IE, `nullptr` if not found.
      */
-    uint8_t *GetThreadIe(uint8_t aSubType) { return AsNonConst(AsConst(this)->GetThreadIe(aSubType)); }
+    uint8_t *GetThreadOuiIe(uint8_t aSubType) { return AsNonConst(AsConst(this)->GetThreadOuiIe(aSubType)); }
 
     /**
      * Returns a pointer to a specific Thread IE.
@@ -656,7 +656,7 @@ public:
      *
      * @returns A pointer to the Thread IE, `nullptr` if not found.
      */
-    const uint8_t *GetThreadIe(uint8_t aSubType) const;
+    const uint8_t *GetThreadOuiIe(uint8_t aSubType) const;
 
 #if OPENTHREAD_CONFIG_MAC_CSL_RECEIVER_ENABLE
     /**

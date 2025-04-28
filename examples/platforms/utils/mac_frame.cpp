@@ -278,13 +278,13 @@ uint8_t otMacFrameGenerateEnhAckProbingIe(uint8_t *aDest, const uint8_t *aIeData
 
     assert(aDest != nullptr);
 
-    reinterpret_cast<Mac::HeaderIe *>(aDest)->SetId(Mac::ThreadIe::kHeaderIeId);
+    reinterpret_cast<Mac::HeaderIe *>(aDest)->SetId(Mac::ThreadOuiIe::kHeaderIeId);
     reinterpret_cast<Mac::HeaderIe *>(aDest)->SetLength(len);
 
     aDest += sizeof(Mac::HeaderIe);
 
-    reinterpret_cast<Mac::VendorIeHeader *>(aDest)->SetVendorOui(Mac::ThreadIe::kVendorOuiThreadCompanyId);
-    reinterpret_cast<Mac::VendorIeHeader *>(aDest)->SetSubType(Mac::ThreadIe::kEnhAckProbingIe);
+    reinterpret_cast<Mac::VendorIeHeader *>(aDest)->SetVendorOui(Mac::ThreadOuiIe::kVendorOuiThreadCompanyId);
+    reinterpret_cast<Mac::VendorIeHeader *>(aDest)->SetSubType(Mac::ThreadOuiIe::kEnhAckProbingIe);
 
     if (aIeData != nullptr)
     {

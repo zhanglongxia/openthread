@@ -2588,7 +2588,7 @@ void Mac::ProcessEnhAckProbing(const RxFrame &aFrame, const Neighbor &aNeighbor)
     constexpr uint8_t kEnhAckProbingIeMaxLen = 2;
 
     const HeaderIe *enhAckProbingIe =
-        reinterpret_cast<const HeaderIe *>(aFrame.GetThreadIe(ThreadIe::kEnhAckProbingIe));
+        reinterpret_cast<const HeaderIe *>(aFrame.GetThreadOuiIe(ThreadOuiIe::kEnhAckProbingIe));
     const uint8_t *data =
         reinterpret_cast<const uint8_t *>(enhAckProbingIe) + sizeof(HeaderIe) + sizeof(VendorIeHeader);
     uint8_t dataLen = 0;

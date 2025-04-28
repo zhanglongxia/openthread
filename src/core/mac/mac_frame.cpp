@@ -1144,7 +1144,7 @@ exit:
 
 #if OPENTHREAD_CONFIG_MLE_LINK_METRICS_INITIATOR_ENABLE || OPENTHREAD_CONFIG_MLE_LINK_METRICS_SUBJECT_ENABLE || \
     OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE || OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
-const uint8_t *Frame::GetThreadIe(uint8_t aSubType) const
+const uint8_t *Frame::GetThreadOuiIe(uint8_t aSubType) const
 {
     uint8_t        index        = FindHeaderIeIndex();
     uint8_t        payloadIndex = FindPayloadIndex();
@@ -1162,7 +1162,7 @@ const uint8_t *Frame::GetThreadIe(uint8_t aSubType) const
         {
             const VendorIeHeader *vendorIe =
                 reinterpret_cast<const VendorIeHeader *>(reinterpret_cast<const uint8_t *>(ie) + sizeof(HeaderIe));
-            if (vendorIe->GetVendorOui() == ThreadIe::kVendorOuiThreadCompanyId && vendorIe->GetSubType() == aSubType)
+            if (vendorIe->GetVendorOui() == ThreadOuiIe::kVendorOuiThreadCompanyId && vendorIe->GetSubType() == aSubType)
             {
                 header = &mPsdu[index];
                 ExitNow();
@@ -1214,7 +1214,7 @@ exit:
 #if OPENTHREAD_CONFIG_MLE_LINK_METRICS_SUBJECT_ENABLE
 void Frame::SetEnhAckProbingIe(const uint8_t *aValue, uint8_t aLen)
 {
-    uint8_t *cur = GetThreadIe(ThreadIe::kEnhAckProbingIe);
+    uint8_t *cur = GetThreadOuiIe(ThreadOuiIe::kEnhAckProbingIe);
 
     VerifyOrExit(cur != nullptr);
     memcpy(cur + sizeof(HeaderIe) + sizeof(VendorIeHeader), aValue, aLen);

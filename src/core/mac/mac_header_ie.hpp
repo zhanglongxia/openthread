@@ -280,7 +280,7 @@ private:
 } OT_TOOL_PACKED_END;
 #endif // OPENTHREAD_CONFIG_TIME_SYNC_ENABLE
 
-class ThreadIe
+class ThreadOuiIe
 {
 public:
     static constexpr uint8_t  kHeaderIeId               = VendorIeHeader::kHeaderIeId;
@@ -329,17 +329,17 @@ OT_TOOL_PACKED_BEGIN
 class ConnectionIe : public VendorIeHeader
 {
 public:
-    static constexpr uint8_t kHeaderIeId      = ThreadIe::kHeaderIeId;
-    static constexpr uint8_t kIeContentSize   = ThreadIe::kIeContentSize + sizeof(uint8_t);
-    static constexpr uint8_t kThreadIeSubtype = 0x01;
+    static constexpr uint8_t kHeaderIeId      = ThreadOuiIe::kHeaderIeId;
+    static constexpr uint8_t kIeContentSize   = ThreadOuiIe::kIeContentSize + sizeof(uint8_t);
+    static constexpr uint8_t kThreadOuiIeSubtype = 0x01;
 
     /**
      * Initializes the Connection IE.
      */
     void Init(void)
     {
-        SetVendorOui(ThreadIe::kVendorOuiThreadCompanyId);
-        SetSubType(kThreadIeSubtype);
+        SetVendorOui(ThreadOuiIe::kVendorOuiThreadCompanyId);
+        SetSubType(kThreadOuiIeSubtype);
         mConnectionWindow = 0;
     }
 
