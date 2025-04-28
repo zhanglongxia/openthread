@@ -92,6 +92,9 @@ Mle::Mle(Instance &aInstance)
     , mWedAttachState(kWedDetached)
     , mWedAttachTimer(aInstance)
 #endif
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    , mPeerTable(aInstance)
+#endif
 #if OPENTHREAD_FTD
     , mRouterEligible(true)
     , mAddressSolicitPending(false)

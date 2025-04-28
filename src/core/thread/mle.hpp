@@ -67,6 +67,8 @@
 #include "thread/mle_types.hpp"
 #include "thread/neighbor_table.hpp"
 #include "thread/network_data_types.hpp"
+#include "thread/peer.hpp"
+#include "thread/peer_table.hpp"
 #include "thread/router.hpp"
 #include "thread/router_table.hpp"
 #include "thread/thread_tlvs.hpp"
@@ -2131,6 +2133,10 @@ private:
     WedAttachState           mWedAttachState;
     WedAttachTimer           mWedAttachTimer;
     Callback<WakeupCallback> mWakeupCallback;
+#endif
+
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+    PeerTable mPeerTable;
 #endif
 
 #if OPENTHREAD_FTD

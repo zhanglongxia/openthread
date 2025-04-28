@@ -242,6 +242,8 @@ set(COMMON_SOURCES
     thread/network_diagnostic.cpp
     thread/network_diagnostic_tlvs.cpp
     thread/panid_query_server.cpp
+    thread/peer.cpp
+    thread/peer_table.cpp
     thread/radio_selector.cpp
     thread/router.cpp
     thread/router_table.cpp
