@@ -1,0 +1,85 @@
+#!/usr/bin/expect -f
+
+source "tests/scripts/expect/_common.exp"
+source "tests/scripts/expect/_multinode.exp"
+
+set WC 1
+set WL 2
+set WC_EXT_ADDRESS "deadbeefcafe0001"
+set WL_EXT_ADDRESS "deadbeefcafe0002"
+
+send_user "\n\n>>> setup WL\n"
+spawn_node $WL
+
+setup_default_network
+
+send "mode rdn\n"
+expect_line "Done"
+
+send "extaddr $WL_EXT_ADDRESS\n"
+expect_line "Done"
+
+send "wakeup channel 11\n"
+expect_line "Done"
+
+send "routerupgradethreshold 0\n"
+expect_line "Done"
+
+send "ifconfig up\n"
+expect_line "Done"
+
+send "thread start\n"
+expect_line "Done"
+
+send "wakeup listen enable\n"
+expect_line "Done"
+
+set wl_link_local_addr [get_ipaddr linklocal]
+
+
+send_user "\n\n>>> Setup WC\n"
+spawn_node $WC
+setup_default_network
+
+send "mode rdn\n"
+expect_line "Done"
+
+send "extaddr $WC_EXT_ADDRESS\n"
+expect_line "Done"
+
+send "wakeup channel 11\n"
+expect_line "Done"
+
+send "routerupgradethreshold 0\n"
+expect_line "Done"
+
+send "ifconfig up\n"
+expect_line "Done"
+
+send "thread start\n"
+expect_line "Done"
+
+set wc_link_local_addr [get_ipaddr linklocal]
+
+
+send_user "\n\n>>> WC establishs a P2P link with WL\n"
+send "p2p link extaddr $WL_EXT_ADDRESS\n"
+expect_line "Done"
+
+
+send_user "\n\n>>> WC pings WL\n"
+send "ping $wl_link_local_addr 20 5\n"
+for {set i 1} {$i <= 5} {incr i} {
+    expect "28 bytes from $wl_link_local_addr: icmp_seq=$i"
+}
+
+
+send_user "\n\n>>> WL pings WC\n"
+switch_node $WL
+
+send "ping $wc_link_local_addr 20 5\n"
+for {set i 1} {$i <= 5} {incr i} {
+    expect "28 bytes from $wc_link_local_addr: icmp_seq=$i"
+}
+
+dispose_all

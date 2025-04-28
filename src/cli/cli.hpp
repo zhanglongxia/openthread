@@ -310,6 +310,13 @@ private:
     static void HandleIp6Receive(otMessage *aMessage, void *aContext);
 #endif
 
+#if OPENTHREAD_CONFIG_PEER_TO_PEER_ENABLE
+#if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
+    static void HandleP2pLinkedResult(otError aError, void *aContext);
+    void        HandleP2pLinkedResult(otError aError);
+#endif
+#endif
+
 #if OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
     static void HandleWakeupResult(otError aError, void *aContext);
     void        HandleWakeupResult(otError aError);
