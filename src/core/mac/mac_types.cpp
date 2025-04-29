@@ -35,9 +35,11 @@
 
 #include <stdio.h>
 
+#include "common/array.hpp"
 #include "common/code_utils.hpp"
 #include "common/random.hpp"
 #include "common/string.hpp"
+#include "utils/static_counter.hpp"
 #if OPENTHREAD_FTD || OPENTHREAD_MTD
 #include "net/ip6_address.hpp"
 #endif
@@ -404,5 +406,56 @@ bool KeyMaterial::operator==(const KeyMaterial &aOther) const
 #endif
 }
 
+WakeupAddress::Type WakeupAddress::GetType(void) const { return MapEnum(mType); }
+
+uint8_t WakeupAddress::GetWakeupIdLength(uint64_t aWakeupId)
+{
+    uint8_t ret = 1; // return 1 if the @p aWakeupId is zero.
+
+    for (uint8_t i = sizeof(uint64_t) - 1; i > 0; --i)
+    {
+        if (aWakeupId >> (i * 8))
+        {
+            ExitNow(ret = i + 1);
+        }
+    }
+
+exit:
+    return ret;
+}
+
+WakeupAddress::InfoString WakeupAddress::ToString(void) const
+{
+    InfoString  string;
+    const char *type;
+
+    static const char *const kTypeStrings[] = {
+        "wakeupid",  // (0) kTypeWakeupId
+        "gwakeupid", // (1) kTypeGroupWakeupId
+        "extaddr",   // (2) kTypeExtAddress
+    };
+
+    struct EnumCheck
+    {
+        InitEnumValidatorCounter();
+        ValidateNextEnum(WakeupAddress::Type::kTypeWakeupId);
+        ValidateNextEnum(WakeupAddress::Type::kTypeGroupWakeupId);
+        ValidateNextEnum(WakeupAddress::Type::kTypeExtAddress);
+    };
+
+    type = (GetType() < GetArrayLength(kTypeStrings)) ? kTypeStrings[GetType()] : "invalid";
+    string.Append("%s: ", type);
+
+    if (IsWakeupId() || IsGroupWakeupId())
+    {
+        string.AppendHexBytes(reinterpret_cast<const uint8_t *>(&mShared.mWakeupId), GetWakeupIdLength());
+    }
+    else if (IsExtAddress())
+    {
+        string.Append("%s", GetExtAddress().ToString().AsCString());
+    }
+
+    return string;
+}
 } // namespace Mac
 } // namespace ot

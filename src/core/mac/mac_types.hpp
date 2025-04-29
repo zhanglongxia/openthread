@@ -960,6 +960,51 @@ private:
 };
 
 /**
+ * Represents a wake-up request info.
+ */
+OT_TOOL_PACKED_BEGIN
+class WakeupAddress : public otWakeupAddress
+{
+public:
+    static constexpr uint16_t kInfoStringSize = 30; ///< Max chars for the info string (`ToString()`).
+
+    /**
+     * Defines the fixed-length `String` object returned from `ToString()`.
+     */
+    typedef String<kInfoStringSize> InfoString;
+
+    /**
+     * Type represents the wake-up address type.
+     */
+    enum Type : uint8_t
+    {
+        kTypeWakeupId      = OT_WAKEUP_ADDRESS_TYPE_WAKEUP_ID,       ///< Wake-up Identifier.
+        kTypeGroupWakeupId = OT_WAKEUP_ADDRESS_TYPE_GROUP_WAKEUP_ID, ///< Group wake-up Identifier.
+        kTypeExtAddress    = OT_WAKEUP_ADDRESS_TYPE_EXT_ADDRESS,     ///< Extended Address.
+    };
+
+    static uint8_t GetWakeupIdLength(uint64_t aWakeupId);
+
+    bool IsWakeupId(void) const { return (GetType() == Type::kTypeWakeupId); }
+    bool IsGroupWakeupId(void) const { return (GetType() == Type::kTypeGroupWakeupId); }
+    bool IsExtAddress(void) const { return (GetType() == Type::kTypeExtAddress); }
+
+    uint64_t GetWakeupId(void) const { return mShared.mWakeupId; }
+    uint8_t  GetWakeupIdLength(void) const { return GetWakeupIdLength(mShared.mWakeupId); }
+
+    const ExtAddress &GetExtAddress(void) const { return *static_cast<const ExtAddress *>(&mShared.mExtAddress); }
+    ExtAddress       &GetExtAddress(void) { return *static_cast<ExtAddress *>(&mShared.mExtAddress); }
+    Type              GetType(void) const;
+
+    /**
+     * Converts an wake-up address to a string.
+     *
+     * @returns An `InfoString` containing the string representation of the Wake-up Address.
+     */
+    InfoString ToString(void) const;
+} OT_TOOL_PACKED_END;
+
+/**
  * @}
  */
 
@@ -967,6 +1012,8 @@ private:
 
 DefineCoreType(otExtAddress, Mac::ExtAddress);
 DefineCoreType(otMacKey, Mac::Key);
+DefineCoreType(otWakeupAddress, Mac::WakeupAddress);
+DefineMapEnum(otWakeupAddressType, Mac::WakeupAddress::Type);
 
 } // namespace ot
 

@@ -1158,12 +1158,12 @@ uint32_t otThreadGetStoreFrameCounterAhead(otInstance *aInstance);
  * @retval OT_ERROR_INVALID_STATE Another attachment request is still in progress.
  * @retval OT_ERROR_INVALID_ARGS  The wake-up interval or duration are invalid.
  */
-otError otThreadWakeup(otInstance         *aInstance,
-                       const otExtAddress *aWedAddress,
-                       uint16_t            aWakeupIntervalUs,
-                       uint16_t            aWakeupDurationMs,
-                       otWakeupCallback    aCallback,
-                       void               *aCallbackContext);
+otError otThreadWakeup(otInstance            *aInstance,
+                       const otWakeupAddress *aWakeupAddress,
+                       uint16_t               aWakeupIntervalUs,
+                       uint16_t               aWakeupDurationMs,
+                       otWakeupCallback       aCallback,
+                       void                  *aCallbackContext);
 
 /**
  * @}

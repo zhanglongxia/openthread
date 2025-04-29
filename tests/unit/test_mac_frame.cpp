@@ -819,6 +819,7 @@ void TestMacWakeupFrameGeneration(void)
         0x05, 0x00, 0x9b, 0xb8, 0xea, 0x01, 0x1c};
 
     uint8_t            psdu[OT_RADIO_FRAME_MAX_SIZE];
+    Mac::WakeupAddress wakeupAddress;
     Mac::Address       src;
     Mac::Address       dst;
     Mac::Address       addr;
@@ -834,7 +835,7 @@ void TestMacWakeupFrameGeneration(void)
     txFrame.mLength    = 0;
     txFrame.mRadioType = 0;
 
-    SuccessOrQuit(txFrame.GenerateWakeupFrame(0xface, dst, src));
+    SuccessOrQuit(txFrame.GenerateWakeupFrame(0xface, wakeupAddress, src));
 
     // Validate that the frame satisfies the wake-up frame definition
     VerifyOrQuit(txFrame.GetType() == Mac::Frame::kTypeMultipurpose);

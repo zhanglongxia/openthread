@@ -8105,15 +8105,16 @@ template <> otError Interpreter::Process<Cmd("wakeup")>(Arg aArgs[])
      */
     else if (aArgs[0] == "wake")
     {
-        otExtAddress extAddress;
-        uint16_t     wakeupIntervalUs;
-        uint16_t     wakeupDurationMs;
+        otWakeupAddress wakeupAddress;
+        uint16_t        wakeupIntervalUs;
+        uint16_t        wakeupDurationMs;
 
-        SuccessOrExit(error = aArgs[1].ParseAsHexString(extAddress.m8));
+        wakeupAddress.mType = OT_WAKEUP_ADDRESS_TYPE_EXT_ADDRESS;
+        SuccessOrExit(error = aArgs[1].ParseAsHexString(wakeupAddress.mShared.mExtAddress.m8));
         SuccessOrExit(error = aArgs[2].ParseAsUint16(wakeupIntervalUs));
         SuccessOrExit(error = aArgs[3].ParseAsUint16(wakeupDurationMs));
 
-        SuccessOrExit(error = otThreadWakeup(GetInstancePtr(), &extAddress, wakeupIntervalUs, wakeupDurationMs,
+        SuccessOrExit(error = otThreadWakeup(GetInstancePtr(), &wakeupAddress, wakeupIntervalUs, wakeupDurationMs,
                                              HandleWakeupResult, this));
         error = OT_ERROR_PENDING;
     }

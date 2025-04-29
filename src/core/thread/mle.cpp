@@ -4465,11 +4465,11 @@ void Mle::HandleWedAttachTimer(void)
     }
 }
 
-Error Mle::Wakeup(const Mac::ExtAddress &aWedAddress,
-                  uint16_t               aIntervalUs,
-                  uint16_t               aDurationMs,
-                  WakeupCallback         aCallback,
-                  void                  *aCallbackContext)
+Error Mle::Wakeup(const Mac::WakeupAddress &aWakeupAddress,
+                  uint16_t                  aIntervalUs,
+                  uint16_t                  aDurationMs,
+                  WakeupCallback            aCallback,
+                  void                     *aCallbackContext)
 {
     Error error;
 
@@ -4477,7 +4477,7 @@ Error Mle::Wakeup(const Mac::ExtAddress &aWedAddress,
     VerifyOrExit(aIntervalUs < aDurationMs * Time::kOneMsecInUsec, error = kErrorInvalidArgs);
     VerifyOrExit(mWedAttachState == kWedDetached, error = kErrorInvalidState);
 
-    SuccessOrExit(error = mWakeupTxScheduler.WakeUp(aWedAddress, aIntervalUs, aDurationMs));
+    SuccessOrExit(error = mWakeupTxScheduler.WakeUp(aWakeupAddress, aIntervalUs, aDurationMs));
 
     mWedAttachState = kWedAttaching;
     mWakeupCallback.Set(aCallback, aCallbackContext);

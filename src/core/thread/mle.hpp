@@ -761,11 +761,11 @@ public:
      * @retval kErrorInvalidState Another wake-up request is still in progress.
      * @retval kErrorInvalidArgs  The wake-up interval or duration are invalid.
      */
-    Error Wakeup(const Mac::ExtAddress &aWedAddress,
-                 uint16_t               aIntervalUs,
-                 uint16_t               aDurationMs,
-                 WakeupCallback         aCallback,
-                 void                  *aCallbackContext);
+    Error Wakeup(const Mac::WakeupAddress &aWakeupAddress,
+                 uint16_t                  aIntervalUs,
+                 uint16_t                  aDurationMs,
+                 WakeupCallback            aCallback,
+                 void                     *aCallbackContext);
 #endif // OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
 
 #if OPENTHREAD_FTD
