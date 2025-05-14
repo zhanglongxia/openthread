@@ -491,6 +491,8 @@ Error Diags::ProcessStart(uint8_t aArgsLength, char *aArgs[])
     VerifyOrExit(!Get<ThreadNetif>().IsUp(), error = kErrorInvalidState);
 #endif
 
+    IgnoreError(Get<Mac::SubMac>().Enable());
+
     otPlatDiagChannelSet(mChannel);
     otPlatDiagTxPowerSet(mTxPower);
 
@@ -550,6 +552,7 @@ Error Diags::ProcessStop(uint8_t aArgsLength, char *aArgs[])
     otPlatDiagModeSet(false);
     Get<Radio>().SetPromiscuous(false);
     Get<Mac::SubMac>().SetRxOnWhenIdle(false);
+    IgnoreError(Get<Mac::SubMac>().Disable());
 
     return kErrorNone;
 }

@@ -124,6 +124,8 @@ Mac::Mac(Instance &aInstance)
     SetAlternateShortAddress(kShortAddrInvalid);
 #endif
 
+    SetEnabled(false);
+
     mMode2KeyMaterial.SetFrom(AsCoreType(&sMode2Key));
 }
 
