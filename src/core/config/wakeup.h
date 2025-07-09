@@ -127,6 +127,14 @@
 #endif
 
 /**
+ * @def OPENTHREAD_CONFIG_MAX_WAKEUP_IDENTIFIERS
+ *
+ * The maximum number of Wake-up Identifiers.
+ */
+#ifndef OPENTHREAD_CONFIG_MAX_WAKEUP_IDENTIFIERS
+#define OPENTHREAD_CONFIG_MAX_WAKEUP_IDENTIFIERS 6
+#endif
+/**
  * @}
  */
 

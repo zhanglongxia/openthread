@@ -59,6 +59,7 @@
 #include <openthread/trel.h>
 #include <openthread/verhoeff_checksum.h>
 #include <openthread/platform/misc.h>
+#include <openthread/unstable/link.h>
 
 #include "common/new.hpp"
 #include "common/num_utils.hpp"
@@ -1034,7 +1035,7 @@ template <> otError Interpreter::Process<Cmd("nat64")>(Arg aArgs[])
         };
         static const uint8_t     kNat64CounterTableHeaderColumns[] = {15, 25, 25};
         static const char *const kNat64CounterTableSubHeader[]     = {
-                "Protocol", "Pkts", "Bytes", "Pkts", "Bytes",
+            "Protocol", "Pkts", "Bytes", "Pkts", "Bytes",
         };
         static const uint8_t kNat64CounterTableSubHeaderColumns[] = {
             15, 10, 14, 10, 14,
@@ -8116,6 +8117,68 @@ template <> otError Interpreter::Process<Cmd("wakeup")>(Arg aArgs[])
         error = ProcessGetSet(aArgs + 1, otLinkGetWakeupChannel, otLinkSetWakeupChannel);
     }
 #if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+    else if (aArgs[0] == "id")
+    {
+        /**
+         * @cli wakeup id add
+         * @code
+         * wakeup id add 0xdeadbeefcafe0001
+         * Done
+         * @endcode
+         * @cparam wakeup id add @ca{wakeupid}
+         * @par
+         * Adds a wake-up identifier to the Wake-up Identifier table.
+         * @sa otLinkAddWakeupId
+         */
+        if (aArgs[1] == "add")
+        {
+            uint64_t wakeupId;
+
+            VerifyOrExit(!aArgs[2].IsEmpty(), error = OT_ERROR_INVALID_ARGS);
+            SuccessOrExit(error = aArgs[2].ParseAsUint64(wakeupId));
+
+            error = otLinkAddWakeupId(GetInstancePtr(), wakeupId);
+        }
+        /**
+         * @cli wakeup id rm
+         * @code
+         * wakeup id rm 0xdeadbeefcafe0001
+         * Done
+         * @endcode
+         * @cparam wakeup id rm @ca{wakeupid}
+         * @par
+         * Removes the wake-up identifier from the Wake-up Identifier table.
+         * @sa otLinkRemoveWakeupId
+         */
+        else if (aArgs[1] == "rm")
+        {
+            uint64_t wakeupId;
+
+            VerifyOrExit(!aArgs[2].IsEmpty(), error = OT_ERROR_INVALID_ARGS);
+            SuccessOrExit(error = aArgs[2].ParseAsUint64(wakeupId));
+
+            error = otLinkRemoveWakeupId(GetInstancePtr(), wakeupId);
+        }
+        /**
+         * @cli wakeup id clear
+         * @code
+         * wakeup id clear
+         * Done
+         * @endcode
+         * @cparam wakeup id clear
+         * @par
+         * Clears all wakeup identifers in the Wake-up Identifier table.
+         * @sa otLinkClearWakeupIds
+         */
+        else if (aArgs[1] == "clear")
+        {
+            otLinkClearWakeupIds(GetInstancePtr());
+        }
+        else
+        {
+            ExitNow(error = OT_ERROR_INVALID_ARGS);
+        }
+    }
     /**
      * @cli wakeup parameters (get,set)
      * @code

@@ -35,6 +35,8 @@
 
 #include "instance/instance.hpp"
 
+#include <openthread/unstable/link.h>
+
 using namespace ot;
 
 uint8_t otLinkGetChannel(otInstance *aInstance)
@@ -527,4 +529,17 @@ otError otLinkSetWakeupListenParameters(otInstance *aInstance, uint32_t aInterva
 {
     return AsCoreType(aInstance).Get<Mac::Mac>().SetWakeupListenParameters(aInterval, aDuration);
 }
+
+otError otLinkAddWakeupId(otInstance *aInstance, uint64_t aWakeupId)
+{
+    return AsCoreType(aInstance).Get<Mac::Mac>().AddWakeupId(aWakeupId);
+}
+
+otError otLinkRemoveWakeupId(otInstance *aInstance, uint64_t aWakeupId)
+{
+    return AsCoreType(aInstance).Get<Mac::Mac>().RemoveWakeupId(aWakeupId);
+}
+
+void otLinkClearWakeupIds(otInstance *aInstance) { AsCoreType(aInstance).Get<Mac::Mac>().ClearWakeupIds(); }
+
 #endif // OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE

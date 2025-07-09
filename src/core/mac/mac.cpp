@@ -2762,5 +2762,31 @@ uint32_t Mac::CalculateRadioBusTransferTime(uint16_t aFrameSize) const
     return trasnferTime;
 }
 
+#if OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
+Error Mac::AddWakeupId(uint64_t aWakeupId)
+{
+    Error error = kErrorNone;
+
+    VerifyOrExit(!mWakeupIdTable.IsFull(), error = kErrorNoBufs);
+    error = mWakeupIdTable.PushBack(aWakeupId);
+exit:
+    return error;
+}
+
+Error Mac::RemoveWakeupId(uint64_t aWakeupId)
+{
+    Error     error = kErrorNone;
+    uint64_t *wakeupId;
+
+    wakeupId = mWakeupIdTable.Find(aWakeupId);
+    VerifyOrExit(wakeupId != nullptr, error = kErrorNotFound);
+    mWakeupIdTable.Remove(*wakeupId);
+
+exit:
+    return error;
+}
+
+void Mac::ClearWakeupIds(void) { mWakeupIdTable.Clear(); }
+#endif // OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE
 } // namespace Mac
 } // namespace ot

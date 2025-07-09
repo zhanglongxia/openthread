@@ -4631,6 +4631,39 @@ Requires `OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE` or `OPENTHREAD_CONFIG_WAK
 Done
 ```
 
+### wakeup id add \<wakeup-id\>
+
+Adds a wake-up identifier to the Wake-up Identifier table.
+
+Requires `OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE`.
+
+```bash
+> wakeup id add 0xdeadbeefcafe0001
+Done
+```
+
+### wakeup id rm \<wakeup-id\>
+
+Removess a wake-up identifier from the Wake-up Identifier table.
+
+Requires `OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE`.
+
+```bash
+> wakeup id rm 0xdeadbeefcafe0001
+Done
+```
+
+### wakeup id clear
+
+Clears the Wake-up Identifier table.
+
+Requires `OPENTHREAD_CONFIG_WAKEUP_END_DEVICE_ENABLE`.
+
+```bash
+> wakeup id clear
+Done
+```
+
 ### wakeup parameters
 
 Get the wake-up listen interval and duration.
