@@ -357,6 +357,17 @@
 #endif
 
 /**
+ * @def OPENTHREAD_CONFIG_MAX_NUM_P2P_SRP_CLIENTS
+ *
+ * Specifies the maximum number of SRP clients for P2P links.
+ *
+ * This config is applicable only when `OPENTHREAD_CONFIG_P2P_ENABLE` is enabled.
+ */
+#ifndef OPENTHREAD_CONFIG_MAX_NUM_P2P_SRP_CLIENTS
+#define OPENTHREAD_CONFIG_MAX_NUM_P2P_SRP_CLIENTS 1
+#endif
+
+/**
  * @}
  */
 

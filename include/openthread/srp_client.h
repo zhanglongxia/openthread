@@ -117,6 +117,7 @@ typedef struct otSrpClientService
     struct otSrpClientService *mNext;          ///< Pointer to next entry in a linked-list (managed by OT core).
     uint32_t                   mLease;         ///< Desired lease interval in sec - zero to use default.
     uint32_t                   mKeyLease;      ///< Desired key lease interval in sec - zero to use default.
+    void                      *mMetadata;      ///< Internal data (used by OT core).
 } otSrpClientService;
 
 /**
@@ -674,6 +675,20 @@ void otSrpClientSetServiceKeyRecordEnabled(otInstance *aInstance, bool aEnabled)
  * @returns TRUE if "service key record inclusion" mode is enabled, FALSE otherwise.
  */
 bool otSrpClientIsServiceKeyRecordEnabled(otInstance *aInstance);
+
+// ---------------------------------------------------------------------------
+
+otError otSrpClientP2pStart(otInstance *aInstance, const otSockAddr *aServerSockAddr);
+void    otSrpClientP2pStop(otInstance *aInstance, const otSockAddr *aServerSockAddr);
+
+typedef void (*otSrpClientP2pCallback)(otError                    aError,
+                                       const otSockAddr          *aServerSockAddr,
+                                       const otSrpClientHostInfo *aHostInfo,
+                                       const otSrpClientService  *aServices,
+                                       const otSrpClientService  *aRemovedServices,
+                                       void                      *aContext);
+
+void otSrpClientkP2pSetCallback(otInstance *aInstance, otSrpClientP2pCallback aCallback, void *aContext);
 
 /**
  * @}

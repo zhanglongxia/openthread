@@ -183,4 +183,19 @@ bool otSrpClientIsServiceKeyRecordEnabled(otInstance *aInstance)
 }
 #endif
 
+otError otSrpClientP2pStart(otInstance *aInstance, const otSockAddr *aServerSockAddr)
+{
+    return AsCoreType(aInstance).Get<Srp::Client>().P2pSrpClientStart(AsCoreType(aServerSockAddr));
+}
+
+void otSrpClientP2pStop(otInstance *aInstance, const otSockAddr *aServerSockAddr)
+{
+    return AsCoreType(aInstance).Get<Srp::Client>().P2pSrpClientStop(AsCoreType(aServerSockAddr));
+}
+
+void otSrpClientkP2pSetCallback(otInstance *aInstance, otSrpClientP2pCallback aCallback, void *aContext)
+{
+    AsCoreType(aInstance).Get<Srp::Client>().SetP2pCallback(aCallback, aContext);
+}
+
 #endif // OPENTHREAD_CONFIG_SRP_CLIENT_ENABLE
