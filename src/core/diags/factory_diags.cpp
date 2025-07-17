@@ -61,7 +61,6 @@ namespace FactoryDiags {
 #if OPENTHREAD_RADIO && !OPENTHREAD_RADIO_CLI
 
 const struct Diags::Command Diags::sCommands[] = {
-    {"channel", &Diags::ProcessChannel},
     {"cw", &Diags::ProcessContinuousWave},
     {"echo", &Diags::ProcessEcho},
     {"gpio", &Diags::ProcessGpio},
@@ -77,22 +76,6 @@ Diags::Diags(Instance &aInstance)
     , mOutputCallback(nullptr)
     , mOutputContext(nullptr)
 {
-}
-
-Error Diags::ProcessChannel(uint8_t aArgsLength, char *aArgs[])
-{
-    Error   error = kErrorNone;
-    uint8_t channel;
-
-    VerifyOrExit(aArgsLength == 1, error = kErrorInvalidArgs);
-
-    SuccessOrExit(error = Utils::CmdLineParser::ParseAsUint8(aArgs[0], channel));
-    VerifyOrExit(IsChannelValid(channel), error = kErrorInvalidArgs);
-
-    otPlatDiagChannelSet(channel);
-
-exit:
-    return error;
 }
 
 Error Diags::ProcessEcho(uint8_t aArgsLength, char *aArgs[])
