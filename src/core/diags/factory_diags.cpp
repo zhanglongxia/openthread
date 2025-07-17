@@ -65,7 +65,6 @@ const struct Diags::Command Diags::sCommands[] = {
     {"cw", &Diags::ProcessContinuousWave},
     {"echo", &Diags::ProcessEcho},
     {"gpio", &Diags::ProcessGpio},
-    {"power", &Diags::ProcessPower},
     {"powersettings", &Diags::ProcessPowerSettings},
     {"rawpowersetting", &Diags::ProcessRawPowerSetting},
     {"start", &Diags::ProcessStart},
@@ -91,21 +90,6 @@ Error Diags::ProcessChannel(uint8_t aArgsLength, char *aArgs[])
     VerifyOrExit(IsChannelValid(channel), error = kErrorInvalidArgs);
 
     otPlatDiagChannelSet(channel);
-
-exit:
-    return error;
-}
-
-Error Diags::ProcessPower(uint8_t aArgsLength, char *aArgs[])
-{
-    Error  error = kErrorNone;
-    int8_t power;
-
-    VerifyOrExit(aArgsLength == 1, error = kErrorInvalidArgs);
-
-    SuccessOrExit(error = Utils::CmdLineParser::ParseAsInt8(aArgs[0], power));
-
-    otPlatDiagTxPowerSet(power);
 
 exit:
     return error;
