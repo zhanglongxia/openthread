@@ -1020,7 +1020,7 @@ private:
     Error        UpdateIdAndSignatureInUpdateMessage(MsgInfo &aInfo);
     Error        ReadOrGenerateKey(KeyInfo &aKeyInfo);
     Error        AppendServiceInstructions(MsgInfo &aInfo);
-    bool         CanAppendService(const Service &aService);
+    bool         CanAppendService1(const Service &aService);
     Error        AppendServiceInstruction(Service &aService, MsgInfo &aInfo);
     Error        AppendHostDescriptionInstruction(MsgInfo &aInfo);
     Error        AppendKeyRecord(MsgInfo &aInfo) const;
@@ -1060,6 +1060,12 @@ private:
 #else
     void                                 LogRetryWaitInterval(void) const {}
 #endif
+
+    bool GetHighPriorityLease(uint32_t &aLease, uint32_t &aKeyLease);
+    bool GetLease(uint32_t &aLease, uint32_t &aKeyLease);
+    bool CanAppendService(const Service &aService, uint32_t &aLease, uint32_t &aKeyLease);
+    void SelectLeaseAndKeyLease(void);
+    void ClearAppendedInMessageFlags(void);
 
     static const char kDefaultDomainName[];
 
