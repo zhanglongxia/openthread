@@ -996,6 +996,8 @@ private:
         uint16_t          mRecordCount;
         uint16_t          mSigRecordOffset;
         KeyInfo           mKeyInfo;
+        uint32_t          mLease;
+        uint32_t          mKeyLease;
     };
 
     Error        Start(const Ip6::SockAddr &aServerSockAddr, Requester aRequester);
@@ -1020,7 +1022,7 @@ private:
     Error        UpdateIdAndSignatureInUpdateMessage(MsgInfo &aInfo);
     Error        ReadOrGenerateKey(KeyInfo &aKeyInfo);
     Error        AppendServiceInstructions(MsgInfo &aInfo);
-    bool         CanAppendService(const Service &aService);
+    bool         CanAppendService1(const Service &aService);
     Error        AppendServiceInstruction(Service &aService, MsgInfo &aInfo);
     Error        AppendHostDescriptionInstruction(MsgInfo &aInfo);
     Error        AppendKeyRecord(MsgInfo &aInfo) const;
@@ -1060,6 +1062,12 @@ private:
 #else
     void                                 LogRetryWaitInterval(void) const {}
 #endif
+
+    bool GetOnGoingLease(uint32_t &aLease, uint32_t &aKeyLease);
+    bool GetLease(uint32_t &aLease, uint32_t &aKeyLease);
+    bool CanAppendService(const Service &aService, uint32_t &aLease, uint32_t &aKeyLease);
+    void SelectLeaseAndKeyLease(uint32_t &aLease, uint32_t &aKeyLease);
+    void ClearAppendedInMessageFlags(void);
 
     static const char kDefaultDomainName[];
 

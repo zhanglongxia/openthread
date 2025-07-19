@@ -1001,6 +1001,8 @@ void Client::SendUpdate(void)
     VerifyOrExit(info.mMessage != nullptr, error = kErrorNoBufs);
 
     info.mSingleServiceMode = false;
+
+    SelectLeaseAndKeyLease(mLease, mKeyLease);
     SuccessOrExit(error = PrepareUpdateMessage(info));
 
     length = info.mMessage->GetLength() + sizeof(Ip6::Udp::Header) + sizeof(Ip6::Header);
@@ -1019,6 +1021,7 @@ void Client::SendUpdate(void)
 
         ChangeHostAndServiceStates(kNewStateOnSingleServiceMode, kForServicesAppendedInMessage);
 
+        SelectLeaseAndKeyLease(mLease, mKeyLease);
         SuccessOrExit(error = PrepareUpdateMessage(info));
     }
 
@@ -1221,9 +1224,139 @@ exit:
 }
 #endif //  OPENTHREAD_CONFIG_PLATFORM_KEY_REFERENCES_ENABLE
 
+bool Client::GetOnGoingLease(uint32_t &aLease, uint32_t &aKeyLease)
+{
+    bool ret = false;
+
+    aLease    = kUnspecifiedInterval;
+    aKeyLease = kUnspecifiedInterval;
+
+    // We first go through all services which are being updated (in any
+    // of `...ing` states) and determine the lease and key lease intervals
+    // associated with them. By the end of the loop either of `mLease` or
+    // `mKeyLease` may be set or may still remain `kUnspecifiedInterval`.
+
+    for (Service &service : mServices)
+    {
+        uint32_t lease    = DetermineLeaseInterval(service.GetLease(), mDefaultLease);
+        uint32_t keyLease = Max(DetermineLeaseInterval(service.GetKeyLease(), mDefaultKeyLease), lease);
+
+        service.ClearAppendedInMessageFlag();
+
+        // LogInfo("GetOnGoingLease() TP1 GetState()=%s, aLease=%u, lease=%u", ItemStateToString(service.GetState()),
+        //        aLease, lease);
+        switch (service.GetState())
+        {
+        case kAdding:
+        case kRefreshing:
+            OT_ASSERT((aLease == kUnspecifiedInterval) || (aLease == lease));
+            aLease = lease;
+            // LogInfo("GetOnGoingLease() TP2 aLease=%u", aLease);
+
+            OT_FALL_THROUGH;
+
+        case kRemoving:
+            OT_ASSERT((aKeyLease == kUnspecifiedInterval) || (aKeyLease == keyLease));
+            aKeyLease = keyLease;
+            // LogInfo("GetOnGoingLease() TP3 aKeyLease=%u", aKeyLease);
+            break;
+
+        case kToAdd:
+        case kToRefresh:
+        case kToRemove:
+        case kRegistered:
+        case kRemoved:
+            break;
+        }
+
+        if ((aLease != kUnspecifiedInterval) && (aKeyLease != kUnspecifiedInterval))
+        {
+            ExitNow(ret = true);
+        }
+    }
+
+exit:
+    // LogInfo("GetOnGoingLease() TP4 aLease=%u, aKeyLease=%u, ret=%u", aLease, aKeyLease, ret);
+    return ret;
+}
+
+bool Client::GetLease(uint32_t &aLease, uint32_t &aKeyLease)
+{
+    for (Service &service : mServices)
+    {
+        uint32_t lease    = DetermineLeaseInterval(service.GetLease(), mDefaultLease);
+        uint32_t keyLease = Max(DetermineLeaseInterval(service.GetKeyLease(), mDefaultKeyLease), lease);
+
+        // LogInfo("GetLease() TP1 GetState()=%s, aLease=%u, aKeyLease=%u", ItemStateToString(service.GetState()),
+        // aLease,
+        //         aKeyLease);
+        switch (service.GetState())
+        {
+        case kToAdd:
+        case kAdding:
+        case kToRefresh:
+        case kRefreshing:
+            VerifyOrExit((aLease == kUnspecifiedInterval) || (aLease == lease));
+            VerifyOrExit((aKeyLease == kUnspecifiedInterval) || (aKeyLease == keyLease));
+            aLease    = lease;
+            aKeyLease = keyLease;
+            // LogInfo("GetLease() TP2 aLease=%u aKeyLease=%u", aLease, aKeyLease);
+            ExitNow();
+            break;
+
+        case kToRemove:
+        case kRemoving:
+            VerifyOrExit((aKeyLease == kUnspecifiedInterval) || (aKeyLease == keyLease));
+            aKeyLease = keyLease;
+            // LogInfo("GetLease() TP3 aKeyLease=%u ", aKeyLease);
+            break;
+
+        case kRegistered:
+        case kRemoved:
+            break;
+        }
+    }
+
+exit:
+    // LogInfo("GetLease() TP4 aLease=%u, aKeyLease=%u, ret=%u", aLease, aKeyLease, (aKeyLease !=
+    // kUnspecifiedInterval));
+    return (aKeyLease != kUnspecifiedInterval);
+}
+
+void Client::SelectLeaseAndKeyLease(uint32_t &aLease, uint32_t &aKeyLease)
+{
+    if ((mHostInfo.GetState() == kToRemove) || (mHostInfo.GetState() == kRemoving))
+    {
+        aLease    = 0;
+        aKeyLease = mShouldRemoveKeyLease ? 0 : mDefaultKeyLease;
+    }
+    else
+    {
+        if (!GetOnGoingLease(aLease, mKeyLease))
+        {
+            GetLease(aLease, aKeyLease);
+        }
+
+        // `mLease` or `mKeylease` may be determined from the set of
+        // services included in the message. If they are not yet set we
+        // use the default intervals.
+        aLease    = DetermineLeaseInterval(aLease, mDefaultLease);
+        aKeyLease = DetermineLeaseInterval(aKeyLease, mDefaultKeyLease);
+
+        // When message only contains removal of a previously registered
+        // service, then `mKeyLease` is set but `mLease` remains unspecified.
+        // In such a case, we end up using `mDefaultLease` but then we need
+        // to make sure it is not greater than the selected `mKeyLease`.
+
+        aLease = Min(aLease, aKeyLease);
+    }
+}
+
 Error Client::AppendServiceInstructions(MsgInfo &aInfo)
 {
     Error error = kErrorNone;
+
+    // uint8_t i = 0;
 
     if ((mHostInfo.GetState() == kToRemove) || (mHostInfo.GetState() == kRemoving))
     {
@@ -1238,52 +1371,13 @@ Error Client::AppendServiceInstructions(MsgInfo &aInfo)
             service.MarkAsAppendedInMessage();
         }
 
-        mLease    = 0;
-        mKeyLease = mShouldRemoveKeyLease ? 0 : mDefaultKeyLease;
         ExitNow();
     }
 
-    mLease    = kUnspecifiedInterval;
-    mKeyLease = kUnspecifiedInterval;
-
-    // We first go through all services which are being updated (in any
-    // of `...ing` states) and determine the lease and key lease intervals
-    // associated with them. By the end of the loop either of `mLease` or
-    // `mKeyLease` may be set or may still remain `kUnspecifiedInterval`.
-
-    for (Service &service : mServices)
-    {
-        uint32_t lease    = DetermineLeaseInterval(service.GetLease(), mDefaultLease);
-        uint32_t keyLease = Max(DetermineLeaseInterval(service.GetKeyLease(), mDefaultKeyLease), lease);
-
-        service.ClearAppendedInMessageFlag();
-
-        switch (service.GetState())
-        {
-        case kAdding:
-        case kRefreshing:
-            OT_ASSERT((mLease == kUnspecifiedInterval) || (mLease == lease));
-            mLease = lease;
-
-            OT_FALL_THROUGH;
-
-        case kRemoving:
-            OT_ASSERT((mKeyLease == kUnspecifiedInterval) || (mKeyLease == keyLease));
-            mKeyLease = keyLease;
-            break;
-
-        case kToAdd:
-        case kToRefresh:
-        case kToRemove:
-        case kRegistered:
-        case kRemoved:
-            break;
-        }
-    }
-
-    // We go through all services again and append the services that
-    // match the selected `mLease` and `mKeyLease`. If the lease intervals
-    // are not yet set, the first appended service will determine them.
+    // LogInfo("AppendServiceInstructions() TP1.1 mLease=%u", mLease);
+    //  We go through all services again and append the services that
+    //  match the selected `mLease` and `mKeyLease`. If the lease intervals
+    //  are not yet set, the first appended service will determine them.
 
     for (Service &service : mServices)
     {
@@ -1291,8 +1385,12 @@ Error Client::AppendServiceInstructions(MsgInfo &aInfo)
         // They may be added from the loop below once the lease intervals
         // are determined.
 
-        if ((service.GetState() != kRegistered) && CanAppendService(service))
+        // LogInfo("AppendServiceInstructions() TP2 service%u GetState()=%s, mLease=%u", i++,
+        //         ItemStateToString(service.GetState()), mLease);
+        if ((service.GetState() != kRegistered) && CanAppendService(service, mLease, mKeyLease))
         {
+            // LogInfo("AppendServiceInstruction() TP2 ---------------------------");
+
             SuccessOrExit(error = AppendServiceInstruction(service, aInfo));
 
             if (aInfo.mSingleServiceMode)
@@ -1304,17 +1402,22 @@ Error Client::AppendServiceInstructions(MsgInfo &aInfo)
         }
     }
 
+    // i = 0;
     if (!aInfo.mSingleServiceMode)
     {
         for (Service &service : mServices)
         {
-            if ((service.GetState() == kRegistered) && CanAppendService(service) && ShouldRenewEarly(service))
+            // LogInfo("AppendServiceInstructions() TP3 service%u GetState()=%s, mLease=%u ", i++,
+            //         ItemStateToString(service.GetState()), mLease);
+            if ((service.GetState() == kRegistered) && CanAppendService(service, mLease, mKeyLease) &&
+                ShouldRenewEarly(service))
             {
                 // If the lease needs to be renewed or if we are close to the
                 // renewal time of a registered service, we refresh the service
                 // early and include it in this update. This helps put more
                 // services on the same lease refresh schedule.
 
+                // LogInfo("AppendServiceInstruction() TP3 ---------------------------");
                 service.SetState(kToRefresh);
                 SuccessOrExit(error = AppendServiceInstruction(service, aInfo));
             }
@@ -1325,21 +1428,22 @@ Error Client::AppendServiceInstructions(MsgInfo &aInfo)
     // services included in the message. If they are not yet set we
     // use the default intervals.
 
-    mLease    = DetermineLeaseInterval(mLease, mDefaultLease);
-    mKeyLease = DetermineLeaseInterval(mKeyLease, mDefaultKeyLease);
+    // mLease    = DetermineLeaseInterval(mLease, mDefaultLease);
+    // mKeyLease = DetermineLeaseInterval(mKeyLease, mDefaultKeyLease);
 
     // When message only contains removal of a previously registered
     // service, then `mKeyLease` is set but `mLease` remains unspecified.
     // In such a case, we end up using `mDefaultLease` but then we need
     // to make sure it is not greater than the selected `mKeyLease`.
 
-    mLease = Min(mLease, mKeyLease);
+    // mLease = Min(mLease, mKeyLease);
+    // LogInfo("AppendServiceInstructions() TP3 mLease=%u ", mLease);
 
 exit:
     return error;
 }
 
-bool Client::CanAppendService(const Service &aService)
+bool Client::CanAppendService(const Service &aService, uint32_t &aLease, uint32_t &aKeyLease)
 {
     // Check the lease intervals associated with `aService` to see if
     // it can be included in this message. When removing a service,
@@ -1351,6 +1455,9 @@ bool Client::CanAppendService(const Service &aService)
     uint32_t lease     = DetermineLeaseInterval(aService.GetLease(), mDefaultLease);
     uint32_t keyLease  = Max(DetermineLeaseInterval(aService.GetKeyLease(), mDefaultKeyLease), lease);
 
+    // LogInfo("CanAppendService() TP1 GetState()=%s, lease=%u, keyLease=%u, aLease=%u, aKeyLease=%u",
+    //         ItemStateToString(aService.GetState()), lease, keyLease, aLease, aKeyLease);
+
     switch (aService.GetState())
     {
     case kToAdd:
@@ -1358,25 +1465,20 @@ bool Client::CanAppendService(const Service &aService)
     case kToRefresh:
     case kRefreshing:
     case kRegistered:
-        VerifyOrExit((mLease == kUnspecifiedInterval) || (mLease == lease));
-        VerifyOrExit((mKeyLease == kUnspecifiedInterval) || (mKeyLease == keyLease));
-        mLease    = lease;
-        mKeyLease = keyLease;
-        canAppend = true;
+        canAppend = (lease == aLease) && (keyLease == aKeyLease);
         break;
 
     case kToRemove:
     case kRemoving:
-        VerifyOrExit((mKeyLease == kUnspecifiedInterval) || (mKeyLease == keyLease));
-        mKeyLease = keyLease;
-        canAppend = true;
+        canAppend = (keyLease == aKeyLease);
         break;
 
     case kRemoved:
         break;
     }
 
-exit:
+    // LogInfo("CanAppendService() TP2 canAppend=%u ", canAppend);
+
     return canAppend;
 }
 
@@ -2306,14 +2408,18 @@ void Client::ProcessAutoStart(void)
     // 3) Unicast entries with address info included in server data.
 
     serverSockAddr.Clear();
+    LogInfo("ProcessAutoStart() TP0  IsUnspecified=%u %u", serverSockAddr.GetAddress().IsUnspecified(),
+            anycastInfo.mAnycastAddress.IsUnspecified());
 
     if (SelectUnicastEntry(NetworkData::Service::kAddrInServiceData, unicastInfo) == kErrorNone)
     {
+        LogInfo("ProcessAutoStart() TP1");
         mAutoStart.SetState(AutoStart::kSelectedUnicastPreferred);
         serverSockAddr = unicastInfo.mSockAddr;
     }
     else if (Get<NetworkData::Service::Manager>().FindPreferredDnsSrpAnycastInfo(anycastInfo) == kErrorNone)
     {
+        LogInfo("ProcessAutoStart() TP2");
         serverSockAddr.SetAddress(anycastInfo.mAnycastAddress);
         serverSockAddr.SetPort(kAnycastServerPort);
 
@@ -2334,18 +2440,21 @@ void Client::ProcessAutoStart(void)
     }
     else if (SelectUnicastEntry(NetworkData::Service::kAddrInServerData, unicastInfo) == kErrorNone)
     {
+        LogInfo("ProcessAutoStart() TP3");
         mAutoStart.SetState(AutoStart::kSelectedUnicast);
         serverSockAddr = unicastInfo.mSockAddr;
     }
 
     if (IsRunning())
     {
+        LogInfo("ProcessAutoStart() TP4");
         VerifyOrExit((GetServerAddress() != serverSockAddr) || shouldRestart);
         Stop(kRequesterAuto, kResetRetryInterval);
     }
 
     if (serverSockAddr.GetAddress().IsUnspecified())
     {
+        LogInfo("ProcessAutoStart() TP5");
         if (mAutoStart.HasSelectedServer())
         {
             mAutoStart.SetState(AutoStart::kReselecting);
@@ -2405,6 +2514,7 @@ void Client::ProcessAutoStart(void)
         break;
     }
 
+    LogInfo("ProcessAutoStart() TP6");
     IgnoreError(Start(serverSockAddr, kRequesterAuto));
 
 exit:
