@@ -100,6 +100,10 @@ class RoutingManager;
 }
 #endif
 
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+class Peer;
+#endif
+
 namespace Srp {
 
 class AdvertisingProxy;
@@ -861,6 +865,16 @@ public:
      */
     void HandleServiceUpdateResult(ServiceUpdateId aId, Error aError);
 
+    /**
+     * Receives the P2P link state update result.
+     *
+     * @param[in]  aEvent The P2P link event.
+     * @param[in]  aPeer  A reference to the peer instance.
+     */
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+    void HandleP2pEvent(Mle::P2pEvent aEvent, Peer &aPeer);
+#endif
+
 private:
     static constexpr uint8_t kSrpVersion = 0;
 
@@ -1047,6 +1061,10 @@ private:
     bool            mHasRegisteredAnyService : 1;
 #if OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE
     bool mAutoEnable : 1;
+#endif
+
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+    bool mSrpServerStarted : 1;
 #endif
 
 #if OPENTHREAD_CONFIG_SRP_SERVER_FAST_START_MODE_ENABLE

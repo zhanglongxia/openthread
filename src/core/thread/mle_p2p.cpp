@@ -257,7 +257,8 @@ Error Mle::P2p::SendP2pLinkAcceptVariant(const LinkAcceptInfo &aInfo, bool aIsLi
         SetWakeupListenerEnabled();
 
         LogInfo("P2P link to %s is established", aInfo.mExtAddress.ToString().AsCString());
-        mEventCallback.InvokeIfSet(OT_P2P_EVENT_LINKED, &aInfo.mExtAddress);
+
+        InvokeEventCallback(kP2pEventLinked, *peer);
     }
 
     Log(kMessageSend, (command == kCommandP2pLinkAccept) ? kTypeP2pLinkAccept : kTypeP2pLinkAcceptAndRequest,
@@ -326,7 +327,7 @@ void Mle::P2p::HandleP2pLinkAcceptVariant(RxInfo &aRxInfo, MessageType aMessageT
     {
         LogInfo("P2P link to %s is established", peer->GetExtAddress().ToString().AsCString());
 
-        mEventCallback.InvokeIfSet(OT_P2P_EVENT_LINKED, &peer->GetExtAddress());
+        InvokeEventCallback(kP2pEventLinked, *peer);
 
         if (!mPeerTable.HasPeers(Peer::kInStateLinkRequest))
         {
@@ -399,6 +400,19 @@ void Mle::P2p::ClearPeersInLinkRequestState(void)
 void Mle::P2p::SetEventCallback(otP2pEventCallback aCallback, void *aContext)
 {
     mEventCallback.Set(aCallback, aContext);
+}
+
+void Mle::P2p::InvokeEventCallback(P2pEvent aEvent, Peer &aPeer)
+{
+#if OPENTHREAD_CONFIG_SRP_CLIENT_ENABLE
+    Get<Srp::P2pClient>().HandleP2pEvent(aEvent, aPeer);
+#endif
+
+#if OPENTHREAD_CONFIG_SRP_SERVER_ENABLE
+    Get<Srp::Server>().HandleP2pEvent(aEvent, aPeer);
+#endif
+
+    mEventCallback.InvokeIfSet(MapEnum(aEvent), &aPeer.GetExtAddress());
 }
 
 } // namespace Mle

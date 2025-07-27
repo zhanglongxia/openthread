@@ -108,6 +108,7 @@
 #include "net/sntp_client.hpp"
 #include "net/srp_advertising_proxy.hpp"
 #include "net/srp_client.hpp"
+#include "net/srp_p2p_client.hpp"
 #include "net/srp_server.hpp"
 #include "radio/ble_secure.hpp"
 #include "thread/address_resolver.hpp"
@@ -519,6 +520,9 @@ private:
 
 #if OPENTHREAD_CONFIG_SRP_CLIENT_ENABLE
     Srp::Client mSrpClient;
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+    Srp::P2pClient mSrpP2pClient;
+#endif
 #endif
 
 #if OPENTHREAD_CONFIG_SRP_CLIENT_BUFFERS_ENABLE
@@ -926,6 +930,9 @@ template <> inline Dns::Client &Instance::Get(void) { return mDnsClient; }
 
 #if OPENTHREAD_CONFIG_SRP_CLIENT_ENABLE
 template <> inline Srp::Client &Instance::Get(void) { return mSrpClient; }
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+template <> inline Srp::P2pClient &Instance::Get(void) { return mSrpP2pClient; }
+#endif
 #endif
 
 #if OPENTHREAD_CONFIG_SRP_CLIENT_BUFFERS_ENABLE

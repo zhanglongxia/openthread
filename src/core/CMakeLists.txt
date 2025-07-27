@@ -195,6 +195,7 @@ set(COMMON_SOURCES
     net/socket.cpp
     net/srp_advertising_proxy.cpp
     net/srp_client.cpp
+    net/srp_p2p_client.cpp
     net/srp_server.cpp
     net/tcp6.cpp
     net/tcp6_ext.cpp

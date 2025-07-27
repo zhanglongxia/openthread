@@ -38,6 +38,7 @@
 #include "common/as_core_type.hpp"
 #include "common/callback.hpp"
 #include "common/clearable.hpp"
+#include "common/heap_allocatable.hpp"
 #include "common/linked_list.hpp"
 #include "common/locator.hpp"
 #include "common/log.hpp"
@@ -66,6 +67,10 @@ namespace Srp {
 #error "SRP Client feature requires ECDSA support (OPENTHREAD_CONFIG_ECDSA_ENABLE)."
 #endif
 
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+class P2pClient;
+#endif
+
 /**
  * Implements SRP client.
  */
@@ -73,12 +78,22 @@ class Client : public InstanceLocator, private NonCopyable
 {
     friend class ot::Notifier;
     friend class ot::Ip6::Netif;
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+    friend class ot::Srp::P2pClient;
+#endif
 
     using DnsSrpUnicastInfo = NetworkData::Service::DnsSrpUnicastInfo;
     using DnsSrpUnicastType = NetworkData::Service::DnsSrpUnicastType;
     using DnsSrpAnycastInfo = NetworkData::Service::DnsSrpAnycastInfo;
 
 public:
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+    static constexpr uint8_t kMaxNumP2pLinks = OPENTHREAD_CONFIG_P2P_MAX_PEERS;
+    static constexpr uint8_t kSrpClientId    = kMaxNumP2pLinks;
+#else
+    static constexpr uint8_t kSrpClientId = 0;
+#endif
+
     /**
      * Types represents an SRP client item (service or host info) state.
      */
@@ -108,6 +123,9 @@ public:
     {
         friend class Client;
         friend class Clearable<HostInfo>;
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+        friend class P2pClient;
+#endif
 
     public:
         /**
@@ -152,17 +170,42 @@ public:
         const Ip6::Address &GetAddress(uint8_t aIndex) const { return AsCoreType(&mAddresses[aIndex]); }
 
         /**
-         * Gets the state of `HostInfo`.
+         * Gets the state of `HostInfo` for the given session.
+         *
+         * @param[in] aSessionId  The session id.
          *
          * @returns The `HostInfo` state.
          */
-        ItemState GetState(void) const { return static_cast<ItemState>(mState); }
+        ItemState GetState(uint8_t aSessionId = kSrpClientId) const;
+
+        /**
+         * Indicates whether all states of `HostInfo` equals to the given state.
+         *
+         * @param[in] aState  The state to be checked.
+         *
+         * @retval TRUE  If all states of the 'HostInfo' equal to the @p aState.
+         * @retval FALSE If not all states of the 'HostInfo' equal to the @p aState.
+         */
+        bool AllSessionInState(ItemState aState) const;
 
     private:
+        void SetItemState(ItemState aState, uint8_t aSessionId);
+        bool SetState(ItemState aState, uint8_t aSessionId = kSrpClientId);
         void SetName(const char *aName) { mName = aName; }
-        bool SetState(ItemState aState);
         void SetAddresses(const Ip6::Address *aAddresses, uint8_t aNumAddresses);
         void EnableAutoAddress(void);
+
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+        static constexpr uint16_t kInfoStringSize = 250;
+
+        typedef String<kInfoStringSize> InfoString;
+
+        InfoString StatesToString(void) const;
+
+        void ResetAllP2pStates(ItemState aState) { memset(mStates, aState, kMaxNumP2pLinks); }
+
+        ItemState mStates[kMaxNumP2pLinks];
+#endif
     };
 
     /**
@@ -172,6 +215,13 @@ public:
     {
         friend class Client;
         friend class LinkedList<Service>;
+
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+        friend class P2pClient;
+
+        class Metadata;
+        class MetadataArray;
+#endif
 
     public:
         /**
@@ -256,7 +306,7 @@ public:
          *
          * @returns The service state.
          */
-        ItemState GetState(void) const { return static_cast<ItemState>(mState); }
+        ItemState GetState(uint8_t aSessionId = kSrpClientId) const;
 
         /**
          * Gets the desired lease interval to request when registering this service.
@@ -282,14 +332,63 @@ public:
         static constexpr uint32_t kAppendedInMsgFlag = (1U << 31);
         static constexpr uint32_t kLeaseMask         = ~kAppendedInMsgFlag;
 
-        bool      SetState(ItemState aState);
-        TimeMilli GetLeaseRenewTime(void) const { return TimeMilli(mData); }
-        void      SetLeaseRenewTime(TimeMilli aTime) { mData = aTime.GetValue(); }
-        bool      IsAppendedInMessage(void) const { return mLease & kAppendedInMsgFlag; }
-        void      MarkAsAppendedInMessage(void) { mLease |= kAppendedInMsgFlag; }
-        void      ClearAppendedInMessageFlag(void) { mLease &= ~kAppendedInMsgFlag; }
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+        class Metadata
+        {
+        public:
+            void              SetState(Client::ItemState aState) { mState = aState; }
+            Client::ItemState GetState(void) const { return mState; }
+            void              SetLeaseRenewTime(TimeMilli aRenewTime) { mLeaseRenewTime = aRenewTime; }
+            TimeMilli         GetLeaseRenewTime(void) const { return mLeaseRenewTime; }
+            bool              IsAppendedInMessage(void) const { return mIsServiceAppended; }
+            void              MarkAsAppendedInMessage(void) { mIsServiceAppended = true; }
+            void              ClearAppendedInMessageFlag(void) { mIsServiceAppended = false; }
+
+        private:
+            Client::ItemState mState : 4;
+            bool              mIsServiceAppended : 1;
+            TimeMilli         mLeaseRenewTime;
+        };
+
+        class MetadataArray : public Heap::Allocatable<MetadataArray>
+        {
+        public:
+            MetadataArray(void) { ResetState(kToAdd); }
+
+            Metadata       &GetMetadata(uint8_t aSessionId);
+            const Metadata &GetMetadata(uint8_t aSessionId) const;
+            void            ResetState(ItemState aState);
+
+        private:
+            Metadata mMetadataArray[kMaxNumP2pLinks];
+        };
+
+        Error                AllocateMetadataArray(void);
+        void                 FreeMetadataArray(void);
+        MetadataArray       &GetMetadataArray(void);
+        const MetadataArray &GetMetadataArray(void) const;
+        Metadata            &GetMetadata(uint8_t aSessionId) { return GetMetadataArray().GetMetadata(aSessionId); }
+        const Metadata &GetMetadata(uint8_t aSessionId) const { return GetMetadataArray().GetMetadata(aSessionId); }
+        ItemState       GetItemState(uint8_t aSessionId = kSrpClientId) const;
+        void            ResetAllP2pStates(ItemState aState) { GetMetadataArray().ResetState(aState); }
+
+        static constexpr uint16_t kInfoStringSize = 250;
+
+        typedef String<kInfoStringSize> InfoString;
+
+        InfoString StatesToString(void) const;
+#endif
+
+        bool      SetState(ItemState aState, uint8_t aSessionId = kSrpClientId);
+        void      SetItemState(ItemState aState, uint8_t aSessionId = kSrpClientId);
+        TimeMilli GetLeaseRenewTime(uint8_t aSessionId = kSrpClientId) const;
+        void      SetLeaseRenewTime(TimeMilli aTime, uint8_t aSessionId = kSrpClientId);
+        bool      AllSessionInState(ItemState aState) const;
+        bool      IsAppendedInMessage(uint8_t aSessionId = kSrpClientId) const;
+        void      MarkAsAppendedInMessage(uint8_t aSessionId = kSrpClientId);
+        void      ClearAppendedInMessageFlag(uint8_t aSessionId = kSrpClientId);
         bool      Matches(const Service &aOther) const;
-        bool      Matches(ItemState aState) const { return GetState() == aState; }
+        bool      Matches(ItemState aState) const { return AllSessionInState(aState); }
     };
 
     /**
@@ -409,7 +508,7 @@ public:
      *
      * @returns TRUE if the SRP client is running, FALSE otherwise.
      */
-    bool IsRunning(void) const { return (mState != kStateStopped); }
+    bool IsRunning(void) const { return (mSession.mSessionState != kStateStopped); }
 
     /**
      * Gets the socket address (IPv6 address and port number) of the SRP server which is being used by SRP
@@ -983,6 +1082,61 @@ private:
     };
 #endif // OPENTHREAD_CONFIG_SRP_CLIENT_AUTO_START_API_ENABLE
 
+    class Session
+    {
+        friend Client;
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+        friend P2pClient;
+#endif
+
+    public:
+        Session(void)
+            : mSessionState(kStateStopped)
+            , mTxFailureRetryCount(0)
+            , mSessionId(kSrpClientId)
+            , mCurMessageId(0)
+            , mRetryWaitInterval(kMinRetryWaitInterval)
+            , mLease(0)
+            , mKeyLease(0)
+        {
+        }
+
+        Client::State GetSessionState(void) const { return mSessionState; }
+        uint32_t      GetRetryWaitInterval(void) const { return mRetryWaitInterval; }
+        void          ResetRetryWaitInterval(void) { mRetryWaitInterval = kMinRetryWaitInterval; }
+        void          GrowRetryWaitInterval(void);
+        void          SelectNewMessageId(void);
+        uint16_t      GetMessageId(void) const { return mCurMessageId; }
+        void          SetMessageId(uint16_t aMessageId) { mCurMessageId = aMessageId; }
+        void          SetLeaseRenewTime(TimeMilli aRenewTime) { mLeaseRenewTime = aRenewTime; }
+        void          AddLeaseRenewTime(uint32_t aTime) { mLeaseRenewTime += aTime; }
+        TimeMilli     GetLeaseRenewTime(void) const { return mLeaseRenewTime; }
+        void          ResetTxFailureRetryCount(void) { mTxFailureRetryCount = 0; }
+        void          IncrementTxFailureRetryCount(void) { mTxFailureRetryCount++; }
+        uint8_t       GetTxFailureRetryCount(void) const { return mTxFailureRetryCount; }
+        void          SetLease(uint32_t aLease) { mLease = aLease; }
+        uint32_t      GetLease(void) const { return mLease; }
+        void          SetKeyLease(uint32_t aKeyLease) { mKeyLease = aKeyLease; }
+        uint32_t      GetKeyLease(void) const { return mKeyLease; }
+        void          SetSessionId(uint8_t aSessionId) { mSessionId = aSessionId; }
+        uint8_t       GetSessionId(void) const { return mSessionId; }
+#if OT_SHOULD_LOG_AT(OT_LOG_LEVEL_INFO)
+        void LogRetryWaitInterval(void) const;
+#else
+        void LogRetryWaitInterval(void) const {}
+#endif
+
+    private:
+        Client::State mSessionState : 4;
+        uint8_t       mTxFailureRetryCount : 4;
+        uint8_t       mSessionId;
+        uint16_t      mCurMessageId;
+        uint32_t      mRetryWaitInterval;
+        TimeMilli     mLeaseRenewTime;
+        uint32_t      mLease;
+        uint32_t      mKeyLease;
+    };
+
     // SRP Update message encoding methods.
     class Update : public InstanceLocator
     {
@@ -1055,32 +1209,33 @@ private:
     bool     ShouldUpdateHostAutoAddresses(void) const;
     bool     ShouldHostAutoAddressRegister(const Ip6::Netif::UnicastAddress &aUnicastAddress) const;
     Error    UpdateHostInfoStateOnAddressChange(void);
-    void     UpdateServiceStateToRemove(Service &aService);
-    State    GetState(void) const { return mState; }
+    void     UpdateServiceStateToRemove(Service &aService, Session &aSession);
+    State    GetState(void) const { return mSession.mSessionState; }
     void     SetState(State aState);
-    bool     ChangeHostAndServiceStates(const ItemState *aNewStates, ServiceStateChangeMode aMode);
+    bool     ChangeHostAndServiceStates(const ItemState *aNewStates, ServiceStateChangeMode aMode, Session &aSession);
     void     InvokeCallback(Error aError) const;
     void     InvokeCallback(Error aError, const HostInfo &aHostInfo, const Service *aRemovedServices) const;
     void     HandleHostInfoOrServiceChange(void);
     void     SendUpdate(void);
-    Error    PrepareUpdateMessage(Update &aUpdate);
+    Error    PrepareUpdateMessage(Update &aUpdate, Session &aSession);
     Error    ReadOrGenerateKey(KeyInfo &aKeyInfo);
-    Error    AppendServiceInstructions(Update &aUpdate);
-    bool     CanAppendService(const Service &aService);
-    Error    AppendHostDescriptionInstruction(Update &aUpdate);
+    Error    AppendServiceInstructions(Update &aUpdate, Session &aSession);
+    bool     CanAppendService(const Service &aService, Session &aSession);
+    Error    AppendHostDescriptionInstruction(Update &aUpdate, Session &aSession);
     void     HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageInfo);
     void     ProcessResponse(Message &aMessage);
-    void     SelectNewMessageId(void);
     void     HandleUpdateDone(void);
     void     GetRemovedServices(LinkedList<Service> &aRemovedServices);
     void     UpdateState(void);
-    uint32_t GetRetryWaitInterval(void) const { return mRetryWaitInterval; }
-    void     ResetRetryWaitInterval(void) { mRetryWaitInterval = kMinRetryWaitInterval; }
-    void     GrowRetryWaitInterval(void);
     uint32_t DetermineLeaseInterval(uint32_t aInterval, uint32_t aDefaultInterval) const;
-    uint32_t DetermineTtl(void) const;
-    bool     ShouldRenewEarly(const Service &aService) const;
+    uint32_t DetermineTtl(const Session &aSession) const;
+    bool     ShouldRenewEarly(const Service &aService, const Session &aSession) const;
     void     HandleTimer(void);
+    bool     IsValidStateToProcessResponse(State aState) const;
+    Error    UpdateHostAndServiceState(Session &aSession, bool &aShouldUpdate, NextFireTime &aNextRenewTime);
+    Error    GenerateUpdateMessage(Update &aUpdate, Session &aSession);
+    void     UpdateStateAndLeaseRenewTime(Session &aSession);
+    Error UpdateStateForRemoveHostAndServices(Session &aSession, bool aShouldRemoveKeyLease, bool aSendUnregToServer);
 #if OPENTHREAD_CONFIG_SRP_CLIENT_AUTO_START_API_ENABLE
     void  ApplyAutoStartGuardOnAttach(void);
     void  ProcessAutoStart(void);
@@ -1093,9 +1248,6 @@ private:
 
 #if OT_SHOULD_LOG_AT(OT_LOG_LEVEL_INFO)
     static const char *StateToString(State aState);
-    void               LogRetryWaitInterval(void) const;
-#else
-    void                                 LogRetryWaitInterval(void) const {}
 #endif
 
     static const char kDefaultDomainName[];
@@ -1109,25 +1261,17 @@ private:
     using GuardTimer = TimerMilliIn<Client, &Client::HandleGuardTimer>;
 #endif
 
-    State   mState;
-    uint8_t mTxFailureRetryCount : 4;
-    bool    mShouldRemoveKeyLease : 1;
+    bool mShouldRemoveKeyLease : 1;
 #if OPENTHREAD_CONFIG_REFERENCE_DEVICE_ENABLE
     bool mServiceKeyRecordEnabled : 1;
     bool mUseShortLeaseOption : 1;
 #endif
 
-    uint16_t mCurMessageId;
     uint16_t mAutoHostAddressCount;
-    uint32_t mRetryWaitInterval;
-
-    TimeMilli mLeaseRenewTime;
-    uint32_t  mTtl;
-    uint32_t  mLease;
-    uint32_t  mKeyLease;
-    uint32_t  mDefaultLease;
-    uint32_t  mDefaultKeyLease;
-    TxJitter  mTxJitter;
+    uint32_t mTtl;
+    uint32_t mDefaultLease;
+    uint32_t mDefaultKeyLease;
+    TxJitter mTxJitter;
 
     ClientSocket mSocket;
 
@@ -1136,6 +1280,7 @@ private:
     HostInfo                 mHostInfo;
     LinkedList<Service>      mServices;
     DelayTimer               mTimer;
+    Session                  mSession;
 #if OPENTHREAD_CONFIG_SRP_CLIENT_AUTO_START_API_ENABLE
     GuardTimer mGuardTimer;
     AutoStart  mAutoStart;

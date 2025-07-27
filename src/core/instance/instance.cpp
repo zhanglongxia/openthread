@@ -121,6 +121,9 @@ Instance::Instance(void)
 #endif
 #if OPENTHREAD_CONFIG_SRP_CLIENT_ENABLE
     , mSrpClient(*this)
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+    , mSrpP2pClient(*this)
+#endif
 #endif
 #if OPENTHREAD_CONFIG_SRP_CLIENT_BUFFERS_ENABLE
     , mSrpClientBuffers(*this)

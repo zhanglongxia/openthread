@@ -118,6 +118,25 @@ public:
     Peer *GetNewPeer(void);
 
     /**
+     * Returns the peer table index for a given `Peer` instance.
+     *
+     * @param[in]  aPeer  A reference to a `Peer`
+     *
+     * @returns The index corresponding to @p aPeer.
+     */
+    uint16_t GetPeerIndex(const Peer &aPeer) const { return static_cast<uint16_t>(&aPeer - mPeers); }
+
+    /**
+     * Returns a pointer to a `Peer` entry at a given index, or `nullptr` if the index is out of bounds,
+     * i.e., index is larger or equal to maximum number of peers.
+     *
+     * @param[in]  aPeerIndex  A peer index.
+     *
+     * @returns A pointer to the `Peer` corresponding to the given index, or `nullptr` if the index is out of bounds.
+     */
+    Peer *GetPeerAtIndex(uint16_t aPeerIndex);
+
+    /**
      * Searches the peer table for a `Peer` with a given extended address also matching a given state
      * filter.
      *

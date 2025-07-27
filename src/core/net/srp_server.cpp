@@ -89,6 +89,9 @@ Server::Server(Instance &aInstance)
 #if OPENTHREAD_CONFIG_BORDER_ROUTING_ENABLE
     , mAutoEnable(false)
 #endif
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+    , mSrpServerStarted(false)
+#endif
 #if OPENTHREAD_CONFIG_SRP_SERVER_FAST_START_MODE_ENABLE
     , mFastStartMode(false)
 #endif
@@ -180,6 +183,9 @@ void Server::Enable(void)
         SuccessOrExit(Get<NetworkData::Service::Manager>().AddDnsSrpUnicastServiceWithAddrInServerData(
             Get<Mle::Mle>().GetMeshLocalEid(), mPort, kSrpVersion));
         Get<NetworkData::Notifier>().HandleServerDataUpdated();
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+        mSrpServerStarted = true;
+#endif
         Start();
         break;
     }
@@ -605,6 +611,7 @@ void Server::CommitSrpUpdate(Error                    aError,
     uint32_t grantedKeyLease = 0;
     bool     useShortLease   = aHost.ShouldUseShortLeaseOption();
 
+    LogInfo("CommitSrpUpdate() -------------->");
     if (aError != kErrorNone || (mState != kStateRunning))
     {
         aHost.Free();
@@ -914,14 +921,42 @@ void Server::HandleNetDataPublisherEvent(NetworkData::Publisher::Event aEvent)
     switch (aEvent)
     {
     case NetworkData::Publisher::kEventEntryAdded:
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+        mSrpServerStarted = true;
+#endif
         Start();
         break;
 
     case NetworkData::Publisher::kEventEntryRemoved:
-        Stop();
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+        mSrpServerStarted = false;
+        if (!Get<PeerTable>().HasPeers(Peer::kInStateValid))
+#endif
+        {
+            Stop();
+        }
         break;
     }
 }
+
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+void Server::HandleP2pEvent(Mle::P2pEvent aEvent, Peer &aPeer)
+{
+    OT_UNUSED_VARIABLE(aEvent);
+    OT_UNUSED_VARIABLE(aPeer);
+
+    bool hasPeer = Get<PeerTable>().HasPeers(Peer::kInStateValid);
+
+    if (hasPeer)
+    {
+        Start();
+    }
+    else if (!mSrpServerStarted)
+    {
+        Stop();
+    }
+}
+#endif
 
 const Server::UpdateMetadata *Server::FindOutstandingUpdate(const MessageMetadata &aMessageMetadata) const
 {
@@ -947,12 +982,15 @@ void Server::ProcessDnsUpdate(Message &aMessage, MessageMetadata &aMetadata)
     Error error = kErrorNone;
     Host *host  = nullptr;
 
+    LogInfo("ProcessDnsUpdate()----------->");
     LogInfo("Received DNS update from %s", aMetadata.IsDirectRxFromClient()
                                                ? aMetadata.mMessageInfo->GetPeerAddr().ToString().AsCString()
                                                : "an SRPL Partner");
 
+    LogInfo("ProcessDnsUpdate() TP1");
     SuccessOrExit(error = ProcessZoneSection(aMessage, aMetadata));
 
+    LogInfo("ProcessDnsUpdate() TP2");
     if (FindOutstandingUpdate(aMetadata) != nullptr)
     {
         LogInfo("Drop duplicated SRP update request: MessageId=%u", aMetadata.mDnsHeader.GetMessageId());
@@ -963,16 +1001,21 @@ void Server::ProcessDnsUpdate(Message &aMessage, MessageMetadata &aMetadata)
         ExitNow(error = kErrorNone);
     }
 
+    LogInfo("ProcessDnsUpdate() TP3");
     // Per 2.3.2 of SRP draft 6, no prerequisites should be included in a SRP update.
     VerifyOrExit(aMetadata.mDnsHeader.GetPrerequisiteRecordCount() == 0, error = kErrorFailed);
 
+    LogInfo("ProcessDnsUpdate() TP4");
     host = Host::Allocate(GetInstance(), aMetadata.mRxTime);
     VerifyOrExit(host != nullptr, error = kErrorNoBufs);
+    LogInfo("ProcessDnsUpdate() TP5");
     SuccessOrExit(error = ProcessUpdateSection(*host, aMessage, aMetadata));
 
+    LogInfo("ProcessDnsUpdate() TP6");
     // Parse lease time and validate signature.
     SuccessOrExit(error = ProcessAdditionalSection(host, aMessage, aMetadata));
 
+    LogInfo("ProcessDnsUpdate() TP7");
 #if OPENTHREAD_FTD
     if (aMetadata.IsDirectRxFromClient())
     {
@@ -980,6 +1023,7 @@ void Server::ProcessDnsUpdate(Message &aMessage, MessageMetadata &aMetadata)
     }
 #endif
 
+    LogInfo("ProcessDnsUpdate() TP8");
     HandleUpdate(*host, aMetadata);
 
 exit:
@@ -1371,10 +1415,12 @@ Error Server::ProcessAdditionalSection(Host *aHost, const Message &aMessage, Mes
     Dns::Name::Buffer signerName;
     uint16_t          signatureLength;
 
+    LogInfo("ProcessAdditionalSection() TP1");
     VerifyOrExit(aMetadata.mDnsHeader.GetAdditionalRecordCount() == 2, error = kErrorFailed);
 
     // EDNS(0) Update Lease Option.
 
+    LogInfo("ProcessAdditionalSection() TP2");
     SuccessOrExit(error = Dns::Name::ReadName(aMessage, offset, name));
     SuccessOrExit(error = aMessage.Read(offset, optRecord));
 
@@ -1385,6 +1431,7 @@ Error Server::ProcessAdditionalSection(Host *aHost, const Message &aMessage, Mes
     aHost->SetLease(leaseOption.GetLeaseInterval());
     aHost->SetKeyLease(leaseOption.GetKeyLeaseInterval());
 
+    LogInfo("ProcessAdditionalSection() TP3");
     for (Service &service : aHost->mServices)
     {
         if (aHost->GetLease() == 0)
@@ -1408,6 +1455,7 @@ Error Server::ProcessAdditionalSection(Host *aHost, const Message &aMessage, Mes
 
     // SIG(0).
 
+    LogInfo("ProcessAdditionalSection() TP4");
     sigOffset = offset;
     SuccessOrExit(error = Dns::Name::ReadName(aMessage, offset, name));
     SuccessOrExit(error = aMessage.Read(offset, sigRecord));
@@ -1420,6 +1468,7 @@ Error Server::ProcessAdditionalSection(Host *aHost, const Message &aMessage, Mes
     // implemented because the end device may not be able to get
     // the synchronized date/time.
 
+    LogInfo("ProcessAdditionalSection() TP5");
     SuccessOrExit(error = Dns::Name::ReadName(aMessage, offset, signerName));
 
     signatureLength = sigRecord.GetLength() - (offset - sigRdataOffset);
@@ -1427,14 +1476,17 @@ Error Server::ProcessAdditionalSection(Host *aHost, const Message &aMessage, Mes
 
     // Verify the signature. Currently supports only ECDSA.
 
+    LogInfo("ProcessAdditionalSection() TP6");
     VerifyOrExit(sigRecord.GetAlgorithm() == Dns::KeyRecord::kAlgorithmEcdsaP256Sha256, error = kErrorFailed);
     VerifyOrExit(sigRecord.GetTypeCovered() == 0, error = kErrorFailed);
     VerifyOrExit(signatureLength == Crypto::Ecdsa::P256::Signature::kSize, error = kErrorParse);
 
+    LogInfo("ProcessAdditionalSection() TP7");
     SuccessOrExit(error = VerifySignature(aHost->mKey, aMessage, aMetadata.mDnsHeader, sigOffset, sigRdataOffset,
                                           sigRecord.GetLength(), signerName));
 
     aMetadata.mOffset = offset;
+    LogInfo("ProcessAdditionalSection() TP8");
 
 exit:
     LogWarnOnError(error, "process DNS Additional section");
@@ -1496,6 +1548,7 @@ void Server::HandleUpdate(Host &aHost, const MessageMetadata &aMetadata)
 
     // Check whether the SRP update wants to remove `aHost`.
 
+    LogInfo("HandleUpdate() -------------->");
     VerifyOrExit(aHost.GetLease() == 0);
 
     aHost.ClearResources();
@@ -1531,6 +1584,7 @@ exit:
 
 void Server::InformUpdateHandlerOrCommit(Error aError, Host &aHost, const MessageMetadata &aMetadata)
 {
+    LogInfo("InformUpdateHandlerOrCommit() ----------->");
 #if OT_SHOULD_LOG_AT(OT_LOG_LEVEL_INFO)
     if (aError == kErrorNone)
     {
@@ -1732,6 +1786,7 @@ Error Server::ProcessMessage(Message                &aMessage,
     metadata.mLeaseConfig = aLeaseConfig;
     metadata.mMessageInfo = aMessageInfo;
 
+    LogInfo("ProcessResponse() ----------->");
     SuccessOrExit(error = aMessage.Read(metadata.mOffset, metadata.mDnsHeader));
     metadata.mOffset += sizeof(Dns::UpdateHeader);
 

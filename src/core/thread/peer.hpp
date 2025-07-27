@@ -38,6 +38,7 @@
 
 #if OPENTHREAD_CONFIG_P2P_ENABLE
 
+#include "net/srp_p2p_client.hpp"
 #include "thread/neighbor.hpp"
 
 namespace ot {
@@ -46,6 +47,10 @@ namespace ot {
  * Represents a P2P Peer.
  */
 class Peer : public CslNeighbor
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+    ,
+             public Srp::P2pClient::NeighborInfo
+#endif
 {
 public:
     /**

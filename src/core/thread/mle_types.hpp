@@ -725,6 +725,17 @@ public:
 };
 #endif // OPENTHREAD_CONFIG_P2P_ENABLE && OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
 
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+/**
+ * Types represents an P2P event.
+ */
+enum P2pEvent : uint8_t
+{
+    kP2pEventLinked   = OT_P2P_EVENT_LINKED,
+    kP2pEventUnlinked = OT_P2P_EVENT_UNLINKED,
+};
+#endif
+
 /**
  * @}
  */
@@ -739,6 +750,9 @@ DefineMapEnum(otPowerSupply, Mle::DeviceProperties::PowerSupply);
 #endif
 #if OPENTHREAD_CONFIG_P2P_ENABLE && OPENTHREAD_CONFIG_WAKEUP_COORDINATOR_ENABLE
 DefineCoreType(otP2pRequest, Mle::P2pRequest);
+#endif
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+DefineMapEnum(otP2pEvent, Mle::P2pEvent);
 #endif
 
 } // namespace ot

@@ -52,6 +52,10 @@ void Client::HostInfo::Init(void)
     // State is directly set on `mState` instead of using `SetState()`
     // to avoid logging.
     mState = OT_SRP_CLIENT_ITEM_STATE_REMOVED;
+
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+    ResetAllP2pStates(kRemoved);
+#endif
 }
 
 void Client::HostInfo::Clear(void)
@@ -60,15 +64,15 @@ void Client::HostInfo::Clear(void)
     SetState(kRemoved);
 }
 
-bool Client::HostInfo::SetState(ItemState aState)
+bool Client::HostInfo::SetState(ItemState aState, uint8_t aSessionId)
 {
     bool didChange;
 
-    VerifyOrExit(aState != GetState(), didChange = false);
+    VerifyOrExit(aState != GetState(aSessionId), didChange = false);
 
-    LogInfo("HostInfo %s -> %s", ItemStateToString(GetState()), ItemStateToString(aState));
+    LogInfo("HostInfo %s -> %s", ItemStateToString(GetState(aSessionId)), ItemStateToString(aState));
 
-    mState    = MapEnum(aState);
+    SetItemState(aState, aSessionId);
     didChange = true;
 
 exit:
@@ -98,6 +102,64 @@ void Client::HostInfo::SetAddresses(const Ip6::Address *aAddresses, uint8_t aNum
     }
 }
 
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+void Client::HostInfo::SetItemState(ItemState aState, uint8_t aSessionId)
+{
+    if (aSessionId == kSrpClientId)
+    {
+        mState = MapEnum(aState);
+    }
+    else
+    {
+        mStates[aSessionId] = aState;
+    }
+}
+
+Client::ItemState Client::HostInfo::GetState(uint8_t aSessionId) const
+{
+    return (aSessionId == kSrpClientId) ? MapEnum(mState) : mStates[aSessionId];
+}
+
+bool Client::HostInfo::AllSessionInState(ItemState aState) const
+{
+    bool ret = true;
+
+    for (uint8_t i = 0; i <= kMaxNumP2pLinks; i++)
+    {
+        if (GetState(i) != aState)
+        {
+            ExitNow(ret = false);
+        }
+    }
+
+exit:
+    return ret;
+}
+
+InfoString Client::HostInfo::StatesToString(void) const
+{
+    InfoString string;
+
+    for (uint8_t i = 0; i <= kMaxNumP2pLinks; i++)
+    {
+        string.Append("%s", ItemStateToString(GetState(i)));
+
+        if (i < kMaxNumP2pLinks)
+        {
+            string.Append(", ");
+        }
+    }
+
+    return string;
+}
+#else
+void Client::HostInfo::SetItemState(ItemState aState, uint8_t) { mState = MapEnum(aState); }
+
+Client::ItemState Client::HostInfo::GetState(uint8_t) const { return MapEnum(mState); }
+
+bool Client::HostInfo::AllSessionInState(ItemState aState) const { return (GetState() == aState); }
+#endif
+
 //---------------------------------------------------------------------
 // Client::Service
 
@@ -112,6 +174,10 @@ Error Client::Service::Init(void)
     // to avoid logging.
     mState = OT_SRP_CLIENT_ITEM_STATE_REMOVED;
 
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+    SuccessOrExit(error = AllocateMetadataArray());
+#endif
+
     mLease    = Min(mLease, kMaxLease);
     mKeyLease = Min(mKeyLease, kMaxLease);
 
@@ -119,13 +185,13 @@ exit:
     return error;
 }
 
-bool Client::Service::SetState(ItemState aState)
+bool Client::Service::SetState(ItemState aState, uint8_t aSessionId)
 {
     bool didChange;
 
-    VerifyOrExit(GetState() != aState, didChange = false);
+    VerifyOrExit(GetState(aSessionId) != aState, didChange = false);
 
-    LogInfo("Service %s -> %s, \"%s\" \"%s\"", ItemStateToString(GetState()), ItemStateToString(aState),
+    LogInfo("Service %s -> %s, \"%s\" \"%s\"", ItemStateToString(GetState(aSessionId)), ItemStateToString(aState),
             GetInstanceName(), GetName());
 
     if (aState == kToAdd)
@@ -150,7 +216,7 @@ bool Client::Service::SetState(ItemState aState)
                 GetPriority(), GetNumTxtEntries());
     }
 
-    mState    = MapEnum(aState);
+    SetItemState(aState, aSessionId);
     didChange = true;
 
 exit:
@@ -166,6 +232,176 @@ bool Client::Service::Matches(const Service &aOther) const
 
     return StringMatch(GetName(), aOther.GetName()) && StringMatch(GetInstanceName(), aOther.GetInstanceName());
 }
+
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+const Client::Service::Metadata &Client::Service::MetadataArray::GetMetadata(uint8_t aSessionId) const
+{
+    OT_ASSERT(aSessionId < kMaxNumP2pLinks);
+    return mMetadataArray[aSessionId];
+}
+
+Client::Service::Metadata &Client::Service::MetadataArray::GetMetadata(uint8_t aSessionId)
+{
+    OT_ASSERT(aSessionId < kMaxNumP2pLinks);
+    return mMetadataArray[aSessionId];
+}
+
+void Client::Service::MetadataArray::ResetState(ItemState aState)
+{
+    for (Client::Service::Metadata &meta : mMetadataArray)
+    {
+        meta.SetState(aState);
+    }
+}
+
+Error Client::Service::AllocateMetadataArray(void)
+{
+    Error error = kErrorNone;
+
+    mMetadata = reinterpret_cast<void *>(MetadataArray::Allocate());
+    VerifyOrExit(mMetadata != nullptr, error = kErrorNoBufs);
+
+    GetMetadataArray().ResetState(kRemoved);
+
+exit:
+    return error;
+}
+
+void Client::Service::FreeMetadataArray(void)
+{
+    GetMetadataArray().Free();
+    mMetadata = nullptr;
+}
+
+Client::Service::MetadataArray &Client::Service::GetMetadataArray(void)
+{
+    OT_ASSERT(mMetadata != nullptr);
+    return *reinterpret_cast<MetadataArray *>(mMetadata);
+}
+
+const Client::Service::MetadataArray &Client::Service::GetMetadataArray(void) const
+{
+    OT_ASSERT(mMetadata != nullptr);
+    return *reinterpret_cast<const MetadataArray *>(mMetadata);
+}
+
+void Client::Service::SetItemState(ItemState aState, uint8_t aSessionId)
+{
+    if (aSessionId == kSrpClientId)
+    {
+        mState = MapEnum(aState);
+    }
+    else
+    {
+        GetMetadata(aSessionId).SetState(aState);
+    }
+}
+
+Client::ItemState Client::Service::GetItemState(uint8_t aSessionId) const
+{
+    return (aSessionId == kSrpClientId) ? MapEnum(mState) : GetMetadata(aSessionId).GetState();
+}
+
+Client::ItemState Client::Service::GetState(uint8_t aSessionId) const
+{
+    return (aSessionId == kSrpClientId) ? MapEnum(mState) : GetMetadata(aSessionId).GetState();
+}
+
+TimeMilli Client::Service::GetLeaseRenewTime(uint8_t aSessionId) const
+{
+    return (aSessionId == kSrpClientId) ? TimeMilli(mData) : GetMetadata(aSessionId).GetLeaseRenewTime();
+}
+
+void Client::Service::SetLeaseRenewTime(TimeMilli aTime, uint8_t aSessionId)
+{
+    if (aSessionId == kSrpClientId)
+    {
+        mData = aTime.GetValue();
+    }
+    else
+    {
+        GetMetadata(aSessionId).SetLeaseRenewTime(aTime);
+    }
+}
+
+bool Client::Service::AllSessionInState(ItemState aState) const
+{
+    bool ret = true;
+
+    for (uint8_t i = 0; i <= kMaxNumP2pLinks; i++)
+    {
+        if (GetState(i) != aState)
+        {
+            ExitNow(ret = false);
+        }
+    }
+
+exit:
+    return ret;
+}
+
+bool Client::Service::IsAppendedInMessage(uint8_t aSessionId) const
+{
+    return (aSessionId == kSrpClientId) ? (mLease & kAppendedInMsgFlag) : GetMetadata(aSessionId).IsAppendedInMessage();
+}
+
+void Client::Service::MarkAsAppendedInMessage(uint8_t aSessionId)
+{
+    if (aSessionId == kSrpClientId)
+    {
+        mLease |= kAppendedInMsgFlag;
+    }
+    else
+    {
+        GetMetadata(aSessionId).MarkAsAppendedInMessage();
+    }
+}
+
+void Client::Service::ClearAppendedInMessageFlag(uint8_t aSessionId)
+{
+    if (aSessionId == kSrpClientId)
+    {
+        mLease &= ~kAppendedInMsgFlag;
+    }
+    else
+    {
+        GetMetadata(aSessionId).ClearAppendedInMessageFlag();
+    }
+}
+
+InfoString Client::Service::StatesToString(void) const
+{
+    InfoString string;
+
+    for (uint8_t i = 0; i <= kMaxNumP2pLinks; i++)
+    {
+        string.Append("%s", ItemStateToString(GetState(i)));
+
+        if (i < kMaxNumP2pLinks)
+        {
+            string.Append(", ");
+        }
+    }
+
+    return string;
+}
+#else
+void Client::Service::SetItemState(ItemState aState, uint8_t) { mState = MapEnum(aState); }
+
+TimeMilli Client::Service::GetLeaseRenewTime(uint8_t) const { return TimeMilli(mData); }
+
+void Client::Service::SetLeaseRenewTime(TimeMilli aTime, uint8_t) { mData = aTime.GetValue(); }
+
+bool Client::Service::AllSessionInState(ItemState aState) const { return (MapEnum(mState) == aState); }
+
+Client::ItemState Client::Service::GetState(uint8_t) const { return MapEnum(mState); }
+
+bool Client::Service::IsAppendedInMessage(uint8_t) const { return mLease & kAppendedInMsgFlag; }
+
+void Client::Service::MarkAsAppendedInMessage(uint8_t) { mLease |= kAppendedInMsgFlag; }
+
+void Client::Service::ClearAppendedInMessageFlag(uint8_t) { mLease &= ~kAppendedInMsgFlag; }
+#endif
 
 //---------------------------------------------------------------------
 // Client::TxJitter
@@ -347,24 +583,19 @@ const char Client::kDefaultDomainName[] = "default.service.arpa";
 
 Client::Client(Instance &aInstance)
     : InstanceLocator(aInstance)
-    , mState(kStateStopped)
-    , mTxFailureRetryCount(0)
     , mShouldRemoveKeyLease(false)
 #if OPENTHREAD_CONFIG_REFERENCE_DEVICE_ENABLE
     , mServiceKeyRecordEnabled(false)
     , mUseShortLeaseOption(false)
 #endif
-    , mCurMessageId(0)
     , mAutoHostAddressCount(0)
-    , mRetryWaitInterval(kMinRetryWaitInterval)
     , mTtl(0)
-    , mLease(0)
-    , mKeyLease(0)
     , mDefaultLease(kDefaultLease)
     , mDefaultKeyLease(kDefaultKeyLease)
     , mSocket(aInstance, *this)
     , mDomainName(kDefaultDomainName)
     , mTimer(aInstance)
+    , mSession()
 #if OPENTHREAD_CONFIG_SRP_CLIENT_AUTO_START_API_ENABLE
     , mGuardTimer(aInstance)
 #endif
@@ -458,16 +689,16 @@ void Client::Stop(Requester aRequester, StopMode aMode)
     //   kRemoving   -> kToRemove
     //   kRegistered -> kToRefresh
 
-    ChangeHostAndServiceStates(kNewStateOnStop, kForAllServices);
+    ChangeHostAndServiceStates(kNewStateOnStop, kForAllServices, mSession);
 
     IgnoreError(mSocket.Close());
 
     mShouldRemoveKeyLease = false;
-    mTxFailureRetryCount  = 0;
+    mSession.ResetTxFailureRetryCount();
 
     if (aMode == kResetRetryInterval)
     {
-        ResetRetryWaitInterval();
+        mSession.ResetRetryWaitInterval();
     }
 
     SetState(kStateStopped);
@@ -519,7 +750,7 @@ void Client::Pause(void)
     //   kRefreshing -> kToRefresh
     //   kRemoving   -> kToRemove
 
-    ChangeHostAndServiceStates(kNewStateOnPause, kForAllServices);
+    ChangeHostAndServiceStates(kNewStateOnPause, kForAllServices, mSession);
 
     SetState(kStatePaused);
 }
@@ -592,6 +823,11 @@ Error Client::SetHostName(const char *aName)
 
     LogInfo("Host name \"%s\"", aName);
     mHostInfo.SetName(aName);
+
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+    Get<P2pClient>().HandleSetHostName();
+#endif
+
     mHostInfo.SetState(kToAdd);
     UpdateState();
 
@@ -777,6 +1013,10 @@ Error Client::AddService(Service &aService)
     SuccessOrExit(error = aService.Init());
     mServices.Push(aService);
 
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+    Get<P2pClient>().HandleAddService(aService);
+#endif
+
     aService.SetState(kToAdd);
     UpdateState();
 
@@ -791,18 +1031,22 @@ Error Client::RemoveService(Service &aService)
 
     VerifyOrExit(mServices.Contains(aService), error = kErrorNotFound);
 
-    UpdateServiceStateToRemove(aService);
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+    Get<P2pClient>().HandleRemoveService(aService);
+#endif
+
+    UpdateServiceStateToRemove(aService, mSession);
     UpdateState();
 
 exit:
     return error;
 }
 
-void Client::UpdateServiceStateToRemove(Service &aService)
+void Client::UpdateServiceStateToRemove(Service &aService, Session &aSession)
 {
-    if (aService.GetState() != kRemoving)
+    if (aService.GetState(aSession.GetSessionId()) != kRemoving)
     {
-        aService.SetState(kToRemove);
+        aService.SetState(kToRemove, aSession.GetSessionId());
     }
 }
 
@@ -813,7 +1057,48 @@ Error Client::ClearService(Service &aService)
     SuccessOrExit(error = mServices.Remove(aService));
     aService.SetNext(nullptr);
     aService.SetState(kRemoved);
+
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+    Get<P2pClient>().HandleClearService(aService);
+    aService.FreeMetadataArray();
+#endif
+
     UpdateState();
+
+exit:
+    return error;
+}
+
+Error Client::UpdateStateForRemoveHostAndServices(Session &aSession,
+                                                  bool     aShouldRemoveKeyLease,
+                                                  bool     aSendUnregToServer)
+{
+    Error   error = kErrorNone;
+    uint8_t id    = aSession.GetSessionId();
+
+    VerifyOrExit(mHostInfo.GetState(id) != kRemoved, error = kErrorAlready);
+
+    if ((mHostInfo.GetState(id) == kToRemove) || (mHostInfo.GetState(id) == kRemoving))
+    {
+        // Host info remove is already ongoing, if "key lease" remove mode is
+        // the same, there is no need to send a new update message.
+        VerifyOrExit(mShouldRemoveKeyLease != aShouldRemoveKeyLease);
+    }
+
+    for (Service &service : mServices)
+    {
+        UpdateServiceStateToRemove(service, aSession);
+    }
+
+    if ((mHostInfo.GetState(id) == kToAdd) && !aSendUnregToServer)
+    {
+        // Host info is not added yet (not yet registered with
+        // server), so we can remove it and all services immediately.
+        mHostInfo.SetState(kRemoved, id);
+        ExitNow();
+    }
+
+    mHostInfo.SetState(kToRemove, id);
 
 exit:
     return error;
@@ -825,32 +1110,24 @@ Error Client::RemoveHostAndServices(bool aShouldRemoveKeyLease, bool aSendUnregT
 
     LogInfo("Remove host & services");
 
-    VerifyOrExit(mHostInfo.GetState() != kRemoved, error = kErrorAlready);
+    VerifyOrExit(!mHostInfo.AllSessionInState(kRemoved), error = kErrorAlready);
 
-    if ((mHostInfo.GetState() == kToRemove) || (mHostInfo.GetState() == kRemoving))
-    {
-        // Host info remove is already ongoing, if "key lease" remove mode is
-        // the same, there is no need to send a new update message.
-        VerifyOrExit(mShouldRemoveKeyLease != aShouldRemoveKeyLease);
-    }
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+    Get<P2pClient>().HandleRemoveHostAndServices(aShouldRemoveKeyLease, aSendUnregToServer);
+#endif
 
+    SuccessOrExit(error = UpdateStateForRemoveHostAndServices(mSession, aShouldRemoveKeyLease, aSendUnregToServer));
     mShouldRemoveKeyLease = aShouldRemoveKeyLease;
 
-    for (Service &service : mServices)
+    if (mHostInfo.GetState() == kRemoved)
     {
-        UpdateServiceStateToRemove(service);
-    }
+        mSession.ResetRetryWaitInterval();
+        SetState(kStateUpdated);
 
-    if ((mHostInfo.GetState() == kToAdd) && !aSendUnregToServer)
-    {
-        // Host info is not added yet (not yet registered with
-        // server), so we can remove it and all services immediately.
-        mHostInfo.SetState(kRemoved);
         HandleUpdateDone();
         ExitNow();
     }
 
-    mHostInfo.SetState(kToRemove);
     UpdateState();
 
 exit:
@@ -875,8 +1152,12 @@ void Client::ClearHostAndServices(void)
         break;
     }
 
-    mTxFailureRetryCount = 0;
-    ResetRetryWaitInterval();
+    mSession.ResetTxFailureRetryCount();
+    mSession.ResetRetryWaitInterval();
+
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+    Get<P2pClient>().HandleClearHostAndServices();
+#endif
 
     mServices.Clear();
     mHostInfo.Clear();
@@ -884,12 +1165,12 @@ void Client::ClearHostAndServices(void)
 
 void Client::SetState(State aState)
 {
-    VerifyOrExit(aState != mState);
+    VerifyOrExit(aState != mSession.GetSessionState());
 
-    LogInfo("State %s -> %s", StateToString(mState), StateToString(aState));
-    mState = aState;
+    LogInfo("State %s -> %s", StateToString(mSession.GetSessionState()), StateToString(aState));
+    mSession.mSessionState = aState;
 
-    switch (mState)
+    switch (mSession.GetSessionState())
     {
     case kStateStopped:
     case kStatePaused:
@@ -902,7 +1183,7 @@ void Client::SetState(State aState)
         break;
 
     case kStateUpdating:
-        mTimer.Start(GetRetryWaitInterval());
+        mTimer.Start(mSession.GetRetryWaitInterval());
         break;
 
     case kStateToRetry:
@@ -912,27 +1193,30 @@ exit:
     return;
 }
 
-bool Client::ChangeHostAndServiceStates(const ItemState *aNewStates, ServiceStateChangeMode aMode)
+bool Client::ChangeHostAndServiceStates(const ItemState *aNewStates, ServiceStateChangeMode aMode, Session &aSession)
 {
-    bool anyChanged;
+    bool    anyChanged;
+    uint8_t sessionId = aSession.GetSessionId();
 
 #if OPENTHREAD_CONFIG_SRP_CLIENT_AUTO_START_API_ENABLE && OPENTHREAD_CONFIG_SRP_CLIENT_SAVE_SELECTED_SERVER_ENABLE
     ItemState oldHostState = mHostInfo.GetState();
 #endif
 
-    anyChanged = mHostInfo.SetState(aNewStates[mHostInfo.GetState()]);
+    anyChanged = mHostInfo.SetState(aNewStates[mHostInfo.GetState(sessionId)], sessionId);
 
     for (Service &service : mServices)
     {
-        if ((aMode == kForServicesAppendedInMessage) && !service.IsAppendedInMessage())
+        if ((aMode == kForServicesAppendedInMessage) && !service.IsAppendedInMessage(sessionId))
         {
             continue;
         }
 
-        anyChanged |= service.SetState(aNewStates[service.GetState()]);
+        anyChanged |= service.SetState(aNewStates[service.GetState(sessionId)], sessionId);
     }
 
 #if OPENTHREAD_CONFIG_SRP_CLIENT_AUTO_START_API_ENABLE && OPENTHREAD_CONFIG_SRP_CLIENT_SAVE_SELECTED_SERVER_ENABLE
+    VerifyOrExit(sessionId == kSrpClientId);
+
     if ((oldHostState != kRegistered) && (mHostInfo.GetState() == kRegistered))
     {
         Settings::SrpClientInfo info;
@@ -956,6 +1240,8 @@ bool Client::ChangeHostAndServiceStates(const ItemState *aNewStates, ServiceStat
             break;
         }
     }
+
+exit:
 #endif // OPENTHREAD_CONFIG_SRP_CLIENT_AUTO_START_API_ENABLE && OPENTHREAD_CONFIG_SRP_CLIENT_SAVE_SELECTED_SERVER_ENABLE
 
     return anyChanged;
@@ -970,77 +1256,23 @@ void Client::InvokeCallback(Error aError, const HostInfo &aHostInfo, const Servi
 
 void Client::SendUpdate(void)
 {
-    static const ItemState kNewStateOnMessageTx[]{
-        /* (0) kToAdd      -> */ kAdding,
-        /* (1) kAdding     -> */ kAdding,
-        /* (2) kToRefresh  -> */ kRefreshing,
-        /* (3) kRefreshing -> */ kRefreshing,
-        /* (4) kToRemove   -> */ kRemoving,
-        /* (5) kRemoving   -> */ kRemoving,
-        /* (6) kRegistered -> */ kRegistered,
-        /* (7) kRemoved    -> */ kRemoved,
-    };
-
-    static const ItemState kNewStateOnSingleServiceMode[]{
-        /* (0) kToAdd      -> */ kToAdd,
-        /* (1) kAdding     -> */ kToRefresh,
-        /* (2) kToRefresh  -> */ kToRefresh,
-        /* (3) kRefreshing -> */ kToRefresh,
-        /* (4) kToRemove   -> */ kToRemove,
-        /* (5) kRemoving   -> */ kToRemove,
-        /* (6) kRegistered -> */ kRegistered,
-        /* (7) kRemoved    -> */ kRemoved,
-    };
-
     Error  error = kErrorNone;
-    bool   anyChanged;
     Update update(GetInstance());
 
     SuccessOrExit(error = update.SetMessage(mSocket.NewMessage()));
-    SuccessOrExit(error = PrepareUpdateMessage(update));
-
-    if (update.GetMessageLength() >= Ip6::kMaxDatagramLength)
-    {
-        LogInfo("Msg len %lu is larger than MTU, enabling single service mode", ToUlong(update.GetMessageLength()));
-
-        update.SetSingleServiceMode(true);
-
-        // State changes:
-        //   kAdding     -> kToRefresh
-        //   kRefreshing -> kToRefresh
-        //   kRemoving   -> kToRemove
-
-        ChangeHostAndServiceStates(kNewStateOnSingleServiceMode, kForServicesAppendedInMessage);
-
-        SuccessOrExit(error = PrepareUpdateMessage(update));
-    }
-
-    // State changes:
-    //   kToAdd     -> kAdding
-    //   kToRefresh -> kRefreshing
-    //   kToRemove  -> kRemoving
-
-    anyChanged = ChangeHostAndServiceStates(kNewStateOnMessageTx, kForServicesAppendedInMessage);
-
-    if (anyChanged)
-    {
-        SelectNewMessageId();
-    }
-
-    SuccessOrExit(error = update.UpdateIdAndSignatureInUpdateMessage(mCurMessageId));
-
+    SuccessOrExit(error = GenerateUpdateMessage(update, mSession));
     SuccessOrExit(error = mSocket.SendTo(update.GetMessage(), Ip6::MessageInfo()));
 
     // Ownership of the message is transferred to the socket upon a
     // successful `SendTo()` call.
     update.ReleaseMessage();
 
-    LogInfo("Send update, msg-id:0x%x", mCurMessageId);
+    LogInfo("Send update, msg-id:0x%x", mSession.GetMessageId());
 
     // Remember the update message tx time to use later to determine the
     // lease renew time.
-    mLeaseRenewTime      = TimerMilli::GetNow();
-    mTxFailureRetryCount = 0;
+    mSession.SetLeaseRenewTime(TimerMilli::GetNow());
+    mSession.ResetTxFailureRetryCount();
 
     SetState(kStateUpdating);
 
@@ -1065,30 +1297,93 @@ exit:
 
         SetState(kStateToRetry);
 
-        if (mTxFailureRetryCount < kMaxTxFailureRetries)
+        if (mSession.GetTxFailureRetryCount() < kMaxTxFailureRetries)
         {
             uint32_t interval;
 
-            mTxFailureRetryCount++;
+            mSession.IncrementTxFailureRetryCount();
             interval = Random::NonCrypto::AddJitter(kTxFailureRetryInterval, kTxFailureRetryJitter);
             mTimer.Start(interval);
 
-            LogInfo("Quick retry %u in %lu msec", mTxFailureRetryCount, ToUlong(interval));
+            LogInfo("Quick retry %u in %lu msec", mSession.GetTxFailureRetryCount(), ToUlong(interval));
 
             // Do not report message preparation errors to user
             // until `kMaxTxFailureRetries` are exhausted.
         }
         else
         {
-            LogRetryWaitInterval();
-            mTimer.Start(Random::NonCrypto::AddJitter(GetRetryWaitInterval(), kRetryIntervalJitter));
-            GrowRetryWaitInterval();
+            mSession.LogRetryWaitInterval();
+            mTimer.Start(Random::NonCrypto::AddJitter(mSession.GetRetryWaitInterval(), kRetryIntervalJitter));
+            mSession.GrowRetryWaitInterval();
             InvokeCallback(error);
         }
     }
 }
 
-Error Client::PrepareUpdateMessage(Update &aUpdate)
+Error Client::GenerateUpdateMessage(Update &aUpdate, Session &aSession)
+{
+    static const ItemState kNewStateOnMessageTx[]{
+        /* (0) kToAdd      -> */ kAdding,
+        /* (1) kAdding     -> */ kAdding,
+        /* (2) kToRefresh  -> */ kRefreshing,
+        /* (3) kRefreshing -> */ kRefreshing,
+        /* (4) kToRemove   -> */ kRemoving,
+        /* (5) kRemoving   -> */ kRemoving,
+        /* (6) kRegistered -> */ kRegistered,
+        /* (7) kRemoved    -> */ kRemoved,
+    };
+
+    static const ItemState kNewStateOnSingleServiceMode[]{
+        /* (0) kToAdd      -> */ kToAdd,
+        /* (1) kAdding     -> */ kToRefresh,
+        /* (2) kToRefresh  -> */ kToRefresh,
+        /* (3) kRefreshing -> */ kToRefresh,
+        /* (4) kToRemove   -> */ kToRemove,
+        /* (5) kRemoving   -> */ kToRemove,
+        /* (6) kRegistered -> */ kRegistered,
+        /* (7) kRemoved    -> */ kRemoved,
+    };
+
+    Error error = kErrorNone;
+    bool  anyChanged;
+
+    SuccessOrExit(error = PrepareUpdateMessage(aUpdate, aSession));
+
+    if (aUpdate.GetMessageLength() >= Ip6::kMaxDatagramLength)
+    {
+        LogInfo("Msg len %lu is larger than MTU, enabling single service mode", ToUlong(aUpdate.GetMessageLength()));
+
+        aUpdate.SetSingleServiceMode(true);
+
+        // State changes:
+        //   kAdding     -> kToRefresh
+        //   kRefreshing -> kToRefresh
+        //   kRemoving   -> kToRemove
+
+        ChangeHostAndServiceStates(kNewStateOnSingleServiceMode, kForServicesAppendedInMessage, aSession);
+
+        SuccessOrExit(error = PrepareUpdateMessage(aUpdate, aSession));
+    }
+
+    // State changes:
+    //   kToAdd     -> kAdding
+    //   kToRefresh -> kRefreshing
+    //   kToRemove  -> kRemoving
+
+    anyChanged = ChangeHostAndServiceStates(kNewStateOnMessageTx, kForServicesAppendedInMessage, aSession);
+
+    if (anyChanged)
+    {
+        aSession.SelectNewMessageId();
+    }
+
+    SuccessOrExit(error = aUpdate.UpdateIdAndSignatureInUpdateMessage(aSession.GetMessageId()));
+
+exit:
+    return error;
+}
+
+Error Client::PrepareUpdateMessage(Update &aUpdate, Session &aSession)
 {
     Error error = kErrorNone;
 
@@ -1103,7 +1398,7 @@ Error Client::PrepareUpdateMessage(Update &aUpdate)
 
     // Prepare Update Header
 
-    SuccessOrExit(error = aUpdate.AppendUpdateHeader(mCurMessageId));
+    SuccessOrExit(error = aUpdate.AppendUpdateHeader(aSession.GetMessageId()));
 
     // Prepare Zone section
 
@@ -1111,13 +1406,13 @@ Error Client::PrepareUpdateMessage(Update &aUpdate)
 
     // Prepare Update section
 
-    SuccessOrExit(error = AppendServiceInstructions(aUpdate));
-    SuccessOrExit(error = AppendHostDescriptionInstruction(aUpdate));
+    SuccessOrExit(error = AppendServiceInstructions(aUpdate, aSession));
+    SuccessOrExit(error = AppendHostDescriptionInstruction(aUpdate, aSession));
     aUpdate.UpdateRecordCountInUpdateHeader();
 
     // Prepare Additional Data section
 
-    SuccessOrExit(error = aUpdate.AppendUpdateLeaseOptRecord(mLease, mKeyLease));
+    SuccessOrExit(error = aUpdate.AppendUpdateLeaseOptRecord(aSession.GetLease(), aSession.GetKeyLease()));
     SuccessOrExit(error = aUpdate.AppendSignature(kAppendEmptySignature));
 
 exit:
@@ -1200,11 +1495,12 @@ exit:
 }
 #endif //  OPENTHREAD_CONFIG_PLATFORM_KEY_REFERENCES_ENABLE
 
-Error Client::AppendServiceInstructions(Update &aUpdate)
+Error Client::AppendServiceInstructions(Update &aUpdate, Session &aSession)
 {
-    Error error = kErrorNone;
+    Error   error     = kErrorNone;
+    uint8_t sessionId = aSession.GetSessionId();
 
-    if ((mHostInfo.GetState() == kToRemove) || (mHostInfo.GetState() == kRemoving))
+    if ((mHostInfo.GetState(sessionId) == kToRemove) || (mHostInfo.GetState(sessionId) == kRemoving))
     {
         // When host is being removed, there is no need to include
         // services in the message (server is expected to remove any
@@ -1214,16 +1510,16 @@ Error Client::AppendServiceInstructions(Update &aUpdate)
 
         for (Service &service : mServices)
         {
-            service.MarkAsAppendedInMessage();
+            service.MarkAsAppendedInMessage(sessionId);
         }
 
-        mLease    = 0;
-        mKeyLease = mShouldRemoveKeyLease ? 0 : mDefaultKeyLease;
+        aSession.SetLease(0);
+        aSession.SetKeyLease(mShouldRemoveKeyLease ? 0 : mDefaultKeyLease);
         ExitNow();
     }
 
-    mLease    = kUnspecifiedInterval;
-    mKeyLease = kUnspecifiedInterval;
+    aSession.SetLease(kUnspecifiedInterval);
+    aSession.SetKeyLease(kUnspecifiedInterval);
 
     // We first go through all services which are being updated (in any
     // of `...ing` states) and determine the lease and key lease intervals
@@ -1235,20 +1531,20 @@ Error Client::AppendServiceInstructions(Update &aUpdate)
         uint32_t lease    = DetermineLeaseInterval(service.GetLease(), mDefaultLease);
         uint32_t keyLease = Max(DetermineLeaseInterval(service.GetKeyLease(), mDefaultKeyLease), lease);
 
-        service.ClearAppendedInMessageFlag();
+        service.ClearAppendedInMessageFlag(sessionId);
 
-        switch (service.GetState())
+        switch (service.GetState(sessionId))
         {
         case kAdding:
         case kRefreshing:
-            OT_ASSERT((mLease == kUnspecifiedInterval) || (mLease == lease));
-            mLease = lease;
+            OT_ASSERT((aSession.GetLease() == kUnspecifiedInterval) || (aSession.GetLease() == lease));
+            aSession.SetLease(lease);
 
             OT_FALL_THROUGH;
 
         case kRemoving:
-            OT_ASSERT((mKeyLease == kUnspecifiedInterval) || (mKeyLease == keyLease));
-            mKeyLease = keyLease;
+            OT_ASSERT((aSession.GetKeyLease() == kUnspecifiedInterval) || (aSession.GetKeyLease() == keyLease));
+            aSession.SetKeyLease(keyLease);
             break;
 
         case kToAdd:
@@ -1270,11 +1566,12 @@ Error Client::AppendServiceInstructions(Update &aUpdate)
         // They may be added from the loop below once the lease intervals
         // are determined.
 
-        if ((service.GetState() != kRegistered) && CanAppendService(service))
+        if ((service.GetState(sessionId) != kRegistered) && CanAppendService(service, aSession))
         {
-            bool removing = (service.GetState() == kToRemove) || (service.GetState() == kRemoving);
+            bool removing = (service.GetState(sessionId) == kToRemove) || (service.GetState(sessionId) == kRemoving);
 
-            SuccessOrExit(error = aUpdate.AppendServiceInstruction(service, DetermineTtl(), removing));
+            service.MarkAsAppendedInMessage(sessionId);
+            SuccessOrExit(error = aUpdate.AppendServiceInstruction(service, DetermineTtl(aSession), removing));
 
             if (aUpdate.IsSingleServiceMode())
             {
@@ -1289,15 +1586,18 @@ Error Client::AppendServiceInstructions(Update &aUpdate)
     {
         for (Service &service : mServices)
         {
-            if ((service.GetState() == kRegistered) && CanAppendService(service) && ShouldRenewEarly(service))
+            if ((service.GetState(sessionId) == kRegistered) && CanAppendService(service, aSession) &&
+                ShouldRenewEarly(service, aSession))
             {
                 // If the lease needs to be renewed or if we are close to the
                 // renewal time of a registered service, we refresh the service
                 // early and include it in this update. This helps put more
                 // services on the same lease refresh schedule.
 
-                service.SetState(kToRefresh);
-                SuccessOrExit(error = aUpdate.AppendServiceInstruction(service, DetermineTtl(), false /*aRemoving*/));
+                service.SetState(kToRefresh, sessionId);
+                service.MarkAsAppendedInMessage(sessionId);
+                SuccessOrExit(
+                    error = aUpdate.AppendServiceInstruction(service, DetermineTtl(aSession), false /*aRemoving*/));
             }
         }
     }
@@ -1306,20 +1606,20 @@ Error Client::AppendServiceInstructions(Update &aUpdate)
     // services included in the message. If they are not yet set we
     // use the default intervals.
 
-    mLease    = DetermineLeaseInterval(mLease, mDefaultLease);
-    mKeyLease = DetermineLeaseInterval(mKeyLease, mDefaultKeyLease);
+    aSession.SetLease(DetermineLeaseInterval(aSession.GetLease(), mDefaultLease));
+    aSession.SetKeyLease(DetermineLeaseInterval(aSession.GetKeyLease(), mDefaultKeyLease));
 
     // When message only contains removal of a previously registered
     // service, then `mKeyLease` is set but `mLease` remains unspecified.
     // In such a case, we end up using `mDefaultLease` but then we need
     // to make sure it is not greater than the selected `mKeyLease`.
 
-    mLease = Min(mLease, mKeyLease);
+    aSession.SetLease(Min(aSession.GetLease(), aSession.GetKeyLease()));
 
 #if OPENTHREAD_CONFIG_REFERENCE_DEVICE_ENABLE
     if (mUseShortLeaseOption)
     {
-        mKeyLease = mLease;
+        aSession.SetKeyLease(mSession.GetLease());
     }
 #endif
 
@@ -1327,7 +1627,7 @@ exit:
     return error;
 }
 
-bool Client::CanAppendService(const Service &aService)
+bool Client::CanAppendService(const Service &aService, Session &aSession)
 {
     // Check the lease intervals associated with `aService` to see if
     // it can be included in this message. When removing a service,
@@ -1339,24 +1639,24 @@ bool Client::CanAppendService(const Service &aService)
     uint32_t lease     = DetermineLeaseInterval(aService.GetLease(), mDefaultLease);
     uint32_t keyLease  = Max(DetermineLeaseInterval(aService.GetKeyLease(), mDefaultKeyLease), lease);
 
-    switch (aService.GetState())
+    switch (aService.GetState(aSession.GetSessionId()))
     {
     case kToAdd:
     case kAdding:
     case kToRefresh:
     case kRefreshing:
     case kRegistered:
-        VerifyOrExit((mLease == kUnspecifiedInterval) || (mLease == lease));
-        VerifyOrExit((mKeyLease == kUnspecifiedInterval) || (mKeyLease == keyLease));
-        mLease    = lease;
-        mKeyLease = keyLease;
+        VerifyOrExit((aSession.GetLease() == kUnspecifiedInterval) || (aSession.GetLease() == lease));
+        VerifyOrExit((aSession.GetKeyLease() == kUnspecifiedInterval) || (aSession.GetKeyLease() == keyLease));
+        aSession.SetLease(lease);
+        aSession.SetKeyLease(keyLease);
         canAppend = true;
         break;
 
     case kToRemove:
     case kRemoving:
-        VerifyOrExit((mKeyLease == kUnspecifiedInterval) || (mKeyLease == keyLease));
-        mKeyLease = keyLease;
+        VerifyOrExit((aSession.GetKeyLease() == kUnspecifiedInterval) || (aSession.GetKeyLease() == keyLease));
+        aSession.SetKeyLease(keyLease);
         canAppend = true;
         break;
 
@@ -1376,8 +1676,6 @@ Error Client::Update::AppendServiceInstruction(Service &aService, uint32_t aTtl,
     uint16_t            serviceNameOffset;
     uint16_t            instanceNameOffset;
     uint16_t            offset;
-
-    aService.MarkAsAppendedInMessage();
 
     //----------------------------------
     // Service Discovery Instruction
@@ -1488,10 +1786,10 @@ exit:
     return error;
 }
 
-Error Client::AppendHostDescriptionInstruction(Update &aUpdate)
+Error Client::AppendHostDescriptionInstruction(Update &aUpdate, Session &aSession)
 {
     Error    error = kErrorNone;
-    uint32_t ttl   = DetermineTtl();
+    uint32_t ttl   = DetermineTtl(aSession);
 
     //----------------------------------
     // Host Description Instruction
@@ -1503,45 +1801,58 @@ Error Client::AppendHostDescriptionInstruction(Update &aUpdate)
 
     // AAAA RRs
 
-    if (mHostInfo.IsAutoAddressEnabled())
+    if (aSession.GetSessionId() == kSrpClientId)
     {
-        // Append all preferred addresses on Thread netif excluding link-local
-        // and mesh-local addresses. If no address is appended, we include
-        // the mesh local EID.
-
-        mAutoHostAddressCount = 0;
-
-        for (Ip6::Netif::UnicastAddress &unicastAddress : Get<ThreadNetif>().GetUnicastAddresses())
+        if (mHostInfo.IsAutoAddressEnabled())
         {
-            if (ShouldHostAutoAddressRegister(unicastAddress))
+            // Append all preferred addresses on Thread netif excluding link-local
+            // and mesh-local addresses. If no address is appended, we include
+            // the mesh local EID.
+
+            mAutoHostAddressCount = 0;
+
+            for (Ip6::Netif::UnicastAddress &unicastAddress : Get<ThreadNetif>().GetUnicastAddresses())
             {
-                SuccessOrExit(error = aUpdate.AppendAaaaRecord(unicastAddress.GetAddress(), ttl));
-                unicastAddress.mSrpRegistered = true;
+                if (ShouldHostAutoAddressRegister(unicastAddress))
+                {
+                    SuccessOrExit(error = aUpdate.AppendAaaaRecord(unicastAddress.GetAddress(), ttl));
+                    unicastAddress.mSrpRegistered = true;
+                    mAutoHostAddressCount++;
+                }
+                else
+                {
+                    unicastAddress.mSrpRegistered = false;
+                }
+            }
+
+            if (mAutoHostAddressCount == 0)
+            {
+                Ip6::Netif::UnicastAddress &mlEid = Get<Mle::Mle>().GetMeshLocalEidUnicastAddress();
+
+                SuccessOrExit(error = aUpdate.AppendAaaaRecord(mlEid.GetAddress(), ttl));
+                mlEid.mSrpRegistered = true;
                 mAutoHostAddressCount++;
             }
-            else
+        }
+        else
+        {
+            for (uint8_t index = 0; index < mHostInfo.GetNumAddresses(); index++)
             {
-                unicastAddress.mSrpRegistered = false;
+                SuccessOrExit(error = aUpdate.AppendAaaaRecord(mHostInfo.GetAddress(index), ttl));
             }
         }
-
-        if (mAutoHostAddressCount == 0)
-        {
-            Ip6::Netif::UnicastAddress &mlEid = Get<Mle::Mle>().GetMeshLocalEidUnicastAddress();
-
-            SuccessOrExit(error = aUpdate.AppendAaaaRecord(mlEid.GetAddress(), ttl));
-            mlEid.mSrpRegistered = true;
-            mAutoHostAddressCount++;
-        }
+#if OPENTHREAD_CONFIG_P2P_ENABLE
     }
     else
     {
-        for (uint8_t index = 0; index < mHostInfo.GetNumAddresses(); index++)
-        {
-            SuccessOrExit(error = aUpdate.AppendAaaaRecord(mHostInfo.GetAddress(index), ttl));
-        }
-    }
+        Ip6::Address peerAddress;
+        Peer        *peer = Get<PeerTable>().GetPeerAtIndex(aSession.GetSessionId());
+        VerifyOrExit(peer != nullptr, error = kErrorNotFound);
 
+        peer->GetLinkLocalIp6Address(peerAddress);
+        SuccessOrExit(error = aUpdate.AppendAaaaRecord(peerAddress, ttl));
+#endif
+    }
     // KEY RR
 
     SuccessOrExit(error = aUpdate.AppendHostName());
@@ -1832,38 +2143,36 @@ void Client::HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessag
     ProcessResponse(aMessage);
 }
 
-void Client::ProcessResponse(Message &aMessage)
+bool Client::IsValidStateToProcessResponse(State aState) const
 {
-    static const ItemState kNewStateOnUpdateDone[]{
-        /* (0) kToAdd      -> */ kToAdd,
-        /* (1) kAdding     -> */ kRegistered,
-        /* (2) kToRefresh  -> */ kToRefresh,
-        /* (3) kRefreshing -> */ kRegistered,
-        /* (4) kToRemove   -> */ kToRemove,
-        /* (5) kRemoving   -> */ kRemoved,
-        /* (6) kRegistered -> */ kRegistered,
-        /* (7) kRemoved    -> */ kRemoved,
-    };
+    bool ret = false;
 
-    Error               error = kErrorNone;
-    Dns::UpdateHeader   header;
-    LinkedList<Service> removedServices;
-    Response            response(aMessage);
-
-    switch (GetState())
+    switch (aState)
     {
     case kStateToUpdate:
     case kStateUpdating:
     case kStateToRetry:
+        ret = true;
         break;
     case kStateStopped:
     case kStatePaused:
     case kStateUpdated:
-        ExitNow();
+        ret = false;
+        break;
     }
 
+    return ret;
+}
+
+void Client::ProcessResponse(Message &aMessage)
+{
+    Error             error = kErrorNone;
+    Dns::UpdateHeader header;
+    Response          response(aMessage);
+
+    VerifyOrExit(IsValidStateToProcessResponse(GetState()));
     SuccessOrExit(error = response.ReadUpdateHeader(header));
-    VerifyOrExit(header.GetMessageId() == mCurMessageId, error = kErrorDrop);
+    VerifyOrExit(header.GetMessageId() == mSession.GetMessageId(), error = kErrorDrop);
 
     if (!Get<Mle::Mle>().IsRxOnWhenIdle())
     {
@@ -1894,8 +2203,8 @@ void Client::ProcessResponse(Message &aMessage)
         // already scheduled for the current wait interval when state
         // was changed to `kStateUpdating`.
 
-        LogRetryWaitInterval();
-        GrowRetryWaitInterval();
+        mSession.LogRetryWaitInterval();
+        mSession.GrowRetryWaitInterval();
         SetState(kStateToRetry);
         InvokeCallback(error);
 
@@ -1922,41 +2231,12 @@ void Client::ProcessResponse(Message &aMessage)
         ExitNow(error = kErrorNone);
     }
 
-    SuccessOrExit(error = response.ProcessRecords(header, mLease, mKeyLease));
+    SuccessOrExit(error = response.ProcessRecords(header, mSession.mLease, mSession.mKeyLease));
 
-    // Calculate the lease renew time based on update message tx time
-    // and the lease time. `kLeaseRenewGuardInterval` is used to
-    // ensure that we renew the lease before server expires it. In the
-    // unlikely (but maybe useful for testing) case where the accepted
-    // lease interval is too short (shorter than twice the guard time)
-    // we just use half of the accepted lease interval.
+    UpdateStateAndLeaseRenewTime(mSession);
 
-    if (mLease > 2 * kLeaseRenewGuardInterval)
-    {
-        uint32_t interval = Time::SecToMsec(mLease - kLeaseRenewGuardInterval);
-
-        mLeaseRenewTime += Random::NonCrypto::AddJitter(interval, kLeaseRenewJitter);
-    }
-    else
-    {
-        mLeaseRenewTime += Time::SecToMsec(mLease) / 2;
-    }
-
-    for (Service &service : mServices)
-    {
-        if ((service.GetState() == kAdding) || (service.GetState() == kRefreshing))
-        {
-            service.SetLeaseRenewTime(mLeaseRenewTime);
-        }
-    }
-
-    // State changes:
-    //   kAdding     -> kRegistered
-    //   kRefreshing -> kRegistered
-    //   kRemoving   -> kRemoved
-
-    ChangeHostAndServiceStates(kNewStateOnUpdateDone, kForServicesAppendedInMessage);
-
+    mSession.ResetRetryWaitInterval();
+    SetState(kStateUpdated);
     HandleUpdateDone();
     UpdateState();
 
@@ -1967,7 +2247,55 @@ exit:
     }
 }
 
-void Client::SelectNewMessageId(void)
+void Client::UpdateStateAndLeaseRenewTime(Session &aSession)
+{
+    static const ItemState kNewStateOnUpdateDone[]{
+        /* (0) kToAdd      -> */ kToAdd,
+        /* (1) kAdding     -> */ kRegistered,
+        /* (2) kToRefresh  -> */ kToRefresh,
+        /* (3) kRefreshing -> */ kRegistered,
+        /* (4) kToRemove   -> */ kToRemove,
+        /* (5) kRemoving   -> */ kRemoved,
+        /* (6) kRegistered -> */ kRegistered,
+        /* (7) kRemoved    -> */ kRemoved,
+    };
+
+    // Calculate the lease renew time based on update message tx time
+    // and the lease time. `kLeaseRenewGuardInterval` is used to
+    // ensure that we renew the lease before server expires it. In the
+    // unlikely (but maybe useful for testing) case where the accepted
+    // lease interval is too short (shorter than twice the guard time)
+    // we just use half of the accepted lease interval.
+
+    if (aSession.GetLease() > 2 * kLeaseRenewGuardInterval)
+    {
+        uint32_t interval = Time::SecToMsec(aSession.GetLease() - kLeaseRenewGuardInterval);
+
+        aSession.AddLeaseRenewTime(Random::NonCrypto::AddJitter(interval, kLeaseRenewJitter));
+    }
+    else
+    {
+        aSession.AddLeaseRenewTime(Time::SecToMsec(aSession.GetLease()) / 2);
+    }
+
+    for (Service &service : mServices)
+    {
+        if ((service.GetState(aSession.GetSessionId()) == kAdding) ||
+            (service.GetState(aSession.GetSessionId()) == kRefreshing))
+        {
+            service.SetLeaseRenewTime(aSession.GetLeaseRenewTime());
+        }
+    }
+
+    // State changes:
+    //   kAdding     -> kRegistered
+    //   kRefreshing -> kRegistered
+    //   kRemoving   -> kRemoved
+
+    ChangeHostAndServiceStates(kNewStateOnUpdateDone, kForServicesAppendedInMessage, aSession);
+}
+
+void Client::Session::SelectNewMessageId(void)
 {
     uint16_t oldId = mCurMessageId;
 
@@ -1982,21 +2310,34 @@ void Client::HandleUpdateDone(void)
     HostInfo            hostInfoCopy = mHostInfo;
     LinkedList<Service> removedServices;
 
-    if (mHostInfo.GetState() == kRemoved)
+    if (mHostInfo.AllSessionInState(kRemoved))
     {
         mHostInfo.Clear();
     }
 
-    ResetRetryWaitInterval();
-    SetState(kStateUpdated);
-
     GetRemovedServices(removedServices);
+
+    /*
+        for (Service &service : mServices)
+        {
+            service.LogStates();
+            LogInfo("Service States: %s", service.StatesToString().AsCString());
+        }
+    */
+
     InvokeCallback(kErrorNone, hostInfoCopy, removedServices.GetHead());
 }
 
 void Client::GetRemovedServices(LinkedList<Service> &aRemovedServices)
 {
     mServices.RemoveAllMatching(aRemovedServices, kRemoved);
+
+#if OPENTHREAD_CONFIG_P2P_ENABLE
+    for (Service &service : aRemovedServices)
+    {
+        service.FreeMetadataArray();
+    }
+#endif
 }
 
 Error Client::Response::ReadUpdateHeader(Dns::UpdateHeader &aHeader)
@@ -2127,90 +2468,7 @@ void Client::UpdateState(void)
     bool         shouldUpdate = false;
 
     VerifyOrExit((GetState() != kStateStopped) && (GetState() != kStatePaused));
-    VerifyOrExit(mHostInfo.GetName() != nullptr);
-
-    // Go through the host info and all the services to check if there
-    // are any new changes (i.e., anything new to add or remove). This
-    // is used to determine whether to send an SRP update message or
-    // not. Also keep track of the earliest renew time among the
-    // previously registered services. This is used to schedule the
-    // timer for next refresh.
-
-    switch (mHostInfo.GetState())
-    {
-    case kAdding:
-    case kRefreshing:
-    case kRemoving:
-        break;
-
-    case kRegistered:
-        if (nextRenewTime.GetNow() < mLeaseRenewTime)
-        {
-            break;
-        }
-
-        mHostInfo.SetState(kToRefresh);
-
-        // Fall through
-
-    case kToAdd:
-    case kToRefresh:
-        // Make sure we have at least one service and at least one
-        // host address, otherwise no need to send SRP update message.
-        // The exception is when removing host info where we allow
-        // for empty service list.
-        VerifyOrExit(!mServices.IsEmpty() && (mHostInfo.IsAutoAddressEnabled() || (mHostInfo.GetNumAddresses() > 0)));
-
-        // Fall through
-
-    case kToRemove:
-        shouldUpdate = true;
-        break;
-
-    case kRemoved:
-        ExitNow();
-    }
-
-    // If host info is being removed, we skip over checking service list
-    // for new adds (or removes). This handles the situation where while
-    // remove is ongoing and before we get a response from the server,
-    // user adds a new service to be registered. We wait for remove to
-    // finish (receive response from server) before starting with a new
-    // service adds.
-
-    if (mHostInfo.GetState() != kRemoving)
-    {
-        for (Service &service : mServices)
-        {
-            switch (service.GetState())
-            {
-            case kToAdd:
-            case kToRefresh:
-            case kToRemove:
-                shouldUpdate = true;
-                break;
-
-            case kRegistered:
-                if (service.GetLeaseRenewTime() <= nextRenewTime.GetNow())
-                {
-                    service.SetState(kToRefresh);
-                    shouldUpdate = true;
-                }
-                else
-                {
-                    nextRenewTime.UpdateIfEarlier(service.GetLeaseRenewTime());
-                }
-
-                break;
-
-            case kAdding:
-            case kRefreshing:
-            case kRemoving:
-            case kRemoved:
-                break;
-            }
-        }
-    }
+    SuccessOrExit(UpdateHostAndServiceState(mSession, shouldUpdate, nextRenewTime));
 
     if (shouldUpdate)
     {
@@ -2227,7 +2485,109 @@ exit:
     return;
 }
 
-void Client::GrowRetryWaitInterval(void)
+Error Client::UpdateHostAndServiceState(Session &aSession, bool &aShouldUpdate, NextFireTime &aNextRenewTime)
+{
+    Error error = kErrorInvalidState;
+
+    VerifyOrExit(mHostInfo.GetName() != nullptr);
+
+    aShouldUpdate = false;
+
+    // Go through the host info and all the services to check if there
+    // are any new changes (i.e., anything new to add or remove). This
+    // is used to determine whether to send an SRP update message or
+    // not. Also keep track of the earliest renew time among the
+    // previously registered services. This is used to schedule the
+    // timer for next refresh.
+
+    switch (mHostInfo.GetState(aSession.GetSessionId()))
+    {
+    case kAdding:
+    case kRefreshing:
+    case kRemoving:
+        break;
+
+    case kRegistered:
+        if (aNextRenewTime.GetNow() < aSession.GetLeaseRenewTime())
+        {
+            break;
+        }
+
+        mHostInfo.SetState(kToRefresh, aSession.GetSessionId());
+
+        // Fall through
+
+    case kToAdd:
+    case kToRefresh:
+        // Make sure we have at least one service and at least one
+        // host address, otherwise no need to send SRP update message.
+        // The exception is when removing host info where we allow
+        // for empty service list.
+        VerifyOrExit(!mServices.IsEmpty());
+
+        if (aSession.GetSessionId() == kSrpClientId)
+        {
+            VerifyOrExit((mHostInfo.IsAutoAddressEnabled() || (mHostInfo.GetNumAddresses() > 0)));
+        }
+
+        // Fall through
+
+    case kToRemove:
+        aShouldUpdate = true;
+        break;
+
+    case kRemoved:
+        ExitNow();
+    }
+
+    // If host info is being removed, we skip over checking service list
+    // for new adds (or removes). This handles the situation where while
+    // remove is ongoing and before we get a response from the server,
+    // user adds a new service to be registered. We wait for remove to
+    // finish (receive response from server) before starting with a new
+    // service adds.
+
+    if (mHostInfo.GetState(aSession.GetSessionId()) != kRemoving)
+    {
+        for (Service &service : mServices)
+        {
+            switch (service.GetState(aSession.GetSessionId()))
+            {
+            case kToAdd:
+            case kToRefresh:
+            case kToRemove:
+                aShouldUpdate = true;
+                break;
+
+            case kRegistered:
+                if (service.GetLeaseRenewTime(aSession.GetSessionId()) <= aNextRenewTime.GetNow())
+                {
+                    service.SetState(kToRefresh, aSession.GetSessionId());
+                    aShouldUpdate = true;
+                }
+                else
+                {
+                    aNextRenewTime.UpdateIfEarlier(service.GetLeaseRenewTime(aSession.GetSessionId()));
+                }
+
+                break;
+
+            case kAdding:
+            case kRefreshing:
+            case kRemoving:
+            case kRemoved:
+                break;
+            }
+        }
+    }
+
+    error = kErrorNone;
+
+exit:
+    return error;
+}
+
+void Client::Session::GrowRetryWaitInterval(void)
 {
     mRetryWaitInterval =
         mRetryWaitInterval / kRetryIntervalGrowthFactorDenominator * kRetryIntervalGrowthFactorNumerator;
@@ -2247,18 +2607,18 @@ uint32_t Client::DetermineLeaseInterval(uint32_t aInterval, uint32_t aDefaultInt
     return Min(kMaxLease, (aInterval != kUnspecifiedInterval) ? aInterval : aDefaultInterval);
 }
 
-uint32_t Client::DetermineTtl(void) const
+uint32_t Client::DetermineTtl(const Session &aSession) const
 {
     // Determine the TTL to use based on current `mLease`.
     // If `mLease == 0`, it indicates we are removing host
     // and so we use `mDefaultLease` instead.
 
-    uint32_t lease = (mLease == 0) ? mDefaultLease : mLease;
+    uint32_t lease = (aSession.GetLease() == 0) ? mDefaultLease : aSession.GetLease();
 
     return (mTtl == kUnspecifiedInterval) ? lease : Min(mTtl, lease);
 }
 
-bool Client::ShouldRenewEarly(const Service &aService) const
+bool Client::ShouldRenewEarly(const Service &aService, const Session &aSession) const
 {
     // Check if we reached the service renew time or close to it. The
     // "early renew interval" is used to allow early refresh. It is
@@ -2276,7 +2636,7 @@ bool Client::ShouldRenewEarly(const Service &aService) const
     earlyRenewInterval = Time::SecToMsec(DetermineLeaseInterval(aService.GetLease(), mDefaultLease));
     earlyRenewInterval = earlyRenewInterval / kEarlyLeaseRenewFactorDenominator * kEarlyLeaseRenewFactorNumerator;
 
-    shouldRenew = (aService.GetLeaseRenewTime() <= TimerMilli::GetNow() + earlyRenewInterval);
+    shouldRenew = (aService.GetLeaseRenewTime(aSession.GetSessionId()) <= TimerMilli::GetNow() + earlyRenewInterval);
 #else
     OT_UNUSED_VARIABLE(aService);
     shouldRenew = true;
@@ -2299,9 +2659,9 @@ void Client::HandleTimer(void)
         break;
 
     case kStateUpdating:
-        LogRetryWaitInterval();
+        mSession.LogRetryWaitInterval();
         LogInfo("Timed out, no response");
-        GrowRetryWaitInterval();
+        mSession.GrowRetryWaitInterval();
         SetState(kStateToUpdate);
         InvokeCallback(kErrorResponseTimeout);
 
@@ -2703,7 +3063,7 @@ const char *Client::StateToString(State aState)
     return kStateStrings[aState];
 }
 
-void Client::LogRetryWaitInterval(void) const
+void Client::Session::LogRetryWaitInterval(void) const
 {
     constexpr uint16_t kLogInMsecLimit = 5000; // Max interval (in msec) to log the value in msec unit
 

@@ -117,6 +117,7 @@ typedef struct otSrpClientService
     struct otSrpClientService *mNext;          ///< Pointer to next entry in a linked-list (managed by OT core).
     uint32_t                   mLease;         ///< Desired lease interval in sec - zero to use default.
     uint32_t                   mKeyLease;      ///< Desired key lease interval in sec - zero to use default.
+    void                      *mMetadata;      ///< Internal metadata (used by OT core).
 } otSrpClientService;
 
 /**

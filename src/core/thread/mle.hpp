@@ -1210,7 +1210,7 @@ public:
 
 private:
     //------------------------------------------------------------------------------------------------------------------
-    // Constants
+    //  Constants
 
     // All time intervals are in milliseconds
     static constexpr uint32_t kParentRequestRouterTimeout    = 750;  // Wait time after tx of Parent Req to routers
@@ -2038,6 +2038,9 @@ private:
     class P2p : public InstanceLocator
     {
         friend class ot::Instance;
+#if OPENTHREAD_CONFIG_SRP_CLIENT_ENABLE
+        friend class ot::Srp::P2pClient;
+#endif
 
     public:
         P2p(Instance &aInstance);
@@ -2077,6 +2080,7 @@ private:
         void  HandleP2pLinkAcceptVariant(RxInfo &aRxInfo, MessageType aMessageType);
         void  SetWakeupListenerEnabled(void);
         void  ClearPeersInLinkRequestState(void);
+        void  InvokeEventCallback(P2pEvent aEvent, Peer &aPeer);
 
         using P2pLinkTimer = TimerMicroIn<Mle, &Mle::HandleP2pLinkTimer>;
 
@@ -2193,7 +2197,7 @@ private:
                           uint8_t                                  aTlvsLength,
                           const LinkMetrics::Initiator::QueryInfo *aQueryInfo = nullptr);
 #else
-    Error       SendDataRequest(const Ip6::Address &aDestination, const uint8_t *aTlvs, uint8_t aTlvsLength);
+    Error SendDataRequest(const Ip6::Address &aDestination, const uint8_t *aTlvs, uint8_t aTlvsLength);
 #endif
 
 #if OT_SHOULD_LOG_AT(OT_LOG_LEVEL_INFO)

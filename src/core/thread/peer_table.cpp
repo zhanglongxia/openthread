@@ -100,6 +100,17 @@ exit:
     return peer;
 }
 
+Peer *PeerTable::GetPeerAtIndex(uint16_t aPeerIndex)
+{
+    Peer *peer = nullptr;
+
+    VerifyOrExit(aPeerIndex < kMaxPeers);
+    peer = &mPeers[aPeerIndex];
+
+exit:
+    return peer;
+}
+
 const Peer *PeerTable::FindPeer(const Peer::AddressMatcher &aMatcher) const
 {
     const Peer *peer = mPeers;
