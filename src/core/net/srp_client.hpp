@@ -987,12 +987,43 @@ private:
     class Update : public InstanceLocator
     {
     public:
-        Update(Instance &aInstance);
+        class Info
+        {
+            friend Update;
+
+        public:
+            Info(uint32_t aLease, uint32_t aKeyLease, uint16_t aCurMessageId)
+                : mLease(aLease)
+                , mKeyLease(aKeyLease)
+                , mCurMessageId(aCurMessageId)
+            {
+            }
+
+            uint32_t GetLease(void) const { return mLease; }
+            uint32_t GetKeyLease(void) const { return mKeyLease; }
+            uint16_t GetMessageId(void) const { return mCurMessageId; }
+
+        private:
+            void SelectNewMessageId(void);
+
+            uint32_t mLease;
+            uint32_t mKeyLease;
+            uint16_t mCurMessageId;
+        };
+
+        Update(Instance &aInstance, Info &aInfo);
 
         Error    SetMessage(Message *aMessage);
         Message &GetMessage(void) { return *mMessage; }
-        void     ClearMessage(void);
         void     ReleaseMessage(void) { mMessage.Release(); }
+        Error    GenerateUpdateMessage(void);
+
+    private:
+        static constexpr uint16_t kUdpPayloadSize = Ip6::kMaxDatagramLength - sizeof(Ip6::Udp::Header);
+        static constexpr uint16_t kHeaderOffset   = 0;
+        static constexpr uint16_t kUnknownOffset  = 0;
+
+        void     ClearMessage(void);
         uint16_t GetMessageLength(void) const;
         void     SetSingleServiceMode(bool aEnabled) { mSingleServiceMode = aEnabled; }
         bool     IsSingleServiceMode(void) const { return mSingleServiceMode; }
@@ -1008,11 +1039,13 @@ private:
         Error    AppendSignature(SignatureAppendMode aMode);
         Error    UpdateIdAndSignatureInUpdateMessage(uint16_t aMessageId);
         void     UpdateRecordCountInUpdateHeader(void);
-
-    private:
-        static constexpr uint16_t kUdpPayloadSize = Ip6::kMaxDatagramLength - sizeof(Ip6::Udp::Header);
-        static constexpr uint16_t kHeaderOffset   = 0;
-        static constexpr uint16_t kUnknownOffset  = 0;
+        Error    AppendHostDescriptionInstruction(uint32_t aTtl);
+        Error    AppendServiceInstructions(uint32_t &aLease, uint32_t &aKeyLease);
+        Error    PrepareUpdateMessage(Update::Info &aInfo);
+        Error    ReadOrGenerateKey(KeyInfo &aKeyInfo);
+        uint32_t DetermineTtl(uint32_t aLease) const;
+        bool     CanAppendService(const Client::Service &aService, uint32_t &aLease, uint32_t &aKeyLease);
+        bool     ShouldRenewEarly(const Service &aService) const;
 
         OwnedPtr<Message> mMessage;
         uint16_t          mDomainNameOffset;
@@ -1020,6 +1053,7 @@ private:
         uint16_t          mRecordCount;
         uint16_t          mSigRecordOffset;
         KeyInfo           mKeyInfo;
+        Info             &mInfo;
         bool              mSingleServiceMode : 1;
     };
 
@@ -1063,24 +1097,21 @@ private:
     void     InvokeCallback(Error aError, const HostInfo &aHostInfo, const Service *aRemovedServices) const;
     void     HandleHostInfoOrServiceChange(void);
     void     SendUpdate(void);
-    Error    PrepareUpdateMessage(Update &aUpdate);
-    Error    ReadOrGenerateKey(KeyInfo &aKeyInfo);
-    Error    AppendServiceInstructions(Update &aUpdate);
-    bool     CanAppendService(const Service &aService);
-    Error    AppendHostDescriptionInstruction(Update &aUpdate);
     void     HandleUdpReceive(Message &aMessage, const Ip6::MessageInfo &aMessageInfo);
     void     ProcessResponse(Message &aMessage);
     void     SelectNewMessageId(void);
     void     HandleUpdateDone(void);
     void     GetRemovedServices(LinkedList<Service> &aRemovedServices);
     void     UpdateState(void);
+    Error    UpdateHostAndServiceState(TimeMilli aLeaseRenewTime, bool &aShouldUpdate, NextFireTime &aNextRenewTime);
+    void     UpdateLeaseRenewTime(uint32_t aLease, TimeMilli &aLeaseRenewTime);
+    void     UpdateResposneStates(uint32_t aLease, TimeMilli &aLeaseRenewTime);
+    bool     IsValidStateToProcessResponse(State aState) const;
     uint32_t GetRetryWaitInterval(void) const { return mRetryWaitInterval; }
     void     ResetRetryWaitInterval(void) { mRetryWaitInterval = kMinRetryWaitInterval; }
-    void     GrowRetryWaitInterval(void);
-    uint32_t DetermineLeaseInterval(uint32_t aInterval, uint32_t aDefaultInterval) const;
-    uint32_t DetermineTtl(void) const;
-    bool     ShouldRenewEarly(const Service &aService) const;
-    void     HandleTimer(void);
+    static uint32_t DetermineLeaseInterval(uint32_t aInterval, uint32_t aDefaultInterval);
+    static void     GrowRetryWaitInterval(uint32_t &aRetryWaitInterval);
+    void            HandleTimer(void);
 #if OPENTHREAD_CONFIG_SRP_CLIENT_AUTO_START_API_ENABLE
     void  ApplyAutoStartGuardOnAttach(void);
     void  ProcessAutoStart(void);
@@ -1093,9 +1124,9 @@ private:
 
 #if OT_SHOULD_LOG_AT(OT_LOG_LEVEL_INFO)
     static const char *StateToString(State aState);
-    void               LogRetryWaitInterval(void) const;
+    static void        LogRetryWaitInterval(uint32_t aInterval);
 #else
-    void                                 LogRetryWaitInterval(void) const {}
+    static void                          LogRetryWaitInterval(uint32_t) {}
 #endif
 
     static const char kDefaultDomainName[];
